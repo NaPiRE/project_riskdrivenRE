@@ -1,0 +1,4 @@
+name = "napire"
+uuid = "6094d44a-40d9-11e9-15c0-eb5fb323cc95"
+authors = ["Florian Wiesweg <florian.wiesweg@campus.tu-berlin.de>"]
+version = "0.1.0"
