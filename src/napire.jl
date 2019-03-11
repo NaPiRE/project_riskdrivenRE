@@ -54,19 +54,19 @@ function load(filename = "data/napire.csv")
         end
     end
     
-    return data, items, descriptions
+    return (data = data, items = items, descriptions = descriptions)
 end
 
 
 function create_edges(data, from ::Symbol, to ::Symbol, minimum_edge_weight ::Int64)
     edges = Dict{Pair{Symbol, Symbol}, Int64}()
 
-    for from_node in items[from]
-        for to_node in items[to]
+    for from_node in data.items[from]
+        for to_node in data.items[to]
             edges[(from_node => to_node)] = 0
 
-            for i in 1:size(data)[1]
-                if data[i, from_node] && data[i, to_node]
+            for i in 1:size(data.data)[1]
+                if data.data[i, from_node] && data.data[i, to_node]
                     edges[(from_node => to_node)] += 1
                 end
             end
@@ -83,7 +83,7 @@ function gviz_start(ranksep = 2)
     return dot
 end
 
-function print_edges(data, from ::Symbol, to ::Symbol, minimum_edge_weight = 3)
+function print_edges(data, from ::Symbol, to ::Symbol, minimum_edge_weight = 3, penwidth_factor = 5)
     dot = ""
     edges = create_edges(data, from, to, minimum_edge_weight)
     max_edges = maximum(values(edges))
@@ -120,26 +120,27 @@ function gviz_end(dot)
 end
 
 
-function bayesian_network(data, items)
-    graph_edges = create_edges(data, :CAUSES_CODE, :PROBLEMS_CODE, 3)
-    graph_layout = Tuple(keys(graph_edges))
+function bayesian_network(data)
+    # extract graph layout
+    graph_layout = create_edges(data, :CAUSES_CODE, :PROBLEMS_CODE, 3)
+    graph_layout = Tuple(keys(graph_layout))
 
-    relevant_nodes = collect(union(Set(e.first for e in keys(graph_edges)), Set(e.second for e in keys(graph_edges))))
-    println(size(relevant_nodes))
-    println(size([ items[:CAUSES_CODE]; items[:PROBLEMS_CODE] ]))
-    graph_data = data[:, relevant_nodes]
-    #graph_data = DataFrame(colwise(x -> [sum(x)], graph_data), names(graph_data))
+    # remove nodes without edges
+    relevant_nodes = collect(union(Set(e[1] for e in graph_layout), Set(e[2] for e in graph_layout)))
+    graph_data = data.data[:, relevant_nodes]
+
+    # filter completely empty lines
     graph_data = graph_data[sum(convert(Matrix, graph_data), dims = 2)[:] .> 0, :]
-    graph_data = DataFrame(colwise(x -> convert(Array{Int64}, x) + 1, graph_data), names(graph_data))
 
-    #return graph_data
-    #
+    # add one, BayesNets expects state labelling to be 1-based
+    graph_data = DataFrame(colwise(x -> convert(Array{Int64}, x) .+ 1, graph_data), names(graph_data))
+
     return BayesNets.fit(BayesNets.DiscreteBayesNet, graph_data, graph_layout)
 end
 
 
 function run()
-    data, items, descriptions = load()
+    data = load()
 
     dot  = gviz_start()
     dot *= print_edges(data, :CAUSES_CODE, :PROBLEMS_CODE)
@@ -149,7 +150,7 @@ function run()
         display("image/png", gviz_end(dot))
     end
 
-    #bayesian_network(data, items)
+    bayes_net = bayesian_network(data)
 end
 
 end
