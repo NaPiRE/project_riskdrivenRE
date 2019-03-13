@@ -8,6 +8,9 @@ module napire
     import Statistics
 
     include("graphviz.jl")
+    include("napireweb.jl")
+
+    export napireweb
 
     function load(connect::Array{Pair{Symbol,Symbol}, 1} = [ (:CAUSES_CODE => :PROBLEMS_CODE) ];
                     minimum_edge_weight = 3, filename = "data/napire.csv", summary = true)
@@ -211,5 +214,4 @@ module napire
         plot(data; shape = "plaintext", label = label, kwargs...)
     end
     export plot_prediction
-
 end
