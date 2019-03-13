@@ -103,8 +103,17 @@ module graphviz
         out = [ ]
         for (key, value) in props
             key = string(key)
-            value = __to_dot_string(value)
-            push!(out, "$key = \"$value\"")
+
+            if value[1] == '<' && value[end] == '>'
+                # HTML strings: pass as they are, without escaping
+                # since we cannot do that for the caller
+            else
+                # Normal strings: escape for the caller
+                value = __to_dot_string(value)
+                value = "\"$value\""
+            end
+
+            push!(out, "$key = $value")
         end
 
         return " [" * join(out, ", ") * "];\n"

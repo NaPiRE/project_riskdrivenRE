@@ -123,10 +123,17 @@ module napire
         return nodes, edges
     end
 
+    plot_label(n) = string(n)[1:1] * string(n)[end - 2:end]
+    export plot_label
 
-    function plot(data, penwidth_factor = 5, ranksep = 3)
+    function plot(data; shape = "ellipse", penwidth_factor = 5, ranksep = 3, label = plot_label)
         graph_layout = data.edges
         graph = graphviz.Dot(keys(graph_layout))
+
+        for node in data.nodes
+            graphviz.set(graph, node, graphviz.label, label(node))
+            graphviz.set(graph, node, graphviz.shape, shape)
+        end
 
         graphviz.set(graph, graphviz.ranksep, ranksep)
 
@@ -137,13 +144,7 @@ module napire
         for ((n1, n2), n_edges) in graph_layout
             edge_weight = n_edges / max_edges
             alpha = @sprintf("%02x", round(edge_weight * 255))
-            n1l = string(n1)
-            n1l = n1l[1:1] * n1l[end-2:end]
-            n2l = string(n2)
-            n2l = n2l[1:1] * n2l[end-2:end]
 
-            graphviz.set(graph, n1, graphviz.label, n1l)
-            graphviz.set(graph, n2, graphviz.label, n2l)
             graphviz.set(graph, (n1 => n2), graphviz.penwidth, edge_weight * penwidth_factor)
             graphviz.set(graph, (n1 => n2), graphviz.color, "#000000$(alpha)")
         end
@@ -169,19 +170,46 @@ module napire
     end
     export bayesian_train
 
-    function plot_predict(bn, query::Symbol, evidence::Dict{Symbol, Int64}, inference_alg::BayesNets.InferenceMethod = BayesNets.BayesNets.GibbsSamplingNodewise())
-        plot_predict(bn, Set([ query ]), evidence, inference_alg)
+    function predict(bn, query::Symbol, evidence::Dict{Symbol, Int64}, inference_alg::BayesNets.InferenceMethod = BayesNets.BayesNets.GibbsSamplingNodewise())
+        predict(bn, Set([ query ]), evidence, inference_alg)
     end
 
-    function plot_predict(bn, query::Set{Symbol}, evidence::Dict{Symbol, Int64}, inference_alg::BayesNets.InferenceMethod = BayesNets.BayesNets.GibbsSamplingNodewise())
-        #convert(DataFrame, BayesNets.infer(inference_alg, bn, collect(query), evidence = convert(Dict{Symbol, Any}, evidence)))
-        f = BayesNets.infer(inference_alg, bn, collect(query), evidence = convert(Dict{Symbol, Any}, evidence))
-        results = Dict{Symbol, Int64}()
+    function predict(bn, query::Set{Symbol}, evidence::Dict{Symbol, Bool}, inference_alg::BayesNets.InferenceMethod = BayesNets.BayesNets.GibbsSamplingNodewise())
+        evidence = Dict{Symbol, Any}( kv.first => convert(Int8, kv.second) + 1 for kv in evidence)
+
+        f = BayesNets.infer(inference_alg, bn, collect(query), evidence = evidence)
+        results = Dict{Symbol, Float64}()
         for symbol in query
             results[symbol] = sum(f[BayesNets.Assignment(symbol => 2)].potential)
         end
+
         return results
     end
-    export plot_predict
+    export predict
+
+    function plot_prediction(data, evidence, results; half_cell_width = 40, kwargs...)
+        function label(node)
+            label = """< <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">"""
+
+            label *= """<TR><TD COLSPAN="2">$(plot_label(node))</TD></TR>"""
+            if haskey(results, node)
+                false_val = @sprintf("%d", round( (1 - results[node]) * 100))
+                true_val = @sprintf("%d", round(results[node] * 100))
+                label *= """<TR><TD WIDTH="$half_cell_width">$(false_val)%</TD><TD WIDTH="$half_cell_width">$(true_val)%</TD></TR>"""
+            end
+
+            if haskey(evidence, node)
+                println(node)
+
+                false_color = evidence[node] ? "white" : "grey"
+                true_color = evidence[node] ? "grey" : "white"
+                label *= """<TR><TD WIDTH="$half_cell_width" BGCOLOR="$false_color">  </TD><TD WIDTH="$half_cell_width" BGCOLOR="$true_color">  </TD></TR>"""
+            end
+            label *= "</TABLE>>"
+        end
+
+        plot(data; shape = "plaintext", label = label, kwargs...)
+    end
+    export plot_prediction
 
 end
