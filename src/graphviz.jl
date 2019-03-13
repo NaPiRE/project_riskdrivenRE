@@ -25,7 +25,11 @@ module graphviz
     @enum OutputType begin
         dot
         png
+        xdg_open
+        display
     end
+
+    default_output_type = (isdefined(Main, :IJulia) && Main.IJulia.inited) ? display : xdg_open
 
     struct Dot
         edges::Array{Pair{Symbol, Symbol}}
@@ -63,6 +67,10 @@ module graphviz
     end
     export set
 
+    function plot(graph::Dot, output_type::OutputType = default_output_type)
+        plot(graph, Val(output_type))
+    end
+
     function plot(graph::Dot, output_type::Val{dot})
         dotsrc = "digraph out {\n"
         dotsrc *= "graph" * __to_dot_props(graph.graph_props)
@@ -93,6 +101,20 @@ module graphviz
             rm(pngfile, force = true)
         end
     end
+
+    function plot(graph::Dot, output_type::Val{display})
+        pngdata = plot(graph, Val(png))
+        Base.display("image/png", pngdata)
+    end
+
+    function plot(graph::Dot, output_type::Val{xdg_open})
+        pngdata = plot(graph, Val(png))
+
+        pngfile = tempname()
+        write(pngfile, pngdata)
+        run(`xdg-open $pngfile`)
+    end
+
     export plot
 
     function __to_dot_string(obj::Any)

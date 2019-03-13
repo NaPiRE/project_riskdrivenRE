@@ -9,8 +9,8 @@ module napire
 
     include("graphviz.jl")
     include("napireweb.jl")
-
     export napireweb
+    export graphviz
 
     function load(connect::Array{Pair{Symbol,Symbol}, 1} = [ (:CAUSES_CODE => :PROBLEMS_CODE) ];
                     minimum_edge_weight = 3, filename = "data/napire.csv", summary = true)
@@ -129,7 +129,7 @@ module napire
     plot_label(n) = string(n)[1:1] * string(n)[end - 2:end]
     export plot_label
 
-    function plot(data; shape = "ellipse", penwidth_factor = 5, ranksep = 3, label = plot_label)
+    function plot(data; shape = "ellipse", penwidth_factor = 5, ranksep = 3, label = plot_label, output_type = graphviz.default_output_type)
         graph_layout = data.edges
         graph = graphviz.Dot(keys(graph_layout))
 
@@ -152,13 +152,7 @@ module napire
             graphviz.set(graph, (n1 => n2), graphviz.color, "#000000$(alpha)")
         end
 
-        png = graphviz.plot(graph, Val(graphviz.png))
-        if isdefined(Main, :IJulia) && Main.IJulia.inited
-            display("image/png", png);
-        else
-            write("napire.png",  png)
-            run(`xdg-open napire.png`);
-        end
+        graphviz.plot(graph, output_type)
     end
     export plot
 
