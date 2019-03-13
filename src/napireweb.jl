@@ -1,14 +1,26 @@
 module napireweb
     using JuliaWebAPI
+    import napire
 
     function apispec() ::Array{APISpec}
         return [
-            APISpec(test, true, Dict())
+            APISpec(show, false, Dict("Content-Type" => "image/png")),
+            APISpec(node_types, true, Dict())
         ]
     end
 
-    function test()
-        return "asdf"
+    function show(minimum_edge_weight; connect = "CAUSES_CODE/PROBLEMS_CODE")
+        connect = split(connect, ".")
+        connect = [ split(c, "/") for c in connect ]
+        connect = [ ( Symbol(c[1]) => Symbol(c[2]) ) for c in connect ]
+        minimum_edge_weight = parse(UInt, minimum_edge_weight)
+
+        data = napire.load(connect; minimum_edge_weight = minimum_edge_weight, summary = false)
+        return napire.plot(data, napire.graphviz.png)
+    end
+
+    function node_types()
+        return collect(keys(napire.load().items))
     end
 
     function start()

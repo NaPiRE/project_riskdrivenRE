@@ -5,7 +5,6 @@ module napire
 
     import BayesNets
     import CSV
-    import Statistics
 
     include("graphviz.jl")
     include("napireweb.jl")
@@ -129,7 +128,7 @@ module napire
     plot_label(n) = string(n)[1:1] * string(n)[end - 2:end]
     export plot_label
 
-    function plot(data; shape = "ellipse", penwidth_factor = 5, ranksep = 3, label = plot_label, output_type = graphviz.default_output_type)
+    function plot(data, output_type = graphviz.default_output_type; shape = "ellipse", penwidth_factor = 5, ranksep = 3, label = plot_label)
         graph_layout = data.edges
         graph = graphviz.Dot(keys(graph_layout))
 
@@ -141,8 +140,6 @@ module napire
         graphviz.set(graph, graphviz.ranksep, ranksep)
 
         max_edges = maximum(values(graph_layout))
-        average_weight = Statistics.mean(values(graph_layout))
-        println("Edges found: $(length(graph_layout)), average weight: $average_weight")
 
         for ((n1, n2), n_edges) in graph_layout
             edge_weight = n_edges / max_edges
