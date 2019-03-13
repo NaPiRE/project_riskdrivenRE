@@ -169,9 +169,19 @@ module napire
     end
     export bayesian_train
 
-    function plot_predict(evidence::Dict{Symbol, Int64}, inference_alg::BayesNets.InferenceMethod = BayesNets.BayesNets.GibbsSamplingNodewise())
-        res = convert(DataFrame, BayesNets.infer(inference_alg, bn, collect(problems), evidence = evidence))
-
+    function plot_predict(bn, query::Symbol, evidence::Dict{Symbol, Int64}, inference_alg::BayesNets.InferenceMethod = BayesNets.BayesNets.GibbsSamplingNodewise())
+        plot_predict(bn, Set([ query ]), evidence, inference_alg)
     end
+
+    function plot_predict(bn, query::Set{Symbol}, evidence::Dict{Symbol, Int64}, inference_alg::BayesNets.InferenceMethod = BayesNets.BayesNets.GibbsSamplingNodewise())
+        #convert(DataFrame, BayesNets.infer(inference_alg, bn, collect(query), evidence = convert(Dict{Symbol, Any}, evidence)))
+        f = BayesNets.infer(inference_alg, bn, collect(query), evidence = convert(Dict{Symbol, Any}, evidence))
+        results = Dict{Symbol, Int64}()
+        for symbol in query
+            results[symbol] = sum(f[BayesNets.Assignment(symbol => 2)].potential)
+        end
+        return results
+    end
+    export plot_predict
 
 end
