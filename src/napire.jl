@@ -9,7 +9,8 @@ module napire
 
     include("graphviz.jl")
 
-    function load(minimum_edge_weight = 3, causes_problems_edges = true, problems_effects_edges = true, filename = "data/napire.csv")
+    function load(connect::Array{Pair{Symbol,Symbol}, 1} = [ (:CAUSES_CODE => :PROBLEMS_CODE) ];
+                    minimum_edge_weight = 3, filename = "data/napire.csv", summary = true)
         #
         # CSV parsing
         #
@@ -64,27 +65,33 @@ module napire
         all_nodes::Set{Symbol} = Set{Symbol}()
         all_edges::Dict{Pair{Symbol, Symbol}, Int64} = Dict{Pair{Symbol, Symbol}, Int64}()
 
-        if causes_problems_edges
-            nodes, edges= __create_edges(data, items, :CAUSES_CODE, :PROBLEMS_CODE, minimum_edge_weight)
+        for connect_pair in connect
+            nodes, edges= __create_edges(data, items, connect_pair.first, connect_pair.second, minimum_edge_weight)
             all_nodes = union(all_nodes, nodes)
-            all_edges = Dict(setdiff(all_edges, edges))
-        end
-
-        if problems_effects_edges
-            nodes, edges = __create_edges(data, items, :PROBLEMS_CODE, :EFFECTS_CODE, minimum_edge_weight)
-            all_nodes = union(all_nodes, nodes)
-            all_edges = Dict(setdiff(all_edges, edges))
+            all_edges = merge(all_edges, edges)
         end
 
         # remove now unused data from previously created structures
-        data = data[collect(all_nodes), :]
+        data = data[:, collect(all_nodes)]
 
         # remove completely empty lines
         data = data[sum(convert(Matrix, data), dims = 2)[:] .> 0, :]
         for key in keys(items)
             items[key] = intersect(items[key], all_nodes)
         end
-        descriptions = setdiff(descriptions, all_nodes)
+
+        for key in keys(descriptions)
+            if !in(key, all_nodes)
+                delete!(descriptions, key)
+            end
+        end
+
+        if summary
+            println("Nodes: ", length(all_nodes))
+            println("Descriptions: ", length(descriptions))
+            println("Edges: ", length(all_edges))
+            println("Samples: ", size(data)[1])
+        end
 
         return (data = data, items = items, descriptions = descriptions,
             edges = all_edges, nodes = all_nodes)
@@ -93,7 +100,6 @@ module napire
 
     function __create_edges(data, items, from ::Symbol, to ::Symbol, minimum_edge_weight)
         edges = Dict{Pair{Symbol, Symbol}, Int64}()
-        nodes = Set{Symbol}()
 
         for from_node in items[from]
             for to_node in items[to]
@@ -101,20 +107,25 @@ module napire
 
                 for i in 1:size(data)[1]
                     if data[i, from_node] && data[i, to_node]
-                        push!(nodes, from_node)
-                        push!(nodes, to_node)
                         edges[(from_node => to_node)] += 1
                     end
                 end
             end
         end
 
-        return nodes, filter((kv) -> kv.second >= minimum_edge_weight, edges)
+        edges = filter((kv) -> kv.second >= minimum_edge_weight, edges)
+        nodes = Set{Symbol}()
+        for (n1, n2) in keys(edges)
+            push!(nodes, n1)
+            push!(nodes, n2)
+        end
+
+        return nodes, edges
     end
 
 
     function plot(data, penwidth_factor = 5, ranksep = 3)
-        graph_layout = merge(data.causes_edges, data.problems_edges)
+        graph_layout = data.edges
         graph = graphviz.Dot(keys(graph_layout))
 
         graphviz.set(graph, graphviz.ranksep, ranksep)
@@ -139,24 +150,24 @@ module napire
 
         png = graphviz.plot(graph, Val(graphviz.png))
         if isdefined(Main, :IJulia) && Main.IJulia.inited
-            display("image/png", png)
+            display("image/png", png);
         else
-           write("napire.png",  png)
+            write("napire.png",  png)
+            run(`xdg-open napire.png`);
         end
     end
     export plot
 
     function bayesian_train(data)
         # extract graph layout
-        graph_layout = data.causes_edges
-        graph_layout = Tuple(keys(graph_layout))
+        graph_layout = Tuple(keys(data.edges))
 
         # add one, BayesNets expects state labelling to be 1-based
-        graph_data = DataFrame(colwise(x -> convert(Array{Int64}, x) .+ 1, graph_data), names(graph_data))
+        graph_data = DataFrame(colwise(x -> convert(Array{Int64}, x) .+ 1, data.data), names(data.data))
 
         return BayesNets.fit(BayesNets.DiscreteBayesNet, graph_data, graph_layout)
     end
-    export bayesian_network
+    export bayesian_train
 
     function plot_predict(evidence::Dict{Symbol, Int64}, inference_alg::BayesNets.InferenceMethod = BayesNets.BayesNets.GibbsSamplingNodewise())
         res = convert(DataFrame, BayesNets.infer(inference_alg, bn, collect(problems), evidence = evidence))
