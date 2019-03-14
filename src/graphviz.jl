@@ -112,6 +112,7 @@ module graphviz
 
         pngfile = tempname()
         write(pngfile, pngdata)
+        atexit(() -> rm(pngfile, force = true))
         run(`xdg-open $pngfile`)
     end
 

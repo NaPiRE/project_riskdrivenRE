@@ -164,14 +164,43 @@ module napire
     end
     export bayesian_train
 
-    function predict(bn, query::Symbol, evidence::Dict{Symbol, Int64}, inference_alg::BayesNets.InferenceMethod = BayesNets.BayesNets.GibbsSamplingNodewise())
-        predict(bn, Set([ query ]), evidence, inference_alg)
+    function add_inference_methods(m = BayesNets)
+        ns = names(m)
+        for n in ns
+            if !isdefined(m, n)
+                continue
+            end
+
+            f = getfield(m, n)
+            if isa(f, Type) && f != BayesNets.InferenceMethod && f <: BayesNets.InferenceMethod
+                inference_methods[string(f)] = f
+            end
+        end
     end
 
-    function predict(bn, query::Set{Symbol}, evidence::Dict{Symbol, Bool}, inference_alg::BayesNets.InferenceMethod = BayesNets.BayesNets.GibbsSamplingNodewise())
+    inference_methods = Dict{String, Type}()
+    add_inference_methods(BayesNets)
+    default_inference_method = inference_methods["BayesNets.GibbsSamplingNodewise"]
+
+    function predict(bn::BayesNets.DiscreteBayesNet, query::Symbol, evidence::Dict{Symbol, Bool}, inference_method::String)
+        predict(bn, Set([ query ]), evidence, inference_methods[inference_method])
+    end
+
+    function predict(bn::BayesNets.DiscreteBayesNet, query::Set{Symbol}, evidence::Dict{Symbol, Bool}, inference_method::String)
+        predict(bn, query, evidence, inference_methods[inference_method])
+    end
+
+    function predict(bn::BayesNets.DiscreteBayesNet, query::Symbol, evidence::Dict{Symbol, Bool},
+                        inference_method::Type = default_inference_method)
+        predict(bn, Set([ query ]), evidence, inference_method)
+    end
+
+    function predict(bn::BayesNets.DiscreteBayesNet, query::Set{Symbol}, evidence::Dict{Symbol, Bool},
+                        inference_method::Type = default_inference_method)
+
         evidence = Dict{Symbol, Any}( kv.first => convert(Int8, kv.second) + 1 for kv in evidence)
 
-        f = BayesNets.infer(inference_alg, bn, collect(query), evidence = evidence)
+        f = BayesNets.infer(inference_method(), bn, collect(query), evidence = evidence)
         results = Dict{Symbol, Float64}()
         for symbol in query
             results[symbol] = sum(f[BayesNets.Assignment(symbol => 2)].potential)
@@ -181,7 +210,8 @@ module napire
     end
     export predict
 
-    function plot_prediction(data, evidence, results; half_cell_width = 40, kwargs...)
+    function plot_prediction(data, evidence, results, output_type = graphviz.default_output_type;
+                                half_cell_width = 40, kwargs...)
         function label(node)
             label = """< <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">"""
 
@@ -193,8 +223,6 @@ module napire
             end
 
             if haskey(evidence, node)
-                println(node)
-
                 false_color = evidence[node] ? "white" : "grey"
                 true_color = evidence[node] ? "grey" : "white"
                 label *= """<TR><TD WIDTH="$half_cell_width" BGCOLOR="$false_color">  </TD><TD WIDTH="$half_cell_width" BGCOLOR="$true_color">  </TD></TR>"""
@@ -202,7 +230,7 @@ module napire
             label *= "</TABLE>>"
         end
 
-        plot(data; shape = "plaintext", label = label, kwargs...)
+        plot(data, output_type; shape = "plaintext", label = label, kwargs...)
     end
     export plot_prediction
 end

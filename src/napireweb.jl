@@ -4,23 +4,61 @@ module napireweb
 
     function apispec() ::Array{APISpec}
         return [
-            APISpec(show, false, Dict("Content-Type" => "image/png")),
-            APISpec(node_types, true, Dict())
+            APISpec(query, false, Dict("Content-Type" => "image/png")),
+            APISpec(items, true, Dict("Content-Type" => "application/json")),
+            APISpec(inference, true, Dict("Content-Type" => "application/json"))
         ]
     end
 
-    function show(minimum_edge_weight; connect = "CAUSES_CODE/PROBLEMS_CODE")
-        connect = split(connect, ".")
-        connect = [ split(c, "/") for c in connect ]
-        connect = [ ( Symbol(c[1]) => Symbol(c[2]) ) for c in connect ]
-        minimum_edge_weight = parse(UInt, minimum_edge_weight)
+    function query(query = "", evidence_false = "", evidence_true = "";
+        connect = "", min_weight = "", inference_method = string(napire.default_inference_method))
 
-        data = napire.load(connect; minimum_edge_weight = minimum_edge_weight, summary = false)
-        return napire.plot(data, napire.graphviz.png)
+        data = __load_graph(connect, min_weight)
+
+        evidence = Dict{Symbol, Bool}()
+        results = Dict{Symbol, Float64}()
+        if query != ""
+            query = Set{Symbol}(Symbol(q) for q in split(query, ","))
+
+            evidence_true = evidence_true == "" ? [] : [ Symbol(e) for e in split(evidence_true, ",") ]
+            evidence_false = evidence_false == "" ? [] : [ Symbol(e) for e in split(evidence_false, ",") ]
+
+            for e in evidence_true
+                evidence[e] = true
+            end
+            for e in evidence_false
+                evidence[e] = false
+            end
+
+            bn = napire.bayesian_train(data)
+            results = napire.predict(bn, query, evidence, inference_method)
+        end
+
+        return napire.plot_prediction(data, evidence, results, napire.graphviz.png)
     end
 
-    function node_types()
-        return collect(keys(napire.load().items))
+    function items(; connect = "", min_weight = "")
+        return __load_graph(connect, min_weight).items
+    end
+
+    function __load_graph(connect, min_weight)
+        if length(connect) == 0
+            connect = "CAUSES_CODE/PROBLEMS_CODE"
+        end
+
+        if length(min_weight) == 0
+            min_weight = "5"
+        end
+
+        connect = split(connect, ",")
+        connect = [ split(c, "/") for c in connect ]
+        connect = [ ( Symbol(c[1]) => Symbol(c[2]) ) for c in connect ]
+        min_weight = parse(UInt, min_weight)
+        return napire.load(connect; minimum_edge_weight = min_weight, summary = false)
+    end
+
+    function inference()
+        return keys(napire.inference_methods)
     end
 
     function start()
