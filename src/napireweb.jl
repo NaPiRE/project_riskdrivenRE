@@ -23,7 +23,7 @@ module web
                     results = napire.predict(bn, query, evidence, inference_method)
                 catch e
                     if isa(e, ArgumentError)
-                        throw(WebApplicationException(400, "Nodes in query not part of the graph"))
+                        throw(WebApplicationException(400, e.msg))
                     end
 
                     rethrow(e)
