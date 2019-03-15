@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NaPiRE trouble predictor</title>
+  <link rel="stylesheet" href="external/jquery-ui/jquery-ui.css">
+  <link rel="stylesheet" href="index.css">
+  <script src="external/jquery/jquery.js"></script>
+  <script src="external/jquery-ui/jquery-ui.js"></script>
+  <script>
+  $( function() {
+    $( "ul.evidence_drop" ).sortable({
+      connectWith: "ul.evidence_drop"
+    });
+
+    $( "ul.connectivity_drop" ).sortable({
+      connectWith: "ul.connectivity_drop"
+    });
+  } );
+  </script>
+</head>
+<body>
+
+<h1>Graph structure</h1>
+
+<h2>Connectivity</h2>
+
+<table>
+<thead>
+    <th>Disabled</th><th>Enabled</th>
+</thead>
+<tbody>
+<tr>
+
+<td>
+<ul id="connectivity_disabled" class="connectivity_drop">
+  <li>Can be dropped..</li>
+  <li>..on an empty list</li>
+  <li>Item 3</li>
+  <li>Item 4</li>
+  <li>Item 5</li>
+</ul>
+</td>
+
+<td>
+<ul id="connectivity_enabled" class="connectivity_drop">
+</ul>
+</td>
+
+</tbody>
+</table>
+
+<h1>Evidence</h1>
+
+<table>
+<thead>
+    <th>Unknown state</th><th>Present</th><th>Absent</th>
+</thead>
+<tbody>
+<tr>
+
+<td>
+<ul id="evidence_unknown" class="evidence_drop">
+  <li>Can be dropped..</li>
+  <li>..on an empty list</li>
+  <li>Item 3</li>
+  <li>Item 4</li>
+  <li>Item 5</li>
+</ul>
+</td>
+
+<td>
+<ul id="evidence_true" class="evidence_drop">
+</ul>
+</td>
+
+<td>
+<ul id="evidence_false" class="evidence_drop">
+</ul>
+</td>
+</tr>
+
+</tbody>
+</table>
+
+</body>
+</html>
