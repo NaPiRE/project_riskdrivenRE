@@ -137,6 +137,7 @@ module web
     end
 
     function start()
+        println("Starting napire analysis REST service")
         HTTP.serve(respond, Sockets.localhost, 8888)
     end
     export start
