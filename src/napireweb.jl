@@ -58,7 +58,7 @@ module web
         return keys(napire.inference_methods)
     end
 
-    const APISPEC = Dict(
+    const APISPEC = Dict{NamedTuple, NamedTuple}(
         (path = "/query", method = "GET")  => (fn = query, content = "image/png"),
         (path = "/query", method = "POST") => (fn = query, content = "image/png"),
         (path = "/items", method = "GET")  => (fn = items, content = "application/json"),
@@ -75,9 +75,20 @@ module web
         "application/json" => (b) -> JSON.json(b)
     )
 
+    const EXTENSION_MAP = Dict(
+        r"^.*\.json$"  => "application/json",
+        r"^.*\.js$"  => "text/javascript",
+        r"^.*\.css$" => "text/css",
+        r"^.*\.html$" => "text/html"
+    )
+
     struct WebApplicationException <: Exception
         code::Int64
         msg::String
+    end
+
+    function WebApplicationException(code::Int64)
+        return WebApplicationException(code, "")
     end
 
     function dispatch(request::HTTP.Message)
@@ -117,6 +128,10 @@ module web
             rethrow(e)
         end
 
+        if isa(response, HTTP.Response)
+            return response
+        end
+
         if haskey(RESPONSE_CONVERSION, endpoint.content)
             response = RESPONSE_CONVERSION[endpoint.content](response)
         end
@@ -131,9 +146,52 @@ module web
             if isa(e, WebApplicationException)
                 return HTTP.Response(e.code, [ ("Content-Type", "text/plain") ]; body = e.msg, request = request)
             else
+                for (exc, bt) in Base.catch_stack()
+                   showerror(stdout, exc, bt)
+                   println()
+                end
                 return HTTP.Response(500, [ ("Content-Type", "text/plain") ]; body = string(e), request= request)
             end
         end
+    end
+
+    function serve_file(path, file)
+        if path[1] != '/'
+            path = "/" * path
+        end
+
+        final_mime = "application/octet_stream"
+        for (regex, mime) in EXTENSION_MAP
+            if match(regex, path) != nothing
+                final_mime = mime
+            end
+        end
+
+        ep = (fn = (; ) -> read(file), content = final_mime)
+        APISPEC[(path = "/web" * path, method = "GET")] = ep
+
+        newpath = replace(path, r"/index.html$" => "/")
+        if newpath != path
+            APISPEC[(path = "/web" * newpath, method = "GET")] = ep # with /
+            APISPEC[(path = "/web" * newpath[2:end], method = "GET")] = ep # without /
+        end
+    end
+
+    function redirect(path, destination)
+        APISPEC[(path = path, method = "GET")] = (
+            fn = (; ) -> HTTP.Response(301, [ ("Location", destination) ]), content = nothing)
+    end
+
+    function start(webdir::String)
+        for (rootpath, dirs, files) in walkdir(webdir; follow_symlinks = false)
+            for file in files
+                fullpath = joinpath(rootpath, file)
+                serve_file(relpath(fullpath, webdir), fullpath)
+            end
+        end
+        redirect("/", "/web")
+
+        start()
     end
 
     function start()
