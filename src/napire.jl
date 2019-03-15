@@ -76,8 +76,11 @@ module napire
         # remove now unused data from previously created structures
         data = data[:, collect(all_nodes)]
 
-        # remove completely empty lines
-        data = data[sum(convert(Matrix, data), dims = 2)[:] .> 0, :]
+        if size(data, 2) > 0
+            # remove completely empty lines
+            data = data[sum(convert(Matrix, data), dims = 2)[:] .> 0, :]
+        end
+
         for key in keys(items)
             items[key] = intersect(items[key], all_nodes)
         end
