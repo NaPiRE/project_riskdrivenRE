@@ -4,20 +4,68 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NaPiRE trouble predictor</title>
+  <base href="/web/">
   <link rel="stylesheet" href="external/jquery-ui/jquery-ui.css">
   <link rel="stylesheet" href="index.css">
   <script src="external/jquery/jquery.js"></script>
   <script src="external/jquery-ui/jquery-ui.js"></script>
   <script>
-  $( function() {
+    initial_params = {
+        "min_weight": 7,
+        "connect": "CAUSES_CODE/PROBLEMS_CODE,PROBLEMS_CODE/EFFECTS_CODE"
+    };
+    params = Object.assign({}, initial_params);
+    old_params = {};
+
+    current_image = null;
+
+    function equals(a, b) {
+        var prs = Object.getOwnPropertyNames(a).concat(Object.getOwnPropertyNames(b));
+        for (var i = 0; i < prs.length; i++) {
+            var pr = prs[i];
+            if(!a.hasOwnProperty(pr) || !b.hasOwnProperty(pr)) {
+                return false;
+            }
+
+            if (a[pr] !== b[pr]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    setInterval(function() {
+        if(!equals(old_params, params)) {
+            console.log("load");
+            old_params = Object.assign({}, params);
+
+            current_image = new Image();
+            current_image.src = "/query?min_weight=" + params["min_weight"] + "&connect=" + params["connect"];
+            current_image.onload = function(){
+                if(this != current_image) {
+                    return;
+                }
+
+                $("#output").html(this);
+            };
+        }
+    }, 1000);
+
+    $( function() {
     $( "ul.evidence_drop" ).sortable({
-      connectWith: "ul.evidence_drop"
+        connectWith: "ul.evidence_drop"
     });
 
     $( "ul.connectivity_drop" ).sortable({
-      connectWith: "ul.connectivity_drop"
+        connectWith: "ul.connectivity_drop"
     });
-  } );
+
+    $("#min_weight").val(params["min_weight"]);
+    $("#min_weight").change(function(event) {
+        params["min_weight"] = parseInt($("#min_weight").val());
+    });
+
+    } );
   </script>
 </head>
 <body>
@@ -51,6 +99,10 @@
 </tbody>
 </table>
 
+<h2>Minimum edge count</h2>
+
+<input id="min_weight" type="number" min="0"/>
+
 <h1>Evidence</h1>
 
 <table>
@@ -83,6 +135,11 @@
 
 </tbody>
 </table>
+
+<h1>Result</h1>
+
+<div id="output">
+</div>
 
 </body>
 </html>
