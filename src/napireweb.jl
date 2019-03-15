@@ -1,37 +1,34 @@
-module napireweb
-    using JuliaWebAPI
+module web
+    import HTTP
+    import JSON
+    import Sockets
+
     import napire
 
-    function apispec() ::Array{APISpec}
-        return [
-            APISpec(query, false, Dict("Content-Type" => "image/png")),
-            APISpec(items, true, Dict("Content-Type" => "application/json")),
-            APISpec(inference, true, Dict("Content-Type" => "application/json"))
-        ]
-    end
-
-    function query(query = "", evidence_false = "", evidence_true = "";
+    function query(query_dict = nothing;
         connect = "", min_weight = "", inference_method = string(napire.default_inference_method))
 
         data = __load_graph(connect, min_weight)
 
         evidence = Dict{Symbol, Bool}()
         results = Dict{Symbol, Float64}()
-        if query != ""
-            query = Set{Symbol}(Symbol(q) for q in split(query, ","))
-
-            evidence_true = evidence_true == "" ? [] : [ Symbol(e) for e in split(evidence_true, ",") ]
-            evidence_false = evidence_false == "" ? [] : [ Symbol(e) for e in split(evidence_false, ",") ]
-
-            for e in evidence_true
-                evidence[e] = true
-            end
-            for e in evidence_false
-                evidence[e] = false
-            end
+        if query_dict != nothing
+            query = Set(Symbol(q) for q in get(query_dict, "query", []))
+            evidence = Dict( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
 
             bn = napire.bayesian_train(data)
-            results = napire.predict(bn, query, evidence, inference_method)
+
+            if length(query) > 0
+                try
+                    results = napire.predict(bn, query, evidence, inference_method)
+                catch e
+                    if isa(e, ArgumentError)
+                        throw(WebApplicationException(400, "Nodes in query not part of the graph"))
+                    end
+
+                    rethrow(e)
+                end
+            end
         end
 
         return napire.plot_prediction(data, evidence, results, napire.graphviz.png)
@@ -61,18 +58,86 @@ module napireweb
         return keys(napire.inference_methods)
     end
 
-    function start()
-        transport = InProcTransport(:napireweb)
-        responder = APIResponder(transport, JSONMsgFormat())
+    const APISPEC = Dict(
+        (path = "/query", method = "GET")  => (fn = query, content = "image/png"),
+        (path = "/query", method = "POST") => (fn = query, content = "image/png"),
+        (path = "/items", method = "GET")  => (fn = items, content = "application/json"),
+        (path = "/inference", method = "GET") => (fn = inference, content = "application/json")
+    )
 
-        fields = fieldnames(APISpec)
-        for spec in apispec()
-            register(responder, spec.fn; resp_json = spec.resp_json, resp_headers = spec.resp_headers, endpt = split(string(spec.fn), '.')[end])
+    const BODYMETHODS = Set([ "POST", "PUT" ])
+
+    const REQUEST_CONVERSION = Dict(
+        "application/json" => (b) -> JSON.parse(String(b))
+    )
+
+    const RESPONSE_CONVERSION = Dict(
+        "application/json" => (b) -> JSON.json(b)
+    )
+
+    struct WebApplicationException <: Exception
+        code::Int64
+        msg::String
+    end
+
+    function dispatch(request::HTTP.Message)
+        uri = parse(HTTP.URI, request.target)
+        key = (path = uri.path, method = request.method)
+        if !haskey(APISPEC, key)
+            throw(WebApplicationException(404))
+        end
+        endpoint = APISPEC[key]
+
+        params = Dict(Symbol(k) => v for (k, v) in HTTP.queryparams(uri))
+
+        body = ""
+        if in(key.method, BODYMETHODS)
+            content_type = HTTP.header(request, "Content-Type", "")
+            if !haskey(REQUEST_CONVERSION, content_type)
+                throw(WebApplicationException(400, "Unknown Content-Type"))
+            end
+
+            try
+                body = REQUEST_CONVERSION[content_type](request.body)
+            catch e
+                throw(WebApplicationException(400, "Unparsable body\n\n" * e.msg))
+            end
         end
 
-        task = @async(process(responder))
-        invoker = APIInvoker(transport, JSONMsgFormat())
-        run_http(invoker, 8888)
+        try
+            if in(key.method, BODYMETHODS)
+                response = endpoint.fn(body; params...)
+            else
+                response = endpoint.fn(; params...)
+            end
+        catch e
+            if isa(e, ErrorException)
+                throw(WebApplicationException(400, "Bad query parameters"))
+            end
+            rethrow(e)
+        end
+
+        if haskey(RESPONSE_CONVERSION, endpoint.content)
+            response = RESPONSE_CONVERSION[endpoint.content](response)
+        end
+
+        return HTTP.Response(response == nothing ? 204 : 200, [ ("Content-Type", endpoint.content) ]; body = response, request = request)
+    end
+
+    function respond(request::HTTP.Message)
+        try
+            return dispatch(request)
+        catch e
+            if isa(e, WebApplicationException)
+                return HTTP.Response(e.code, [ ("Content-Type", "text/plain") ]; body = e.msg, request = request)
+            else
+                return HTTP.Response(500, [ ("Content-Type", "text/plain") ]; body = string(e), request= request)
+            end
+        end
+    end
+
+    function start()
+        HTTP.serve(respond, Sockets.localhost, 8888)
     end
     export start
 end
