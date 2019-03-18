@@ -1,4 +1,5 @@
 module web
+    import Base64
     import HTTP
     import JSON
     import Sockets
@@ -6,7 +7,7 @@ module web
     import napire
 
     function query(query_dict = nothing;
-        connect = "", min_weight = "", inference_method = string(napire.default_inference_method))
+        connect = "", min_weight = "", inference_method = string(napire.default_inference_method), data_url = false)
 
         data = __load_graph(connect, min_weight)
 
@@ -16,10 +17,9 @@ module web
             query = Set(Symbol(q) for q in get(query_dict, "query", []))
             evidence = Dict( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
 
-            bn = napire.bayesian_train(data)
-
             if length(query) > 0
                 try
+                    bn = napire.bayesian_train(data)
                     results = napire.predict(bn, query, evidence, inference_method)
                 catch e
                     if isa(e, ArgumentError)
@@ -31,7 +31,12 @@ module web
             end
         end
 
-        return napire.plot_prediction(data, evidence, results, napire.graphviz.png)
+        data = napire.plot_prediction(data, evidence, results, napire.graphviz.png)
+        if parse(Bool, data_url)
+            return "data:image/png;base64," * Base64.base64encode(data)
+        else
+            return data
+        end
     end
 
     function items(; connect = "", min_weight = "")

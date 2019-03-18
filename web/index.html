@@ -154,15 +154,20 @@
         if(!equals(old_params, params)) {
             old_params = Object.assign({}, params);
 
-            current_image = new Image();
-            current_image.src = "/query?min_weight=" + params["min_weight"] + "&connect=" + params["connect"];
-            current_image.onload = function(){
-                if(this != current_image) {
-                    return;
-                }
-
-                $("#output").html(this);
+            opts = {
+                "method": "POST",
+                "contentType": "application/json",
+                "processData": false,
+                "data": JSON.stringify({ "query": [], "evidence": params["evidence" ] })
             };
+
+            $.ajax("/query?min_weight=" + params["min_weight"] + "&connect=" + params["connect"] + "&data_url=true", opts)
+                .then( function(response) {
+                    img = new Image();
+                    img.src = response;
+                    $("#output").html(img);
+            });
+
         }
     }
 

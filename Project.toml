@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [deps]
 Arpack = "7d9fca2a-8960-54d3-9f78-7d1dccf2cb97"
+Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 BayesNets = "ba4760a4-c768-5bed-964b-cf806dc591cb"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
