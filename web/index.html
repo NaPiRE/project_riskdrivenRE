@@ -12,14 +12,13 @@
   <script>
    // param management
     initial_params = {
-        "min_weight": 7,
+        "min_weight": 9,
         "connect": ""
     };
     params = Object.assign({}, initial_params);
     old_params = {};
 
-    // categories and items
-    items = {};
+    items = [];
 
     // image generation
     current_image = null;
@@ -39,31 +38,116 @@
         return true;
     }
 
-    function update_connectivity() {
+    function update_connectivity_view() {
+        var connectivity = Object.getOwnPropertyNames(items)
+
         $("#connectivity_available").empty()
 
-        for(i in items) {
+        for(var i of connectivity) {
             $("#connectivity_available").append("<li>" + i + "</li>");
         }
 
         from_keys = []
-        for(ch of $("#connectivity_from").children()) {
+        for(var ch of $("#connectivity_from").children()) {
             ch = $(ch)
             from_keys.push(ch.text());
         }
 
         to_keys = []
-        for(ch of $("#connectivity_to").children()) {
+        for(var ch of $("#connectivity_to").children()) {
             ch = $(ch)
             to_keys.push(ch.text());
         }
 
         connect = [];
-        for(i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
+        for(var i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
             connect.push(from_keys[i] + "/" + to_keys[i]);
         }
         params["connect"] = connect.join(",");
-        console.log(params);
+    }
+
+    function update_evidence_params() {
+        function update(evidence, list, value) {
+            list = $(list);
+
+            for(var ch of list.children()) {
+                ch = $(ch);
+                evidence[ch.text()] = value;
+            }
+        }
+
+        params["evidence"] = {};
+
+        update(params["evidence"], "#evidence_true", true);
+        update(params["evidence"], "#evidence_false", false);
+    }
+
+    function update_evidence_view() {
+        var evidence = [];
+        for(var type in items) {
+            evidence.push.apply(evidence, items[type]);
+        }
+
+        function update(list) {
+            list = $(list);
+
+            contained = []
+            for(var ch of list.children()) {
+                ch = $(ch);
+                match = false;
+                for(var e of evidence) {
+                    match = match || (ch.text() === e);
+                }
+
+                if(!match) {
+                    ch.remove();
+                } else {
+                    contained.push(ch.text());
+                }
+            }
+
+            return contained
+        }
+
+        contained = update("#evidence_false");
+        contained = contained.concat(update("#evidence_true"));
+
+        for(var c of contained) {
+            var idx = evidence.indexOf(c);
+            if(idx >= 0) {
+                evidence.splice(idx, 1);
+            }
+        }
+
+        evidence.sort();
+        $("#evidence_unknown").empty();
+        for(var e of evidence) {
+            $("#evidence_unknown").append("<li>" + e + "</li>");
+        }
+
+        update_evidence_params();
+    }
+
+    function update_items(init) {
+        if(init) {
+            $("#connectivity_to").append("<li>PROBLEMS_CODE</li>");
+            $("#connectivity_to").append("<li>EFFECTS_CODE</li>");
+
+            $("#connectivity_from").append("<li>CAUSES_CODE</li>");
+            $("#connectivity_from").append("<li>PROBLEMS_CODE</li>");
+        }
+        update_connectivity_view()
+
+        return $.ajax("/items?min_weight=" + params["min_weight"] + "&connect=" + params["connect"] ).then(function(response) {
+            items = response;
+
+            update_connectivity_view();
+            update_evidence_view();
+
+            if(init) {
+                setInterval(update_image, 1000);
+            }
+        });
     }
 
     function update_image() {
@@ -84,18 +168,18 @@
 
     $( function() {
 
-    for(i of [ "#connectivity_from", "#connectivity_to", "#connectivity_available" ]) {
+    for(var i of [ "#connectivity_from", "#connectivity_to", "#connectivity_available" ]) {
         $(i).sortable({
             connectWith: "ul.connectivity_drop",
-            update: function(event, ui) { update_connectivity() },
-            appendTo: document.body,
+            stop: function(event, ui) { update_connectivity_view(); update_items(); },
             revert: 200
         });
     }
 
-    for(i of [ "#evidence_unknown", "#evidence_true", "#evidence_false" ]) {
+    for(var i of [ "#evidence_unknown", "#evidence_true", "#evidence_false" ]) {
         $(i).sortable({
             connectWith: "ul.evidence_drop",
+            stop: function(event, ui) { update_evidence_params(); },
             revert: 200
         });
     }
@@ -103,20 +187,10 @@
     $("#min_weight").val(params["min_weight"]);
     $("#min_weight").change(function(event) {
         params["min_weight"] = parseInt($("#min_weight").val());
+        update_items();
     });
 
-    $.ajax("/items?min_weight=" + params["min_weight"] + "&connect=" + params["connect"] ).done(function(dl_items) {
-        items = dl_items
-        $("#connectivity_to").append("<li>PROBLEMS_CODE</li>");
-        $("#connectivity_to").append("<li>EFFECTS_CODE</li>");
-
-        $("#connectivity_from").append("<li>CAUSES_CODE</li>");
-        $("#connectivity_from").append("<li>PROBLEMS_CODE</li>");
-
-        update_connectivity()
-
-        setInterval(update_image, 1000);
-    });
+    update_items(true);
 
     });
   </script>
@@ -166,11 +240,6 @@
 
 <td>
 <ul id="evidence_unknown" class="evidence_drop">
-  <li>Can be dropped..</li>
-  <li>..on an empty list</li>
-  <li>Item 3</li>
-  <li>Item 4</li>
-  <li>Item 5</li>
 </ul>
 </td>
 
