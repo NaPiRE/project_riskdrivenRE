@@ -13,6 +13,10 @@ h1, #loading_indicator, #settings_container {
     text-align: center;
 }
 
+#settings_container {
+    margin-bottom: 25px;
+}
+
 #settings_container select {
     margin-right: 20px;
 }
