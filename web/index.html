@@ -10,18 +10,14 @@
   <script src="external/jquery/jquery.js"></script>
   <script src="external/jquery-ui/jquery-ui.js"></script>
   <script>
-   // param management
-    initial_params = {
+    params = {
         "min_weight": 9,
-        "connect": ""
+        "connect": "",
+        "query": [],
+        "evidence": {}
     };
-    params = Object.assign({}, initial_params);
     old_params = {};
-
-    items = [];
-
-    // image generation
-    current_image = null;
+    items = {};
 
     function equals(a, b) {
         var prs = Object.getOwnPropertyNames(a).concat(Object.getOwnPropertyNames(b));
@@ -77,9 +73,14 @@
         }
 
         params["evidence"] = {};
-
         update(params["evidence"], "#evidence_true", true);
         update(params["evidence"], "#evidence_false", false);
+
+        params["query"] = [];
+        for(var ch of $("#evidence_unknown").children()) {
+            ch = $(ch);
+            params["query"].push(ch.text());
+        }
     }
 
     function update_evidence_view() {
@@ -158,7 +159,7 @@
                 "method": "POST",
                 "contentType": "application/json",
                 "processData": false,
-                "data": JSON.stringify({ "query": [], "evidence": params["evidence" ] })
+                "data": JSON.stringify({ "query": params["query"], "evidence": params["evidence" ] })
             };
 
             $.ajax("/query?min_weight=" + params["min_weight"] + "&connect=" + params["connect"] + "&data_url=true", opts)
