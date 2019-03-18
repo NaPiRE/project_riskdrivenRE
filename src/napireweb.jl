@@ -39,18 +39,20 @@ module web
     end
 
     function __load_graph(connect, min_weight)
-        if length(connect) == 0
-            connect = "CAUSES_CODE/PROBLEMS_CODE"
-        end
-
         if length(min_weight) == 0
-            min_weight = "5"
+            min_weight = 0
+        else
+            min_weight = parse(UInt, min_weight)
         end
 
-        connect = split(connect, ",")
-        connect = [ split(c, "/") for c in connect ]
-        connect = [ ( Symbol(c[1]) => Symbol(c[2]) ) for c in connect ]
-        min_weight = parse(UInt, min_weight)
+        if(length(connect) == 0)
+            connect = Array{Pair{Symbol, Symbol}, 1}()
+        else
+            connect = split(connect, ",")
+            connect = [ split(c, "/") for c in connect ]
+            connect = [ ( Symbol(c[1]) => Symbol(c[2]) ) for c in connect ]
+        end
+
         return napire.load(connect; minimum_edge_weight = min_weight, summary = false)
     end
 

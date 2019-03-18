@@ -142,7 +142,7 @@ module napire
 
         graphviz.set(graph, graphviz.ranksep, ranksep)
 
-        max_edges = maximum(values(graph_layout))
+        max_edges = isempty(graph_layout) ? 0 : maximum(values(graph_layout))
 
         for ((n1, n2), n_edges) in graph_layout
             edge_weight = n_edges / max_edges
