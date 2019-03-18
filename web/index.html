@@ -234,6 +234,16 @@
 
 <h1>Settings</h1>
 
+<div id="settings_container">
+<label for="inference_method">Inference Method</label>
+<select id="inference_method" name="inference_method">
+    <option value="">default</option>
+</select>
+
+<label for="min_weight">Minimum edge number</label>
+<input id="min_weight" type="number" min="0" name="min_weight"/>
+</div>
+
 <table>
 <thead>
     <th>Available</th><th>From</th><th>To</th>
@@ -257,14 +267,6 @@
 </tr>
 </tbody>
 </table>
-
-<label for="inference_method">Inference Method</label>
-<select id="inference_method" name="inference_method">
-    <option value="">default</option>
-</select>
-
-<label for="min_weight">Minimum edge number</label>
-<input id="min_weight" type="number" min="0" name="min_weight"/>
 
 <h1>Evidence</h1>
 

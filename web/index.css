@@ -4,6 +4,25 @@
     background-color: lightgrey;
 }
 
+table {
+    width: 100%;
+}
+
+h1, #loading_indicator, #settings_container {
+    width: 100%;
+    text-align: center;
+}
+
+#settings_container select {
+    margin-right: 20px;
+}
+
+img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 tr, td {
     vertical-align: top;
     height: 100%;
