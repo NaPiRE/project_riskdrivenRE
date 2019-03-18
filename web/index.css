@@ -1,5 +1,25 @@
-.evidence_drop, .connectivity_drop {
+.evidence_drop li, .connectivity_drop li {
+    margin-bottom: 2px;
+    margin-top: 2px;
     background-color: lightgrey;
+}
+
+tr, td {
+    vertical-align: top;
+    height: 100%;
+}
+
+.evidence_drop, .connectivity_drop {
+    display: block;
     min-height: 50px;
-    min-width: 100px;
+    min-width: 200px;
+    cursor: grab;
+    list-style-type: none;
+    padding: 5px;
+    height: 100%;
+    margin: 0px;
+}
+
+.ui-sortable-helper {
+    cursor: grabbing
 }
