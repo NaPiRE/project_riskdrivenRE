@@ -167,7 +167,11 @@
                     img = new Image();
                     img.src = response;
                     $("#output").html(img);
-            });
+                }).fail( function(response) {
+                    $("#output").html(
+                        "<p>" + response.statusText + " (" +  response.status + ")<br/>"
+                        + response.responseText + "<p>");
+                });
 
         }
     }

@@ -118,7 +118,7 @@ module web
             try
                 body = REQUEST_CONVERSION[content_type](request.body)
             catch e
-                throw(WebApplicationException(400, "Unparsable body\n\n" * e.msg))
+                throw(WebApplicationException(400, "Unparsable body: " * e.msg))
             end
         end
 
@@ -130,7 +130,7 @@ module web
             end
         catch e
             if isa(e, ErrorException)
-                throw(WebApplicationException(400, "Bad query parameters"))
+                throw(WebApplicationException(400, "Bad query parameters: " * e.msg))
             end
             rethrow(e)
         end
