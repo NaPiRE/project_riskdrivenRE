@@ -14,7 +14,8 @@
         "min_weight": 9,
         "connect": "",
         "query": [],
-        "evidence": {}
+        "evidence": {},
+        "inference_method": ""
     };
     old_params = {};
     items = {};
@@ -136,10 +137,17 @@
 
             $("#connectivity_from").append("<li>CAUSES_CODE</li>");
             $("#connectivity_from").append("<li>PROBLEMS_CODE</li>");
+
+            $.ajax("/inference").then(function(response) {
+                response.sort();
+                for(var method of response) {
+                    $("#inference_method").append("<option value=\"" + method + "\">" + method + "</option>");
+                }
+            });
         }
         update_connectivity_view()
 
-        return $.ajax("/items?min_weight=" + params["min_weight"] + "&connect=" + params["connect"] ).then(function(response) {
+        $.ajax("/items?min_weight=" + params["min_weight"] + "&connect=" + params["connect"] ).then(function(response) {
             items = response;
 
             update_connectivity_view();
@@ -162,7 +170,7 @@
                 "data": JSON.stringify({ "query": params["query"], "evidence": params["evidence" ] })
             };
 
-            $.ajax("/query?min_weight=" + params["min_weight"] + "&connect=" + params["connect"] + "&data_url=true", opts)
+            $.ajax("/query?min_weight=" + params["min_weight"] + "&connect=" + params["connect"] + "&data_url=true&inference_method=" + params["inference_method"], opts)
                 .then( function(response) {
                     img = new Image();
                     img.src = response;
@@ -194,10 +202,17 @@
         });
     }
 
+    console.log("minweight");
     $("#min_weight").val(params["min_weight"]);
+    console.log($("#min_weight").val());
     $("#min_weight").change(function(event) {
         params["min_weight"] = parseInt($("#min_weight").val());
         update_items();
+    });
+
+    $("#inference_method").val(params["inference_method"]);
+    $("#inference_method").change(function(event) {
+        params["inference_method"] = $("#inference_method").val();
     });
 
     update_items(true);
@@ -207,9 +222,7 @@
 </head>
 <body>
 
-<h1>Graph structure</h1>
-
-<h2>Connectivity</h2>
+<h1>Settings</h1>
 
 <table>
 <thead>
@@ -235,9 +248,11 @@
 </tbody>
 </table>
 
-<h2>Minimum edge count</h2>
+<select id="inference_method">
+    <option value="">default</option>
+</select>
 
-<input id="min_weight" type="number" min="0"/>
+<input id="min_weight" type="number" min="0" name="min_weight"/>
 
 <h1>Evidence</h1>
 
