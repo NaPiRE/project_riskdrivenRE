@@ -7,7 +7,7 @@ module web
     import napire
 
     function query(query_dict = nothing;
-        connect = "", min_weight = "", inference_method = string(napire.default_inference_method), data_url = false)
+        connect = "", min_weight = "", inference_method = "", data_url = false)
 
         data = __load_graph(connect, min_weight)
 
@@ -16,6 +16,7 @@ module web
         if query_dict != nothing
             query = Set(Symbol(q) for q in get(query_dict, "query", []))
             evidence = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
+            inference_method = inference_method == "" ? string(napire.default_inference_method) : string(inference_method)
 
             if length(query) > 0
                 try
