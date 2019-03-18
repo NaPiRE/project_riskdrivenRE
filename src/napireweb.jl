@@ -15,7 +15,7 @@ module web
         results = Dict{Symbol, Float64}()
         if query_dict != nothing
             query = Set(Symbol(q) for q in get(query_dict, "query", []))
-            evidence = Dict( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
+            evidence = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
 
             if length(query) > 0
                 try
