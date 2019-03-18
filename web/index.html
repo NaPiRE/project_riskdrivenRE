@@ -19,6 +19,7 @@
     };
     old_params = {};
     items = {};
+    loading = 0;
 
     function equals(a, b) {
         var prs = Object.getOwnPropertyNames(a).concat(Object.getOwnPropertyNames(b));
@@ -170,12 +171,23 @@
                 "data": JSON.stringify({ "query": params["query"], "evidence": params["evidence" ] })
             };
 
+            function update_loading(inc) {
+                loading = loading + inc;
+                if(loading < 0) loading = 0;
+
+                if(loading == 0) $("#loading_indicator").html("&nbsp;");
+                else $("#loading_indicator").text("Loading...");
+            }
+            update_loading(+1);
+
             $.ajax("/query?min_weight=" + params["min_weight"] + "&connect=" + params["connect"] + "&data_url=true&inference_method=" + params["inference_method"], opts)
                 .then( function(response) {
+                    update_loading(-1);
                     img = new Image();
                     img.src = response;
                     $("#output").html(img);
                 }).fail( function(response) {
+                    update_loading(-1);
                     $("#output").html(
                         "<p>" + response.statusText + " (" +  response.status + ")<br/>"
                         + response.responseText + "<p>");
@@ -202,9 +214,7 @@
         });
     }
 
-    console.log("minweight");
     $("#min_weight").val(params["min_weight"]);
-    console.log($("#min_weight").val());
     $("#min_weight").change(function(event) {
         params["min_weight"] = parseInt($("#min_weight").val());
         update_items();
@@ -248,10 +258,12 @@
 </tbody>
 </table>
 
-<select id="inference_method">
+<label for="inference_method">Inference Method</label>
+<select id="inference_method" name="inference_method">
     <option value="">default</option>
 </select>
 
+<label for="min_weight">Minimum edge number</label>
 <input id="min_weight" type="number" min="0" name="min_weight"/>
 
 <h1>Evidence</h1>
@@ -283,6 +295,8 @@
 </table>
 
 <h1>Result</h1>
+<p id="loading_indicator">Loading...</p>
+
 
 <div id="output">
 </div>
