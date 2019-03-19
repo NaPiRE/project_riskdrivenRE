@@ -164,11 +164,16 @@
         if(!equals(old_params, params)) {
             old_params = Object.assign({}, params);
 
+            query = params["query"];
+            if(params["inference_method"] === "") {
+                query = [];
+            }
+
             opts = {
                 "method": "POST",
                 "contentType": "application/json",
                 "processData": false,
-                "data": JSON.stringify({ "query": params["query"], "evidence": params["evidence" ] })
+                "data": JSON.stringify({ "query": query, "evidence": params["evidence" ] })
             };
 
             function update_loading(inc) {
@@ -232,16 +237,33 @@
 </head>
 <body>
 
+<div id="setup">
+
 <h1>Settings</h1>
 
-<div id="settings_container">
-<label for="inference_method">Inference Method</label>
-<select id="inference_method" name="inference_method">
-    <option value="">default</option>
-</select>
+<div class="settings_container">
 
+<div class="settings_row">
+
+<div class="settings_cell">
+<label for="inference_method">Inference method</label>
+</div>
+
+<div class="settings_cell">
+<select id="inference_method" name="inference_method">
+    <option value="">none</option>
+</select>
+</div>
+</div>
+
+<div class="settings_row">
+<div class="settings_cell">
 <label for="min_weight">Minimum edge number</label>
+</div>
+<div class="settings_cell">
 <input id="min_weight" type="number" min="0" name="min_weight"/>
+</div>
+</div>
 </div>
 
 <table>
@@ -296,11 +318,17 @@
 </tbody>
 </table>
 
+</div>
+
+<div id="result">
+
 <h1>Result</h1>
 <p id="loading_indicator">Loading...</p>
 
 
 <div id="output">
+</div>
+
 </div>
 
 </body>

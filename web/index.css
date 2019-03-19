@@ -8,23 +8,47 @@ table {
     width: 100%;
 }
 
-h1, #loading_indicator, #settings_container {
+h1, #loading_indicator {
     width: 100%;
     text-align: center;
 }
 
-#settings_container {
-    margin-bottom: 25px;
+.settings_container {
+    display: table;
+    margin-left: auto;
+    margin-right: auto;
 }
 
-#settings_container select {
-    margin-right: 20px;
+.settings_row {
+    display: table-row;
 }
+
+.settings_cell {
+    display: table-cell;
+    padding-left: 15px;
+    padding-bottom: 15px;
+}
+
+.settings_cell input {
+    width: 150px;
+}
+
+.settings_cell select {
+    width: 150px;
+}
+
 
 img {
     display: block;
     margin-left: auto;
     margin-right: auto;
+    width: 100%;
+}
+
+@media(min-width: 1200px)  {
+    img {
+        width: calc(100% - 600px);
+    }
 }
 
 tr, td {
@@ -45,4 +69,15 @@ tr, td {
 
 .ui-sortable-helper {
     cursor: grabbing
+}
+
+@media(min-width: 1200px)  {
+#setup {
+    float: left;
+    width: 600px;
+}
+
+#setup h1 {
+    margin-top: -0px;
+}
 }
