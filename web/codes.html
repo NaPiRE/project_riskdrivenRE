@@ -12,15 +12,24 @@
   <script>
 
     $( function() {
+        const urlParams = new URLSearchParams(window.location.search);
+
 
         $.ajax("/descriptions?all_items=true").then(function(descriptions) {
-            $.ajax("/items?all_items=true").then(function(items) {
+            $.ajax("/items?min_weight=" + urlParams.get("min_weight") + "&connect=" + urlParams.get("connect")).then(function(items) {
                 types = Object.getOwnPropertyNames(items);
                 types.sort();
 
                 for(type of types) {
+                    codes = items[type];
+                    codes.sort();
+                    if(codes.length == 0) {
+                        continue;
+                    }
+
+
                     tcells="";
-                    for(c of items[type]) {
+                    for(c of codes) {
                         tcells += "<tr><td class=\"codes-code\">" + c + "</td><td class=\"codes-description\">" + descriptions[c] + "</td></tr>";
                     }
 

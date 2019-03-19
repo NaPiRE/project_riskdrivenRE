@@ -20,6 +20,7 @@
     old_params = {};
     items = {};
     loading = 0;
+    description_window = null;
 
     function equals(a, b) {
         var prs = Object.getOwnPropertyNames(a).concat(Object.getOwnPropertyNames(b));
@@ -82,6 +83,10 @@
         for(var ch of $("#evidence_unknown").children()) {
             ch = $(ch);
             params["query"].push(ch.text());
+        }
+
+        if(description_window && !description_window.closed) {
+            description_window.location.href = description_window_path();
         }
     }
 
@@ -201,6 +206,10 @@
         }
     }
 
+    function description_window_path() {
+        return 'codes.html?min_weight=' + params['min_weight'] + '&connect=' + params['connect'];
+    }
+
     $( function() {
 
     for(var i of [ "#connectivity_from", "#connectivity_to", "#connectivity_available" ]) {
@@ -266,7 +275,7 @@
 </div>
 </div>
 
-<button id="desc-button" type="button" onclick="window.open('codes.html', '_blank', 'width=700,height=850');">Show code-description-mapping</button>
+<button id="desc-button" type="button" onclick="description_window = window.open(description_window_path(), '_blank', 'width=700,height=850');">Show code-description-mapping</button>
 
 <table>
 <thead>

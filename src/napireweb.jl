@@ -180,7 +180,7 @@ module web
             end
         end
 
-        ep = (fn = (; ) -> read(file), content = final_mime)
+        ep = (fn = (; kwargs...) -> read(file), content = final_mime)
         APISPEC[(path = "/web" * path, method = "GET")] = ep
 
         newpath = replace(path, r"/index.html$" => "/")
