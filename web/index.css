@@ -4,11 +4,20 @@
     background-color: lightgrey;
 }
 
-table {
+#setup table {
     width: 100%;
 }
 
-h1, #loading_indicator {
+#desc-button {
+    display: block;
+    width: 250px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 25px;
+    margin-top: 25px;
+}
+
+h1, h2, #loading_indicator {
     width: 100%;
     text-align: center;
 }
@@ -42,12 +51,12 @@ img {
     display: block;
     margin-left: auto;
     margin-right: auto;
-    width: 100%;
+    max-width: 100%;
 }
 
 @media(min-width: 1200px)  {
     img {
-        width: calc(100% - 600px);
+        max-width: calc(100% - 600px);
     }
 }
 
@@ -69,6 +78,25 @@ tr, td {
 
 .ui-sortable-helper {
     cursor: grabbing
+}
+
+#codes table {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 600px;
+}
+
+#codes th {
+    text-align: left;
+}
+
+.codes-code {
+    width: 200px;
+}
+
+.codes-description {
+    width: 400px;
 }
 
 @media(min-width: 1200px)  {

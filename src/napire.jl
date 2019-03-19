@@ -12,7 +12,7 @@ module napire
     export graphviz
 
     function load(connect::Array{Pair{Symbol,Symbol}, 1} = [ (:CAUSES_CODE => :PROBLEMS_CODE) ];
-                    minimum_edge_weight = 3, filename = "data/napire.csv", summary = true)
+                    minimum_edge_weight = 3, filename = "data/napire.csv", summary = true, all_items = false)
         #
         # CSV parsing
         #
@@ -81,13 +81,15 @@ module napire
             data = data[sum(convert(Matrix, data), dims = 2)[:] .> 0, :]
         end
 
-        for key in keys(items)
-            items[key] = intersect(items[key], all_nodes)
-        end
+        if !all_items
+            for key in keys(items)
+                items[key] = intersect(items[key], all_nodes)
+            end
 
-        for key in keys(descriptions)
-            if !in(key, all_nodes)
-                delete!(descriptions, key)
+            for key in keys(descriptions)
+                if !in(key, all_nodes)
+                    delete!(descriptions, key)
+                end
             end
         end
 

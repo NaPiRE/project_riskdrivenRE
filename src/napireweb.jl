@@ -9,7 +9,7 @@ module web
     function query(query_dict = nothing;
         connect = "", min_weight = "", inference_method = "", data_url = false)
 
-        data = __load_graph(connect, min_weight)
+        data = __load_graph(connect, min_weight, "false")
 
         evidence = Dict{Symbol, Bool}()
         results = Dict{Symbol, Float64}()
@@ -40,11 +40,15 @@ module web
         end
     end
 
-    function items(; connect = "", min_weight = "")
-        return __load_graph(connect, min_weight).items
+    function items(; connect = "", min_weight = "", all_items = "false")
+        return __load_graph(connect, min_weight, all_items).items
     end
 
-    function __load_graph(connect, min_weight)
+    function descriptions(; connect = "", min_weight = "", all_items = "false")
+        return __load_graph(connect, min_weight, all_items).descriptions
+    end
+
+    function __load_graph(connect, min_weight, all_items)
         if length(min_weight) == 0
             min_weight = 0
         else
@@ -59,7 +63,7 @@ module web
             connect = [ ( Symbol(c[1]) => Symbol(c[2]) ) for c in connect ]
         end
 
-        return napire.load(connect; minimum_edge_weight = min_weight, summary = false)
+        return napire.load(connect; minimum_edge_weight = min_weight, summary = false, all_items = parse(Bool, all_items))
     end
 
     function inference()
@@ -70,7 +74,8 @@ module web
         (path = "/query", method = "GET")  => (fn = query, content = "image/png"),
         (path = "/query", method = "POST") => (fn = query, content = "image/png"),
         (path = "/items", method = "GET")  => (fn = items, content = "application/json"),
-        (path = "/inference", method = "GET") => (fn = inference, content = "application/json")
+        (path = "/inference", method = "GET") => (fn = inference, content = "application/json"),
+        (path = "/descriptions", method = "GET") => (fn = descriptions, content = "application/json")
     )
 
     const BODYMETHODS = Set([ "POST", "PUT" ])

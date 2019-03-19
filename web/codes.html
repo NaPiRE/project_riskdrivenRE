@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NaPiRE trouble predictor: Codes</title>
+  <base href="/web/">
+  <link rel="stylesheet" href="external/jquery-ui/jquery-ui.css">
+  <link rel="stylesheet" href="index.css">
+  <script src="external/jquery/jquery.js"></script>
+  <script src="external/jquery-ui/jquery-ui.js"></script>
+  <script>
+
+    $( function() {
+
+        $.ajax("/descriptions?all_items=true").then(function(descriptions) {
+            $.ajax("/items?all_items=true").then(function(items) {
+                types = Object.getOwnPropertyNames(items);
+                types.sort();
+
+                for(type of types) {
+                    tcells="";
+                    for(c of items[type]) {
+                        tcells += "<tr><td class=\"codes-code\">" + c + "</td><td class=\"codes-description\">" + descriptions[c] + "</td></tr>";
+                    }
+
+                    $("#codes").append("<h2>" + type + "</h2><table><thead><th>Code</th><th>Description</th></thead><tbody>" + tcells + "</tbody></table>");
+                }
+
+            });
+        });
+
+    });
+  </script>
+</head>
+<body>
+
+<h1>Codes</h1>
+
+<div id="codes">
+</div>
+
+</body>
+</html>
