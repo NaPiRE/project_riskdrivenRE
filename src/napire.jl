@@ -11,8 +11,8 @@ module napire
     export napireweb
     export graphviz
 
-    function load(connect::Array{Pair{Symbol,Symbol}, 1} = [ (:CAUSES_CODE => :PROBLEMS_CODE) ];
-                    minimum_edge_weight = 3, filename = "data/napire.csv", summary = true, all_items = false)
+    function load(connect::Array{Tuple{Symbol, Symbol, UInt}, 1} = [ (:CAUSES_CODE => :PROBLEMS_CODE) ];
+                    filename = "data/napire.csv", summary = true, all_items = false)
         #
         # CSV parsing
         #
@@ -68,7 +68,7 @@ module napire
         all_edges::Dict{Pair{Symbol, Symbol}, Int64} = Dict{Pair{Symbol, Symbol}, Int64}()
 
         for connect_pair in connect
-            nodes, edges= __create_edges(data, items, connect_pair.first, connect_pair.second, minimum_edge_weight)
+            nodes, edges= __create_edges(data, items, connect_pair[1], connect_pair[2], connect_pair[3])
             all_nodes = union(all_nodes, nodes)
             all_edges = merge(all_edges, edges)
         end

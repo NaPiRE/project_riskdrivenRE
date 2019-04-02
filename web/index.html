@@ -11,7 +11,6 @@
   <script src="external/jquery-ui/jquery-ui.js"></script>
   <script>
     params = {
-        "min_weight": 9,
         "connect": "",
         "query": [],
         "evidence": {},
@@ -59,10 +58,26 @@
         }
 
         connect = [];
+        connect_min_weight = []
         for(var i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
-            connect.push(from_keys[i] + "/" + to_keys[i]);
+            let mw_id = "min_weight_" + i;
+            let mw_val = parseInt($("#" + mw_id).val());
+
+            connect_min_weight.push(isNaN(mw_val) ? 5 : mw_val);
+            connect.push(from_keys[i] + "/" + to_keys[i] + "/" + connect_min_weight[i]);
         }
         params["connect"] = connect.join(",");
+
+        $("#connectivity_numedges").empty()
+        for(var i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
+            let mw_id = "min_weight_" + i;
+            $("#connectivity_numedges").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
+                " type=\"number\" min=\"0\" value=\"" + connect_min_weight[i] + "\" name=\"" + mw_id + "\"/>");
+
+            $("#" + mw_id).change(function(event) {
+                update_items();
+            });
+        }
     }
 
     function update_evidence_params() {
@@ -153,7 +168,7 @@
         }
         update_connectivity_view()
 
-        $.ajax("/items?min_weight=" + params["min_weight"] + "&connect=" + params["connect"] ).then(function(response) {
+        $.ajax("/items?connect=" + params["connect"] ).then(function(response) {
             items = response;
 
             update_connectivity_view();
@@ -190,7 +205,7 @@
             }
             update_loading(+1);
 
-            $.ajax("/query?min_weight=" + params["min_weight"] + "&connect=" + params["connect"] + "&data_url=true&inference_method=" + params["inference_method"], opts)
+            $.ajax("/query?connect=" + params["connect"] + "&data_url=true&inference_method=" + params["inference_method"], opts)
                 .then( function(response) {
                     update_loading(-1);
                     img = new Image();
@@ -207,7 +222,7 @@
     }
 
     function description_window_path() {
-        return 'codes.html?min_weight=' + params['min_weight'] + '&connect=' + params['connect'];
+        return 'codes.html?connect=' + params['connect'];
     }
 
     $( function() {
@@ -227,12 +242,6 @@
             revert: 200
         });
     }
-
-    $("#min_weight").val(params["min_weight"]);
-    $("#min_weight").change(function(event) {
-        params["min_weight"] = parseInt($("#min_weight").val());
-        update_items();
-    });
 
     $("#inference_method").val(params["inference_method"]);
     $("#inference_method").change(function(event) {
@@ -265,21 +274,13 @@
 </div>
 </div>
 
-<div class="settings_row">
-<div class="settings_cell">
-<label for="min_weight">Minimum edge number</label>
-</div>
-<div class="settings_cell">
-<input id="min_weight" type="number" min="0" name="min_weight"/>
-</div>
-</div>
 </div>
 
 <button id="desc-button" type="button" onclick="description_window = window.open(description_window_path(), '_blank', 'width=700,height=850');">Show code-description-mapping</button>
 
 <table>
 <thead>
-    <th>Available</th><th>From</th><th>To</th>
+    <th>Available</th><th>From</th><th>To</th><th>#</th>
 </thead>
 <tbody>
 <tr>
@@ -296,6 +297,9 @@
 <td>
 <ul id="connectivity_to" class="connectivity_drop">
 </ul>
+</td>
+
+<td id="connectivity_numedges">
 </td>
 </tr>
 </tbody>

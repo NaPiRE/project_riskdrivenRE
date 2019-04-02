@@ -7,9 +7,9 @@ module web
     import napire
 
     function query(query_dict = nothing;
-        connect = "", min_weight = "", inference_method = "", data_url = false)
+        connect = "", inference_method = "", data_url = false)
 
-        data = __load_graph(connect, min_weight, "false")
+        data = __load_graph(connect, "false")
 
         evidence = Dict{Symbol, Bool}()
         results = Dict{Symbol, Float64}()
@@ -40,30 +40,24 @@ module web
         end
     end
 
-    function items(; connect = "", min_weight = "", all_items = "false")
-        return __load_graph(connect, min_weight, all_items).items
+    function items(; connect = "", all_items = "false")
+        return __load_graph(connect, all_items).items
     end
 
-    function descriptions(; connect = "", min_weight = "", all_items = "false")
-        return __load_graph(connect, min_weight, all_items).descriptions
+    function descriptions(; connect = "", all_items = "false")
+        return __load_graph(connect, all_items).descriptions
     end
 
-    function __load_graph(connect, min_weight, all_items)
-        if length(min_weight) == 0
-            min_weight = 0
-        else
-            min_weight = parse(UInt, min_weight)
-        end
-
+    function __load_graph(connect, all_items)
         if(length(connect) == 0)
-            connect = Array{Pair{Symbol, Symbol}, 1}()
+            connect = Array{Tuple{Symbol, Symbol, UInt}, 1}()
         else
             connect = split(connect, ",")
             connect = [ split(c, "/") for c in connect ]
-            connect = [ ( Symbol(c[1]) => Symbol(c[2]) ) for c in connect ]
+            connect = [ ( Symbol(c[1]),  Symbol(c[2]), parse(UInt, c[3]) ) for c in connect ]
         end
 
-        return napire.load(connect; minimum_edge_weight = min_weight, summary = false, all_items = parse(Bool, all_items))
+        return napire.load(connect; summary = false, all_items = parse(Bool, all_items))
     end
 
     function inference()

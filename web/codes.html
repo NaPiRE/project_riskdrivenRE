@@ -16,7 +16,7 @@
 
 
         $.ajax("/descriptions?all_items=true").then(function(descriptions) {
-            $.ajax("/items?min_weight=" + urlParams.get("min_weight") + "&connect=" + urlParams.get("connect")).then(function(items) {
+            $.ajax("/items?connect=" + urlParams.get("connect")).then(function(items) {
                 types = Object.getOwnPropertyNames(items);
                 types.sort();
 
