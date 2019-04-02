@@ -100,7 +100,7 @@ th {
     width: 400px;
 }
 
-#connectivity_edgesweight, #connectivity_nodesweight {
+#connectivity_edgesweight, #connectivity_nodesweight, #connectivity_nodesnumber {
     width: 100px;
 }
 
@@ -110,6 +110,7 @@ th {
     width: calc(100% - 30px);
     margin-left: auto;
     margin-right: auto;
+    color: black;
 }
 
 @media(min-width: 1200px)  {

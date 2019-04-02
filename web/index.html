@@ -51,7 +51,7 @@
     }
 
     function update_connectivity_view() {
-        var connectivity = Object.getOwnPropertyNames(items)
+        var connectivity = Object.getOwnPropertyNames(items);
         connectivity.sort();
 
         //
@@ -74,6 +74,7 @@
         params["nodes"] = nodes_minweight;
 
         $("#connectivity_nodesweight").empty();
+        $("#connectivity_nodesnumber").empty();
         for(var i of connectivity) {
             let mw_id = "nodes_min_weight_" + i;
             $("#connectivity_nodesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
@@ -82,6 +83,9 @@
             $("#" + mw_id).change(function(event) {
                 update_items();
             });
+
+            $("#connectivity_nodesnumber").append("<input class=\"min_weight\"" +
+                " type=\"number\" disabled value=\"" + items[i].length + "\"/>");
         }
 
         //
@@ -309,7 +313,7 @@
 
 <table>
 <thead>
-<th>Available node types</th><th>Filter</th>
+<th>Available node types</th><th>Filter</th><th>Number</th>
 </thead>
 <tbody>
 
@@ -319,6 +323,9 @@
 </td>
 
 <td id="connectivity_nodesweight">
+</td>
+
+<td id="connectivity_nodesnumber">
 </td>
 
 </tbody>
