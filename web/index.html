@@ -53,11 +53,39 @@
     function update_connectivity_view() {
         var connectivity = Object.getOwnPropertyNames(items)
 
+        //
+        // nodes setup
+        //
+
         $("#connectivity_available").empty()
 
         for(var i of connectivity) {
             $("#connectivity_available").append("<li>" + i + "</li>");
         }
+
+        nodes_minweight = {};
+        for(var i of connectivity) {
+            let mw_id = "nodes_min_weight_" + i;
+            let mw_val = parseInt($("#" + mw_id).val());
+
+            nodes_minweight[i] = isNaN(mw_val) ? 5 : mw_val;
+        }
+        params["nodes"] = nodes_minweight;
+
+        $("#connectivity_nodesweight").empty();
+        for(var i of connectivity) {
+            let mw_id = "nodes_min_weight_" + i;
+            $("#connectivity_nodesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
+                " type=\"number\" min=\"0\" value=\"" + nodes_minweight[i] + "\" name=\"" + mw_id + "\"/>");
+
+            $("#" + mw_id).change(function(event) {
+                update_items();
+            });
+        }
+
+        //
+        // edges setup
+        //
 
         from_keys = []
         for(var ch of $("#connectivity_from").children()) {
@@ -72,21 +100,19 @@
         }
 
         connect = [];
-        connect_min_weight = [];
         for(var i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
             let mw_id = "min_weight_" + i;
             let mw_val = parseInt($("#" + mw_id).val());
 
-            connect_min_weight.push(isNaN(mw_val) ? 5 : mw_val);
-            connect.push( [ from_keys[i], to_keys[i], connect_min_weight[i] ]);
+            connect.push( [ from_keys[i], to_keys[i], isNaN(mw_val) ? 5 : mw_val ]);
         }
         params["connect"] = connect;
 
-        $("#connectivity_numedges").empty()
+        $("#connectivity_edgesweight").empty();
         for(var i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
-            let mw_id = "min_weight_" + i;
-            $("#connectivity_numedges").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
-                " type=\"number\" min=\"0\" value=\"" + connect_min_weight[i] + "\" name=\"" + mw_id + "\"/>");
+            let mw_id = "edges_min_weight_" + i;
+            $("#connectivity_edgesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
+                " type=\"number\" min=\"0\" value=\"" + connect[i][2] + "\" name=\"" + mw_id + "\"/>");
 
             $("#" + mw_id).change(function(event) {
                 update_items();
@@ -224,7 +250,7 @@
     }
 
     function description_window_path() {
-        return 'codes.html?connect=' + params['connect'];
+        return 'codes.html?query=' + JSON.stringify(params);
     }
 
     $( function() {
@@ -282,16 +308,27 @@
 
 <table>
 <thead>
-    <th>Available</th><th>From</th><th>To</th><th>#</th>
+<th>Available node types</th><th>#</th>
 </thead>
 <tbody>
-<tr>
 
 <td>
 <ul id="connectivity_available" class="connectivity_drop">
 </ul>
 </td>
 
+<td id="connectivity_nodesweight">
+</td>
+
+</tbody>
+</thead>
+
+<table>
+<thead>
+    <th>From</th><th>To</th><th>#</th>
+</thead>
+<tbody>
+<tr>
 <td>
 <ul id="connectivity_from" class="connectivity_drop">
 </ul>
@@ -301,7 +338,7 @@
 </ul>
 </td>
 
-<td id="connectivity_numedges">
+<td id="connectivity_edgesweight">
 </td>
 </tr>
 </tbody>

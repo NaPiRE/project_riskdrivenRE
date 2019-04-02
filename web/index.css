@@ -87,8 +87,9 @@ tr, td {
     width: 600px;
 }
 
-#codes th {
+th {
     text-align: left;
+    padding-left: 15px;
 }
 
 .codes-code {
@@ -99,16 +100,22 @@ tr, td {
     width: 400px;
 }
 
+#connectivity_edgesweight, #connectivity_nodesweight {
+    width: 100px;
+}
+
 .min_weight {
     display: block;
-    width: 30px;
     margin-top: 5px;
+    width: calc(100% - 30px);
+    margin-left: auto;
+    margin-right: auto;
 }
 
 @media(min-width: 1200px)  {
     #setup {
         float: left;
-        width: 700px;
+        width: 600px;
     }
 
     #setup h1 {

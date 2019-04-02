@@ -14,9 +14,15 @@
     $( function() {
         const urlParams = new URLSearchParams(window.location.search);
 
+        opts = {
+            "method": "POST",
+            "contentType": "application/json",
+            "processData": false,
+            "data": urlParams.get("query")
+        };
 
-        $.ajax("/descriptions?all_items=true").then(function(descriptions) {
-            $.ajax("/items?connect=" + urlParams.get("connect")).then(function(items) {
+        $.ajax("/descriptions?all_items=true", opts).then(function(descriptions) {
+            $.ajax("/items", opts).then(function(items) {
                 types = Object.getOwnPropertyNames(items);
                 types.sort();
 

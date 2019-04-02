@@ -53,9 +53,9 @@ module web
 
         nodes = get(query_dict, "nodes", Dict())
         nodes = length(nodes) == 0 ? Dict{Symbol, UInt}() :
-                Dict(Symbol(key) => parse(UInt, value) for (key, value) in nodes)
+                Dict(Symbol(key) => convert(UInt, value) for (key, value) in nodes)
 
-        return napire.load(Dict{Symbol, UInt}(), connect; summary = false, all_items = parse(Bool, all_items))
+        return napire.load(nodes, connect; summary = false, all_items = parse(Bool, all_items))
     end
 
     function inference()
