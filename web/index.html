@@ -11,7 +11,7 @@
   <script src="external/jquery-ui/jquery-ui.js"></script>
   <script>
     params = {
-        "connect": "",
+        "connect": [],
         "query": [],
         "evidence": {},
         "inference_method": ""
@@ -36,6 +36,20 @@
         return true;
     }
 
+    function post(url) {
+        query_dict = $.extend({}, params);
+        if(query_dict["inference_method"] === "") {
+            query_dict["query"] = [];
+        }
+
+        return $.ajax(url, {
+                "method": "POST",
+                "contentType": "application/json",
+                "processData": false,
+                "data": JSON.stringify(query_dict)
+        });
+    }
+
     function update_connectivity_view() {
         var connectivity = Object.getOwnPropertyNames(items)
 
@@ -58,15 +72,15 @@
         }
 
         connect = [];
-        connect_min_weight = []
+        connect_min_weight = [];
         for(var i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
             let mw_id = "min_weight_" + i;
             let mw_val = parseInt($("#" + mw_id).val());
 
             connect_min_weight.push(isNaN(mw_val) ? 5 : mw_val);
-            connect.push(from_keys[i] + "/" + to_keys[i] + "/" + connect_min_weight[i]);
+            connect.push( [ from_keys[i], to_keys[i], connect_min_weight[i] ]);
         }
-        params["connect"] = connect.join(",");
+        params["connect"] = connect;
 
         $("#connectivity_numedges").empty()
         for(var i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
@@ -168,7 +182,7 @@
         }
         update_connectivity_view()
 
-        $.ajax("/items?connect=" + params["connect"] ).then(function(response) {
+        post("/items").then(function(response) {
             items = response;
 
             update_connectivity_view();
@@ -184,18 +198,6 @@
         if(!equals(old_params, params)) {
             old_params = Object.assign({}, params);
 
-            query = params["query"];
-            if(params["inference_method"] === "") {
-                query = [];
-            }
-
-            opts = {
-                "method": "POST",
-                "contentType": "application/json",
-                "processData": false,
-                "data": JSON.stringify({ "query": query, "evidence": params["evidence" ] })
-            };
-
             function update_loading(inc) {
                 loading = loading + inc;
                 if(loading < 0) loading = 0;
@@ -205,7 +207,7 @@
             }
             update_loading(+1);
 
-            $.ajax("/query?connect=" + params["connect"] + "&data_url=true&inference_method=" + params["inference_method"], opts)
+            post("/query?data_url=true")
                 .then( function(response) {
                     update_loading(-1);
                     img = new Image();

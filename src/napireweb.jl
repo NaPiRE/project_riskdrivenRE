@@ -6,17 +6,15 @@ module web
 
     import napire
 
-    function query(query_dict = nothing;
-        connect = "", inference_method = "", data_url = false)
-
-        data = __load_graph(connect, "false")
+    function query(query_dict = nothing; data_url = false)
+        data = __load_graph(query_dict, "false")
 
         evidence = Dict{Symbol, Bool}()
         results = Dict{Symbol, Float64}()
         if query_dict != nothing
             query = Set(Symbol(q) for q in get(query_dict, "query", []))
             evidence = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
-            inference_method = inference_method == "" ? string(napire.default_inference_method) : string(inference_method)
+            inference_method = string(get(query_dict, "inference_method", napire.default_inference_method))
 
             if length(query) > 0
                 try
@@ -40,22 +38,22 @@ module web
         end
     end
 
-    function items(; connect = "", all_items = "false")
-        return __load_graph(connect, all_items).items
+    function items(query_dict; all_items = "false")
+        return __load_graph(query_dict, all_items).items
     end
 
-    function descriptions(; connect = "", all_items = "false")
-        return __load_graph(connect, all_items).descriptions
+    function descriptions(query_dict; all_items = "false")
+        return __load_graph(query_dict, all_items).descriptions
     end
 
-    function __load_graph(connect, all_items)
-        if(length(connect) == 0)
-            connect = Array{Tuple{Symbol, Symbol, UInt}, 1}()
-        else
-            connect = split(connect, ",")
-            connect = [ split(c, "/") for c in connect ]
-            connect = [ ( Symbol(c[1]),  Symbol(c[2]), parse(UInt, c[3]) ) for c in connect ]
-        end
+    function __load_graph(query_dict, all_items)
+        connect = get(query_dict, "connect", [])
+        connect = length(connect) == 0 ? Array{Tuple{Symbol, Symbol, UInt}, 1}() :
+                [ ( Symbol(c[1]),  Symbol(c[2]), convert(UInt, c[3]) ) for c in connect ]
+
+        nodes = get(query_dict, "nodes", Dict())
+        nodes = length(nodes) == 0 ? Dict{Symbol, UInt}() :
+                Dict(Symbol(key) => parse(UInt, value) for (key, value) in nodes)
 
         return napire.load(Dict{Symbol, UInt}(), connect; summary = false, all_items = parse(Bool, all_items))
     end
@@ -65,10 +63,10 @@ module web
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(
-        (path = "/query", method = "POST") => (fn = query, content = "image/png"),
-        (path = "/items", method = "GET")  => (fn = items, content = "application/json"),
         (path = "/inference", method = "GET") => (fn = inference, content = "application/json"),
-        (path = "/descriptions", method = "GET") => (fn = descriptions, content = "application/json")
+        (path = "/descriptions", method = "POST") => (fn = descriptions, content = "application/json"),
+        (path = "/items", method = "POST")  => (fn = items, content = "application/json"),
+        (path = "/query", method = "POST") => (fn = query, content = "image/png")
     )
 
     const BODYMETHODS = Set([ "POST", "PUT" ])
