@@ -57,7 +57,7 @@ module web
             connect = [ ( Symbol(c[1]),  Symbol(c[2]), parse(UInt, c[3]) ) for c in connect ]
         end
 
-        return napire.load(connect; summary = false, all_items = parse(Bool, all_items))
+        return napire.load(Dict{Symbol, UInt}(), connect; summary = false, all_items = parse(Bool, all_items))
     end
 
     function inference()
@@ -65,7 +65,6 @@ module web
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(
-        (path = "/query", method = "GET")  => (fn = query, content = "image/png"),
         (path = "/query", method = "POST") => (fn = query, content = "image/png"),
         (path = "/items", method = "GET")  => (fn = items, content = "application/json"),
         (path = "/inference", method = "GET") => (fn = inference, content = "application/json"),

@@ -11,7 +11,7 @@ module napire
     export napireweb
     export graphviz
 
-    function load(connect::Array{Tuple{Symbol, Symbol, UInt}, 1} = [ (:CAUSES_CODE => :PROBLEMS_CODE) ];
+    function load(nodes::Dict{Symbol, UInt} = Dict(), connect::Array{Tuple{Symbol, Symbol, UInt}, 1} = Array();
                     filename = "data/napire.csv", summary = true, all_items = false)
         #
         # CSV parsing
@@ -60,10 +60,21 @@ module napire
         end
 
         #
-        # data filtering
+        # node-wise filtering
         #
+        for (node_type, min_weight) in nodes
+            for node in items[node_type]
+                if sum(data[node]) < min_weight
+                    deletecols!(data, node)
+                    delete!(items[node_type], node)
+                    delete!(descriptions, node)
+                end
+            end
+        end
 
-        # calculate edges and remove those below threshold
+        #
+        # edge-wise filtering
+        #
         all_nodes::Set{Symbol} = Set{Symbol}()
         all_edges::Dict{Pair{Symbol, Symbol}, Int64} = Dict{Pair{Symbol, Symbol}, Int64}()
 
@@ -92,6 +103,10 @@ module napire
                 end
             end
         end
+
+        #
+        # summary
+        #
 
         if summary
             println("Nodes: ", length(all_nodes))
