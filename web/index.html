@@ -52,6 +52,7 @@
 
     function update_connectivity_view() {
         var connectivity = Object.getOwnPropertyNames(items)
+        connectivity.sort();
 
         //
         // nodes setup
@@ -101,7 +102,7 @@
 
         connect = [];
         for(var i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
-            let mw_id = "min_weight_" + i;
+            let mw_id = "edges_min_weight_" + i;
             let mw_val = parseInt($("#" + mw_id).val());
 
             connect.push( [ from_keys[i], to_keys[i], isNaN(mw_val) ? 5 : mw_val ]);
@@ -308,7 +309,7 @@
 
 <table>
 <thead>
-<th>Available node types</th><th>#</th>
+<th>Available node types</th><th>Filter</th>
 </thead>
 <tbody>
 
@@ -325,7 +326,7 @@
 
 <table>
 <thead>
-    <th>From</th><th>To</th><th>#</th>
+    <th>From</th><th>To</th><th>Filter</th>
 </thead>
 <tbody>
 <tr>
