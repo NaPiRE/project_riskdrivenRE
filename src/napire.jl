@@ -5,13 +5,14 @@ module napire
 
     import BayesNets
     import CSV
+    import Random
 
     include("graphviz.jl")
     include("napireweb.jl")
     export napireweb
     export graphviz
 
-    function load(nodes::Dict{Symbol, UInt} = Dict(), connect::Array{Tuple{Symbol, Symbol, UInt}, 1} = Array();
+    function load(nodes::Dict{Symbol, UInt} = Dict{Symbol, UInt}(), connect::Array{Tuple{Symbol, Symbol, UInt}, 1} = Array{Tuple{Symbol, Symbol, UInt}, 1}();
                     filename = "data/napire.csv", summary = true, all_items = false)
         #
         # CSV parsing
@@ -58,6 +59,14 @@ module napire
                 data[colname] = data[colname] .== "1"
             end
         end
+
+        #
+        # Make sure the data is properly sorted so
+        # subjects are identifiable before cross-validation
+        #
+        sort!(data, (:IDENTIFIERS_SUBJECT_00, :IDENTIFIERS_RANK_00) )
+        subjects = unique(data[:IDENTIFIERS_SUBJECT_00])
+        sort!(subjects)
 
         #
         # node-wise filtering
@@ -116,7 +125,7 @@ module napire
         end
 
         return (data = data, items = items, descriptions = descriptions,
-            edges = all_edges, nodes = all_nodes)
+            edges = all_edges, nodes = all_nodes, subjects = subjects)
     end
     export load
 
@@ -253,4 +262,9 @@ module napire
         plot(data, output_type; shape = "plaintext", label = label, kwargs...)
     end
     export plot_prediction
+
+    function validate(data, output_variables, subsamples)
+        subsample_size = convert(UInt, ceil(length(data.subjects) / subsamples))
+        validation_samples = Random.shuffle(data.subjects)[1:subsample_size]
+    end
 end
