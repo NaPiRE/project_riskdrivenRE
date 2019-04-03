@@ -5,7 +5,9 @@ module napire
 
     import BayesNets
     import CSV
+    import Distributed
     import Random
+    import SharedArrays
 
     include("graphviz.jl")
     include("napireweb.jl")
@@ -15,7 +17,7 @@ module napire
     const NUMBER_OF_PROBLEMS = 5
 
     function load(nodes::Dict{Symbol, UInt} = Dict{Symbol, UInt}(), connect::Array{Tuple{Symbol, Symbol, UInt}, 1} = Array{Tuple{Symbol, Symbol, UInt}, 1}();
-                    filename = "data/napire.csv", summary = true, all_items = false)
+            filename = joinpath(dirname(@__FILE__), "../data/napire.csv"), summary = true, all_items = false)
         #
         # CSV parsing
         #
@@ -276,11 +278,10 @@ module napire
         subsample_size = convert(UInt, ceil(length(data.subjects) / subsamples))
         per_subj = collect(0:(NUMBER_OF_PROBLEMS - 1))
 
-        results  = []
-        expected = []
-        for i in 1:n
-            println("Validation run " * string(i))
+        progress_array = SharedArrays.SharedArray{Int}(n, 1)
 
+        future = Distributed.@distributed for i in 1:n
+            println("Validation run " * string(i))
             samples = Random.randperm(length(data.subjects)) .- 1
 
             validation_samples = samples[1:subsample_size]   .* NUMBER_OF_PROBLEMS
@@ -299,8 +300,10 @@ module napire
             @assert max(training_samples...)   <= nrow(data.data)
 
             bn = bayesian_train(data, training_samples)
+            results  = []
+            expected = []
             for (si, s) in enumerate(validation_samples)
-                println(string(si) * " of " * string(subsample_size))
+                println(string(si) * " of " * string(subsample_size * NUMBER_OF_PROBLEMS))
                 evidence = Dict{Symbol, Bool}()
                 for ev in evidence_variables
                     evidence[ev] = data.data[s, ev]
@@ -313,10 +316,11 @@ module napire
 
                 push!(expected, output)
                 push!(results, predict(bn, output_variables, evidence, inference_method))
+
+                progress_array[i] += 1
             end
-            println()
         end
 
-        return results, expected
+        return progress_array, future
     end
 end
