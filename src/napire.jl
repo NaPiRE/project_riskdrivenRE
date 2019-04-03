@@ -280,6 +280,9 @@ module napire
 
         progress_array = SharedArrays.SharedArray{Int}(n, 1)
 
+        # TODO: try to parallelise at
+        #   for (si, s) in enumerate(validation_samples)
+        # and measure whether it has an impact on the time spent calculating
         future = Distributed.@distributed for i in 1:n
             println("Validation run " * string(i))
             samples = Random.randperm(length(data.subjects)) .- 1
