@@ -12,6 +12,8 @@ module napire
     export napireweb
     export graphviz
 
+    const NUMBER_OF_PROBLEMS = 5
+
     function load(nodes::Dict{Symbol, UInt} = Dict{Symbol, UInt}(), connect::Array{Tuple{Symbol, Symbol, UInt}, 1} = Array{Tuple{Symbol, Symbol, UInt}, 1}();
                     filename = "data/napire.csv", summary = true, all_items = false)
         #
@@ -96,11 +98,6 @@ module napire
         # remove now unused data from previously created structures
         data = data[:, collect(all_nodes)]
 
-        if size(data, 2) > 0
-            # remove completely empty lines
-            data = data[sum(convert(Matrix, data), dims = 2)[:] .> 0, :]
-        end
-
         if !all_items
             for key in keys(items)
                 items[key] = intersect(items[key], all_nodes)
@@ -182,9 +179,19 @@ module napire
     end
     export plot
 
-    function bayesian_train(data)
+    function bayesian_train(data, subsample = nothing)
         # extract graph layout
         graph_layout = Tuple(keys(data.edges))
+
+        graph_data = data.data
+        if subsample != nothing
+            graph_data = graph_data[subsample,:]
+        end
+
+        if size(graph_data, 2) > 0
+            # remove completely empty lines, BayesNets does not like them
+            graph_data = graph_data[sum(convert(Matrix, graph_data), dims = 2)[:] .> 0, :]
+        end
 
         # add one, BayesNets expects state labelling to be 1-based
         graph_data = DataFrame(colwise(x -> convert(Array{Int64}, x) .+ 1, data.data), names(data.data))
@@ -263,8 +270,53 @@ module napire
     end
     export plot_prediction
 
-    function validate(data, output_variables, subsamples)
+    function validate(data, output_variables::Set{Symbol}, subsamples::Int, n::Int = 1, inference_method::Type = default_inference_method)
+
+        evidence_variables = setdiff(Set{Symbol}(names(data.data)), output_variables)
         subsample_size = convert(UInt, ceil(length(data.subjects) / subsamples))
-        validation_samples = Random.shuffle(data.subjects)[1:subsample_size]
+        per_subj = collect(0:(NUMBER_OF_PROBLEMS - 1))
+
+        results  = []
+        expected = []
+        for i in 1:n
+            println("Validation run " * string(i))
+
+            samples = Random.randperm(length(data.subjects)) .- 1
+
+            validation_samples = samples[1:subsample_size]   .* NUMBER_OF_PROBLEMS
+            training_samples   = samples[subsample_size + 1:end] .* NUMBER_OF_PROBLEMS
+
+            validation_samples = reduce(vcat, [ s .+ per_subj for s in validation_samples ]) .+ 1
+            training_samples   = reduce(vcat, [ s .+ per_subj for s in training_samples ]) .+ 1
+
+            @assert length(validation_samples) == subsample_size * NUMBER_OF_PROBLEMS
+            @assert length(validation_samples) + length(training_samples) == nrow(data.data)
+            @assert length(intersect(validation_samples, training_samples)) == 0
+
+            @assert min(validation_samples...) > 0
+            @assert min(training_samples...)   > 0
+            @assert max(validation_samples...) <= nrow(data.data)
+            @assert max(training_samples...)   <= nrow(data.data)
+
+            bn = bayesian_train(data, training_samples)
+            for (si, s) in enumerate(validation_samples)
+                println(string(si) * " of " * string(subsample_size))
+                evidence = Dict{Symbol, Bool}()
+                for ev in evidence_variables
+                    evidence[ev] = data.data[s, ev]
+                end
+
+                output = Dict{Symbol, Bool}()
+                for ov in output_variables
+                    output[ov] = data.data[s, ov]
+                end
+
+                push!(expected, output)
+                push!(results, predict(bn, output_variables, evidence, inference_method))
+            end
+            println()
+        end
+
+        return results, expected
     end
 end
