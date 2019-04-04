@@ -8,7 +8,7 @@
     width: 100%;
 }
 
-#desc-button {
+button {
     display: block;
     width: 250px;
     margin-left: auto;
@@ -17,7 +17,7 @@
     margin-top: 25px;
 }
 
-h1, h2, #loading_indicator {
+h1, h2, #loading_indicator, #validation_indicator {
     width: 100%;
     text-align: center;
 }
@@ -38,6 +38,10 @@ h1, h2, #loading_indicator {
     padding-bottom: 15px;
 }
 
+input {
+    box-sizing: border-box;
+}
+
 .settings_cell input {
     width: 150px;
 }
@@ -56,7 +60,7 @@ img {
 
 @media(min-width: 1200px)  {
     img {
-        max-width: calc(100% - 700px);
+        max-width: calc(100% - 650px);
     }
 }
 
@@ -68,12 +72,24 @@ tr, td {
 .evidence_drop, .connectivity_drop {
     display: block;
     min-height: 50px;
-    min-width: 200px;
     cursor: grab;
     list-style-type: none;
     padding: 5px;
     height: 100%;
     margin: 0px;
+}
+
+.evidence_drop li {
+    width: 190px;
+}
+
+table .evidence_drop {
+    width: 190px;
+    padding-right: 0px;
+}
+
+#evidence_unknown {
+    columns: 3;
 }
 
 .ui-sortable-helper {
@@ -117,6 +133,8 @@ th {
     #setup {
         float: left;
         width: 600px;
+        margin-right: 50px;
+}
     }
 
     #setup h1 {

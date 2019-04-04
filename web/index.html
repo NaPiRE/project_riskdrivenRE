@@ -36,11 +36,9 @@
         return true;
     }
 
-    function post(url) {
-        query_dict = $.extend({}, params);
-        if(query_dict["inference_method"] === "") {
-            query_dict["query"] = [];
-        }
+    function post(url, overwrites) {
+        if(!overwrites) overwrites = {};
+        query_dict = $.extend({}, params, overwrites);
 
         return $.ajax(url, {
                 "method": "POST",
@@ -48,6 +46,14 @@
                 "processData": false,
                 "data": JSON.stringify(query_dict)
         });
+    }
+
+    function update_loading(inc) {
+        loading = loading + inc;
+        if(loading < 0) loading = 0;
+
+        if(loading == 0) $("#loading_indicator").html("&nbsp;");
+        else $("#loading_indicator").text("Loading...");
     }
 
     function update_connectivity_view() {
@@ -109,7 +115,7 @@
             let mw_id = "edges_min_weight_" + i;
             let mw_val = parseInt($("#" + mw_id).val());
 
-            connect.push( [ from_keys[i], to_keys[i], isNaN(mw_val) ? 5 : mw_val ]);
+            connect.push( [ from_keys[i], to_keys[i], isNaN(mw_val) ? 8 : mw_val ]);
         }
         params["connect"] = connect;
 
@@ -140,9 +146,16 @@
         update(params["evidence"], "#evidence_false", false);
 
         params["query"] = [];
-        for(var ch of $("#evidence_unknown").children()) {
+        for(var ch of $("#evidence_output").children()) {
             ch = $(ch);
             params["query"].push(ch.text());
+        }
+
+        if(params["query"].length == 0) {
+            for(var ch of $("#evidence_unknown").children()) {
+                ch = $(ch);
+                params["query"].push(ch.text());
+            }
         }
 
         if(description_window && !description_window.closed) {
@@ -205,7 +218,6 @@
             $("#connectivity_from").append("<li>PROBLEMS_CODE</li>");
 
             $.ajax("/inference").then(function(response) {
-                response.sort();
                 for(var method of response) {
                     $("#inference_method").append("<option value=\"" + method + "\">" + method + "</option>");
                 }
@@ -220,42 +232,67 @@
             update_evidence_view();
 
             if(init) {
+                setTimeout(update_image);
+                setTimeout(update_validations);
                 setInterval(update_image, 1000);
+                setInterval(update_validations, 3000);
             }
         });
     }
 
     function update_image() {
         if(!equals(old_params, params)) {
-            old_params = Object.assign({}, params);
-
-            function update_loading(inc) {
-                loading = loading + inc;
-                if(loading < 0) loading = 0;
-
-                if(loading == 0) $("#loading_indicator").html("&nbsp;");
-                else $("#loading_indicator").text("Loading...");
-            }
-            update_loading(+1);
-
             post("/query?data_url=true")
                 .then( function(response) {
                     update_loading(-1);
                     img = new Image();
                     img.src = response;
-                    $("#output").html(img);
+                    $("#output_graph").html(img);
                 }).fail( function(response) {
                     update_loading(-1);
-                    $("#output").html(
+                    $("#output_graph").html(
                         "<p>" + response.statusText + " (" +  response.status + ")<br/>"
                         + response.responseText + "<p>");
                 });
 
+            params["inference_method"] = "";
+            old_params = Object.assign({}, params);
+            update_loading(+1);
         }
+    }
+
+    function update_validations() {
+        $.ajax("/validations")
+            .then( function(response) {
+                if(response.length == 0) {
+                    $("#validation_indicator").html("<p>No validations run so far.</p>");
+                } else {
+                    $("#validation_indicator").html("");
+                    $("#output_validation").empty();
+                    for(let validation of response) {
+                        $("#output_validation").append(
+                              "<li>" + validation.query.inference_method
+                            + ": " + validation.query.subsample_size + " subject per subsample, " + validation.query.iterations + " iterations, "
+                            + (validation.done ? "" : (validation.steps_done / validation.steps_total * 100).toFixed(2) + "%") + " done.</li>");
+                    }
+                }
+            });
     }
 
     function description_window_path() {
         return 'codes.html?query=' + JSON.stringify(params);
+    }
+
+    function run_inference() {
+        params["inference_method"] = $("#inference_method").val();
+    }
+
+    function run_validation() {
+        post("/validate", {
+            "inference_method": $("#inference_method").val(),
+            "subsample_size": $("#validation_subsample_size").val(),
+            "iterations": $("#validation_iterations").val()
+        });
     }
 
     $( function() {
@@ -268,18 +305,13 @@
         });
     }
 
-    for(var i of [ "#evidence_unknown", "#evidence_true", "#evidence_false" ]) {
+    for(var i of [ "#evidence_unknown", "#evidence_true", "#evidence_false", "#evidence_output" ]) {
         $(i).sortable({
             connectWith: "ul.evidence_drop",
             stop: function(event, ui) { update_evidence_params(); },
             revert: 200
         });
     }
-
-    $("#inference_method").val(params["inference_method"]);
-    $("#inference_method").change(function(event) {
-        params["inference_method"] = $("#inference_method").val();
-    });
 
     update_items(true);
 
@@ -290,26 +322,9 @@
 
 <div id="setup">
 
-<h1>Settings</h1>
+<h1>Architecture</h1>
 
-<div class="settings_container">
-
-<div class="settings_row">
-
-<div class="settings_cell">
-<label for="inference_method">Inference method</label>
-</div>
-
-<div class="settings_cell">
-<select id="inference_method" name="inference_method">
-    <option value="">none</option>
-</select>
-</div>
-</div>
-
-</div>
-
-<button id="desc-button" type="button" onclick="description_window = window.open(description_window_path(), '_blank', 'width=700,height=850');">Show code-description-mapping</button>
+<button type="button" onclick="description_window = window.open(description_window_path(), '_blank', 'width=700,height=850');">Show code-description-mapping</button>
 
 <table>
 <thead>
@@ -352,19 +367,55 @@
 </tbody>
 </table>
 
-<h1>Evidence</h1>
+<h1>Inference</h1>
+
+<div class="settings_container">
+
+<div class="settings_row">
+<div class="settings_cell">
+<label for="inference_method">Inference method</label>
+</div>
+
+<div class="settings_cell">
+<select id="inference_method" name="inference_method">
+</select>
+</div>
+</div>
+
+<div class="settings_row">
+<div class="settings_cell">
+<label for="validation_subsample_size">Validation subsample size</label>
+</div>
+
+<div class="settings_cell">
+<input id="validation_subsample_size" name="validation_subsample_size" type="number" min="1" value="1"/>
+</div>
+</div>
+
+<div class="settings_row">
+<div class="settings_cell">
+<label for="validation_iterations">Validation iterations</label>
+</div>
+
+<div class="settings_cell">
+<input id="validation_iterations" name="validation_iterations" type="number" min="1" value="1"/>
+</div>
+</div>
+
+</div>
+
+<button type="button" onclick="run_inference()">Start inference</button>
+<button type="button" onclick="run_validation()">Start validation</button>
+
+<ul id="evidence_unknown" class="evidence_drop">
+</ul>
 
 <table>
 <thead>
-    <th>Unknown state</th><th>Present</th><th>Absent</th>
+    <th>Present</th><th>Absent</th><th>Output</th>
 </thead>
 <tbody>
 <tr>
-
-<td>
-<ul id="evidence_unknown" class="evidence_drop">
-</ul>
-</td>
 
 <td>
 <ul id="evidence_true" class="evidence_drop">
@@ -373,6 +424,11 @@
 
 <td>
 <ul id="evidence_false" class="evidence_drop">
+</ul>
+</td>
+
+<td>
+<ul id="evidence_output" class="evidence_drop">
 </ul>
 </td>
 </tr>
@@ -384,14 +440,20 @@
 
 <div id="result">
 
-<h1>Result</h1>
+<h1>Graph representation</h1>
 <p id="loading_indicator">Loading...</p>
 
 
-<div id="output">
+<div id="output_graph">
 </div>
 
-</div>
+<h1>Validation results</h1>
+
+<div id="validation_indicator"></div>
+
+<ol id="output_validation">
+
+</ol>
 
 </body>
 </html>

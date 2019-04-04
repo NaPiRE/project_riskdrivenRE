@@ -11,10 +11,11 @@ module web
 
         evidence = Dict{Symbol, Bool}()
         results = Dict{Symbol, Float64}()
+
         if query_dict != nothing
-            query = Set(Symbol(q) for q in get(query_dict, "query", []))
+            inference_method = string(get(query_dict, "inference_method", ""))
+            query = inference_method == "" ? [] : Set(Symbol(q) for q in get(query_dict, "query"))
             evidence = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
-            inference_method = string(get(query_dict, "inference_method", napire.default_inference_method))
 
             if length(query) > 0
                 try
@@ -59,14 +60,43 @@ module web
     end
 
     function inference()
-        return keys(napire.inference_methods)
+        d = string(napire.default_inference_method)
+        inference_methods = [ d ]
+        append!(inference_methods, sort([ k for k in keys(napire.inference_methods) if k != d ]))
+
+        return inference_methods
+    end
+
+    const started_validations = []
+    function validate(query_dict)
+        data = __load_graph(query_dict, "false")
+
+        inference_method = string(get(query_dict, "inference_method", napire.default_inference_method))
+        subsample_size = parse(Int, query_dict["subsample_size"])
+        iterations = parse(Int, query_dict["iterations"])
+        query = Set{Symbol}(Symbol(ov) for ov in get(query_dict, "query", []))
+
+        query_dict["inference_method"] = inference_method
+        query_dict["subsample_size"] = subsample_size
+        query_dict["iterations"] = iterations
+        query_dict["query"] = query
+
+        progress_array, task = napire.validate(data, query, subsample_size, iterations, inference_method)
+        push!(started_validations, (query_dict, progress_array, task))
+        return length(started_validations)
+    end
+
+    function validations()
+        return [ Dict("done" => istaskdone(t), "steps_done" => sum(a), "steps_total" => q["subsample_size"] * q["iterations"] * napire.NUMBER_OF_PROBLEMS, "query" => q) for (q, a, t) in started_validations ]
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(
         (path = "/inference", method = "GET") => (fn = inference, content = "application/json"),
         (path = "/descriptions", method = "POST") => (fn = descriptions, content = "application/json"),
         (path = "/items", method = "POST")  => (fn = items, content = "application/json"),
-        (path = "/query", method = "POST") => (fn = query, content = "image/png")
+        (path = "/query", method = "POST") => (fn = query, content = "image/png"),
+        (path = "/validate", method = "POST")  => (fn = validate, content = "application/json"),
+        (path = "/validations", method = "GET")  => (fn = validations, content = "application/json")
     )
 
     const BODYMETHODS = Set([ "POST", "PUT" ])

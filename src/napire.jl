@@ -15,6 +15,7 @@ module napire
     export graphviz
 
     const NUMBER_OF_PROBLEMS = 5
+    export NUMBER_OF_PROBLEMS
 
     function load(nodes::Dict{Symbol, UInt} = Dict{Symbol, UInt}(), connect::Array{Tuple{Symbol, Symbol, UInt}, 1} = Array{Tuple{Symbol, Symbol, UInt}, 1}();
             filename = joinpath(dirname(@__FILE__), "../data/napire.csv"), summary = true, all_items = false)
@@ -220,21 +221,11 @@ module napire
     add_inference_methods(BayesNets)
     default_inference_method = inference_methods["BayesNets.GibbsSamplingNodewise"]
 
-    function predict(bn::BayesNets.DiscreteBayesNet, query::Symbol, evidence::Dict{Symbol, Bool}, inference_method::String)
-        predict(bn, Set([ query ]), evidence, inference_methods[inference_method])
-    end
-
     function predict(bn::BayesNets.DiscreteBayesNet, query::Set{Symbol}, evidence::Dict{Symbol, Bool}, inference_method::String)
-        predict(bn, query, evidence, inference_methods[inference_method])
+        return predict(bn, query, evidence, inference_methods[inference_method])
     end
 
-    function predict(bn::BayesNets.DiscreteBayesNet, query::Symbol, evidence::Dict{Symbol, Bool},
-                        inference_method::Type = default_inference_method)
-        predict(bn, Set([ query ]), evidence, inference_method)
-    end
-
-    function predict(bn::BayesNets.DiscreteBayesNet, query::Set{Symbol}, evidence::Dict{Symbol, Bool},
-                        inference_method::Type = default_inference_method)
+    function predict(bn::BayesNets.DiscreteBayesNet, query::Set{Symbol}, evidence::Dict{Symbol, Bool}, inference_method::Type = default_inference_method)
 
         evidence = Dict{Symbol, Any}( kv.first => convert(Int8, kv.second) + 1 for kv in evidence)
 
@@ -248,8 +239,7 @@ module napire
     end
     export predict
 
-    function plot_prediction(data, evidence, results, output_type = graphviz.default_output_type;
-                                half_cell_width = 40, kwargs...)
+    function plot_prediction(data, evidence, results, output_type = graphviz.default_output_type; half_cell_width = 40, kwargs...)
         function label(node)
             label = """< <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">"""
 
@@ -272,18 +262,21 @@ module napire
     end
     export plot_prediction
 
-    function validate(data, output_variables::Set{Symbol}, subsamples::Int, n::Int = 1, inference_method::Type = default_inference_method)
+    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::String)
+        return validate(data, output_variables, subsample_size, iterations, inference_methods[inference_method])
+    end
+
+    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::Type = default_inference_method)
 
         evidence_variables = setdiff(Set{Symbol}(names(data.data)), output_variables)
-        subsample_size = convert(UInt, ceil(length(data.subjects) / subsamples))
         per_subj = collect(0:(NUMBER_OF_PROBLEMS - 1))
 
-        progress_array = SharedArrays.SharedArray{Int}(n, 1)
+        progress_array = SharedArrays.SharedArray{Int}(iterations, 1)
 
         # TODO: try to parallelise at
         #   for (si, s) in enumerate(validation_samples)
         # and measure whether it has an impact on the time spent calculating
-        future = Distributed.@distributed for i in 1:n
+        task = Distributed.@distributed for i in 1:iterations
             println("Validation run " * string(i))
             samples = Random.randperm(length(data.subjects)) .- 1
 
@@ -324,6 +317,6 @@ module napire
             end
         end
 
-        return progress_array, future
+        return progress_array, task
     end
 end
