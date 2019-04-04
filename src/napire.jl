@@ -271,49 +271,55 @@ module napire
         evidence_variables = setdiff(Set{Symbol}(names(data.data)), output_variables)
         per_subj = collect(0:(NUMBER_OF_PROBLEMS - 1))
 
-        progress_array = SharedArrays.SharedArray{Int}(iterations, 1)
+        progress_array = SharedArrays.SharedArray{Int}( (iterations, subsample_size * NUMBER_OF_PROBLEMS))
 
         # TODO: try to parallelise at
         #   for (si, s) in enumerate(validation_samples)
         # and measure whether it has an impact on the time spent calculating
-        task = Distributed.@distributed for i in 1:iterations
-            println("Validation run " * string(i))
-            samples = Random.randperm(length(data.subjects)) .- 1
+        task = @async for i in 1:iterations
+            try
+                println("Validation run " * string(i))
+                samples = Random.randperm(length(data.subjects)) .- 1
 
-            validation_samples = samples[1:subsample_size]   .* NUMBER_OF_PROBLEMS
-            training_samples   = samples[subsample_size + 1:end] .* NUMBER_OF_PROBLEMS
+                validation_samples = samples[1:subsample_size]   .* NUMBER_OF_PROBLEMS
+                training_samples   = samples[subsample_size + 1:end] .* NUMBER_OF_PROBLEMS
 
-            validation_samples = reduce(vcat, [ s .+ per_subj for s in validation_samples ]) .+ 1
-            training_samples   = reduce(vcat, [ s .+ per_subj for s in training_samples ]) .+ 1
+                validation_samples = reduce(vcat, [ s .+ per_subj for s in validation_samples ]) .+ 1
+                training_samples   = reduce(vcat, [ s .+ per_subj for s in training_samples ]) .+ 1
 
-            @assert length(validation_samples) == subsample_size * NUMBER_OF_PROBLEMS
-            @assert length(validation_samples) + length(training_samples) == nrow(data.data)
-            @assert length(intersect(validation_samples, training_samples)) == 0
+                @assert length(validation_samples) == subsample_size * NUMBER_OF_PROBLEMS
+                @assert length(validation_samples) + length(training_samples) == nrow(data.data)
+                @assert length(intersect(validation_samples, training_samples)) == 0
 
-            @assert min(validation_samples...) > 0
-            @assert min(training_samples...)   > 0
-            @assert max(validation_samples...) <= nrow(data.data)
-            @assert max(training_samples...)   <= nrow(data.data)
+                @assert min(validation_samples...) > 0
+                @assert min(training_samples...)   > 0
+                @assert max(validation_samples...) <= nrow(data.data)
+                @assert max(training_samples...)   <= nrow(data.data)
 
-            bn = bayesian_train(data, training_samples)
-            results  = []
-            expected = []
-            for (si, s) in enumerate(validation_samples)
-                println(string(si) * " of " * string(subsample_size * NUMBER_OF_PROBLEMS))
-                evidence = Dict{Symbol, Bool}()
-                for ev in evidence_variables
-                    evidence[ev] = data.data[s, ev]
+                bn = bayesian_train(data, training_samples)
+                subtasks = Distributed.@distributed for si in 1:length(validation_samples)
+                    s = validation_samples[si]
+
+                    println(string(si) * " of " * string(subsample_size * NUMBER_OF_PROBLEMS))
+                    evidence = Dict{Symbol, Bool}()
+                    for ev in evidence_variables
+                        evidence[ev] = data.data[s, ev]
+                    end
+
+                    expected = Dict{Symbol, Bool}()
+                    for ov in output_variables
+                        expected[ov] = data.data[s, ov]
+                    end
+
+                    predicton = predict(bn, output_variables, evidence, inference_method)
+                    progress_array[i, si] += 1
+                    (expected, prediction)
                 end
 
-                output = Dict{Symbol, Bool}()
-                for ov in output_variables
-                    output[ov] = data.data[s, ov]
-                end
-
-                push!(expected, output)
-                push!(results, predict(bn, output_variables, evidence, inference_method))
-
-                progress_array[i] += 1
+                results = fetch(subtasks)
+            catch e
+                println(e)
+                println(catch_backtrace())
             end
         end
 

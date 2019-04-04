@@ -261,17 +261,20 @@
         }
     }
 
+    val_queries = [];
     function update_validations() {
         $.ajax("/validations")
             .then( function(response) {
+                $("#output_validation").empty();
                 if(response.length == 0) {
                     $("#validation_indicator").html("<p>No validations run so far.</p>");
                 } else {
                     $("#validation_indicator").html("");
-                    $("#output_validation").empty();
+                    val_queries = [];
                     for(let validation of response) {
+                        val_queries.push(validation.query);
                         $("#output_validation").append(
-                              "<li>" + validation.query.inference_method
+                              "<li><a href=\"javascript:update_image(val_queries[" + (val_queries.length - 1) + "])\">" + validation.query.inference_method + "</a>"
                             + ": " + validation.query.subsample_size + " subject per subsample, " + validation.query.iterations + " iterations, "
                             + (validation.done ? "" : (validation.steps_done / validation.steps_total * 100).toFixed(2) + "%") + " done.</li>");
                     }
@@ -292,7 +295,7 @@
             "inference_method": $("#inference_method").val(),
             "subsample_size": $("#validation_subsample_size").val(),
             "iterations": $("#validation_iterations").val()
-        });
+        }).then( function(response) { update_validations() });
     }
 
     $( function() {
