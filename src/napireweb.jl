@@ -6,7 +6,7 @@ module web
 
     import napire
 
-    function query(query_dict = nothing; data_url = false)
+    function query(query_dict = nothing; data_url = "false")
         data = __load_graph(query_dict, "false")
 
         evidence = Dict{Symbol, Bool}()
@@ -87,7 +87,12 @@ module web
     end
 
     function validations()
-        return [ Dict("done" => istaskdone(t), "steps_done" => sum(a), "steps_total" => q["subsample_size"] * q["iterations"] * napire.NUMBER_OF_PROBLEMS, "query" => q) for (q, a, t) in started_validations ]
+        return [ Dict(
+        "query" => q,
+        "steps_done" => sum(a),
+        "steps_total" => q["subsample_size"] * q["iterations"] * napire.ANSWERS_PER_SUBJECT,
+        "result" => istaskdone(t) ? fetch(t) : nothing;
+        ) for (q, a, t) in started_validations ]
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(

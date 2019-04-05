@@ -14,8 +14,8 @@ module napire
     export napireweb
     export graphviz
 
-    const NUMBER_OF_PROBLEMS = 5
-    export NUMBER_OF_PROBLEMS
+    const ANSWERS_PER_SUBJECT = 5
+    export ANSWERS_PER_SUBJECT
 
     function load(nodes::Dict{Symbol, UInt} = Dict{Symbol, UInt}(), connect::Array{Tuple{Symbol, Symbol, UInt}, 1} = Array{Tuple{Symbol, Symbol, UInt}, 1}();
             filename = joinpath(dirname(@__FILE__), "../data/napire.csv"), summary = true, all_items = false)
@@ -269,60 +269,64 @@ module napire
     function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::Type = default_inference_method)
 
         evidence_variables = setdiff(Set{Symbol}(names(data.data)), output_variables)
-        per_subj = collect(0:(NUMBER_OF_PROBLEMS - 1))
+        per_subj = collect(0:(ANSWERS_PER_SUBJECT - 1))
 
-        progress_array = SharedArrays.SharedArray{Int}( (iterations, subsample_size * NUMBER_OF_PROBLEMS))
+        progress_array = SharedArrays.SharedArray{Int}( (iterations, subsample_size * ANSWERS_PER_SUBJECT))
+        task = @async begin
+            iteration_tasks = []
+            for i in 1:iterations
+                it_task = @async begin
+                    println("Validation run " * string(i))
+                    samples = Random.randperm(length(data.subjects)) .- 1
 
-        # TODO: try to parallelise at
-        #   for (si, s) in enumerate(validation_samples)
-        # and measure whether it has an impact on the time spent calculating
-        task = @async for i in 1:iterations
-            try
-                println("Validation run " * string(i))
-                samples = Random.randperm(length(data.subjects)) .- 1
+                    validation_samples = samples[1:subsample_size]   .* ANSWERS_PER_SUBJECT
+                    training_samples   = samples[subsample_size + 1:end] .* ANSWERS_PER_SUBJECT
 
-                validation_samples = samples[1:subsample_size]   .* NUMBER_OF_PROBLEMS
-                training_samples   = samples[subsample_size + 1:end] .* NUMBER_OF_PROBLEMS
+                    validation_samples = reduce(vcat, [ s .+ per_subj for s in validation_samples ]) .+ 1
+                    training_samples   = reduce(vcat, [ s .+ per_subj for s in training_samples ]) .+ 1
 
-                validation_samples = reduce(vcat, [ s .+ per_subj for s in validation_samples ]) .+ 1
-                training_samples   = reduce(vcat, [ s .+ per_subj for s in training_samples ]) .+ 1
+                    @assert length(validation_samples) == subsample_size * ANSWERS_PER_SUBJECT
+                    @assert length(validation_samples) + length(training_samples) == nrow(data.data)
+                    @assert length(intersect(validation_samples, training_samples)) == 0
 
-                @assert length(validation_samples) == subsample_size * NUMBER_OF_PROBLEMS
-                @assert length(validation_samples) + length(training_samples) == nrow(data.data)
-                @assert length(intersect(validation_samples, training_samples)) == 0
+                    @assert min(validation_samples...) > 0
+                    @assert min(training_samples...)   > 0
+                    @assert max(validation_samples...) <= nrow(data.data)
+                    @assert max(training_samples...)   <= nrow(data.data)
 
-                @assert min(validation_samples...) > 0
-                @assert min(training_samples...)   > 0
-                @assert max(validation_samples...) <= nrow(data.data)
-                @assert max(training_samples...)   <= nrow(data.data)
+                    bn = bayesian_train(data, training_samples)
 
-                bn = bayesian_train(data, training_samples)
-                subtasks = Distributed.@distributed for si in 1:length(validation_samples)
-                    s = validation_samples[si]
+                    subtasks = Distributed.@distributed __merge_arrays for si in 1:length(validation_samples)
+                        s = validation_samples[si]
 
-                    println(string(si) * " of " * string(subsample_size * NUMBER_OF_PROBLEMS))
-                    evidence = Dict{Symbol, Bool}()
-                    for ev in evidence_variables
-                        evidence[ev] = data.data[s, ev]
+                        println(string(si) * " of " * string(subsample_size * ANSWERS_PER_SUBJECT))
+                        evidence = Dict{Symbol, Bool}()
+                        for ev in evidence_variables
+                            evidence[ev] = data.data[s, ev]
+                        end
+
+                        expected = Dict{Symbol, Bool}()
+                        for ov in output_variables
+                            expected[ov] = data.data[s, ov]
+                        end
+
+                        prediction = predict(bn, output_variables, evidence, inference_method)
+                        progress_array[i, si] += 1
+                        [ (expected, prediction) ]
                     end
 
-                    expected = Dict{Symbol, Bool}()
-                    for ov in output_variables
-                        expected[ov] = data.data[s, ov]
-                    end
-
-                    predicton = predict(bn, output_variables, evidence, inference_method)
-                    progress_array[i, si] += 1
-                    (expected, prediction)
+                    fetch(subtasks)
                 end
 
-                results = fetch(subtasks)
-            catch e
-                println(e)
-                println(catch_backtrace())
+                push!(iteration_tasks, it_task)
             end
+            [ fetch(it_task) for it_task in iteration_tasks ]
         end
 
         return progress_array, task
+    end
+
+    function __merge_arrays(a1, a2)
+        append!(a1, a2); a1
     end
 end
