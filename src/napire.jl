@@ -329,4 +329,16 @@ module napire
     function __merge_arrays(a1, a2)
         append!(a1, a2); a1
     end
+
+    function calc_metrics(data = nothing)
+        return Dict((s => getfield(napire.Metrics, s)(data))
+                        for s in names(napire.Metrics; all = true)
+                        if isa(getfield(napire.Metrics, s), Function) && s != :eval && s != :include)
+    end
+
+    module Metrics
+        function test(data)
+            return 5
+        end
+    end
 end

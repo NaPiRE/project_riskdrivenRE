@@ -122,7 +122,7 @@ module web
                     "steps_done" => sum(a),
                     "steps_total" => q["subsample_size"] * q["iterations"] * napire.ANSWERS_PER_SUBJECT,
                     "done" => isa(r, Task) ? istaskdone(r) : true,
-                    "metrics" => Dict()
+                    "metrics" => (!isa(r, Task) || istaskdone(r)) ? napire.calc_metrics(r) : nothing
                 )
         end
     end
