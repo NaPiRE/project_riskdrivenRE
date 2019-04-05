@@ -341,12 +341,10 @@ module napire
             total = 0
             correct = 0
             for iteration_data in data
-                println("it")
-                expected  = iteration_data[1]
-                predicted = iteration_data[2]
-
-                total += length(expected)
-                correct += length([ s for s in keys(expected) if expected[s] == (predicted[s] > 0.5) ])
+                for (expected, predicted) in iteration_data
+                    total += length(expected)
+                    correct += length([ s for s in keys(expected) if expected[s] == (predicted[s] > 0.5) ])
+                end
             end
             return correct / total
         end

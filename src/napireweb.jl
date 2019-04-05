@@ -117,12 +117,19 @@ module web
                 ) for (q, a, r) in started_validations ]
         else
             q, a, r = started_validations[parse(UInt, id)]
+            metrics = nothing
+            if isa(r, Task) && istaskdone(r)
+                metrics = napire.calc_metrics(fetch(r))
+            elseif !isa(r, Task)
+                metrics = napire.calc_metrics(r)
+            end
+
             return Dict(
                     "query" => q,
                     "steps_done" => sum(a),
                     "steps_total" => q["subsample_size"] * q["iterations"] * napire.ANSWERS_PER_SUBJECT,
                     "done" => isa(r, Task) ? istaskdone(r) : true,
-                    "metrics" => (!isa(r, Task) || istaskdone(r)) ? napire.calc_metrics(r) : nothing
+                    "metrics" => metrics
                 )
         end
     end

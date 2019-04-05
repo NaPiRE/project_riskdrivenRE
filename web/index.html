@@ -6,6 +6,7 @@
   <title>NaPiRE trouble predictor</title>
   <base href="/web/">
   <link rel="stylesheet" href="external/jquery-ui/jquery-ui.css">
+  <link rel="stylesheet" href="shared.css">
   <link rel="stylesheet" href="index.css">
   <script src="external/jquery/jquery.js"></script>
   <script src="external/jquery-ui/jquery-ui.js"></script>
@@ -287,7 +288,7 @@
     }
 
     function graph_window_path(i) {
-        return 'graph.html?query=' + JSON.stringify(val_queries[i]) + "&idx=" + (i + 1);
+        return 'graph.html?id=' + (i + 1);
     }
 
     function run_inference() {

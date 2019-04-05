@@ -6,7 +6,7 @@
   <title>NaPiRE trouble predictor: Codes</title>
   <base href="/web/">
   <link rel="stylesheet" href="external/jquery-ui/jquery-ui.css">
-  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="shared.css">
   <script src="external/jquery/jquery.js"></script>
   <script src="external/jquery-ui/jquery-ui.js"></script>
   <script>
@@ -21,25 +21,38 @@
 
     $( function() {
         const urlParams = new URLSearchParams(window.location.search);
-        validation_query = JSON.parse(urlParams.get("query"));
-        validation_idx = urlParams.get("idx");
+        validation_id = urlParams.get("id");
 
-        $("#description").html(validation_idx + ". " + validation_query.inference_method
-                    + ": " + validation_query.subsample_size + " subject per subsample, " + validation_query.iterations + " iterations")
-        validation_query["inference_method"] = "";
+        $.ajax("/validations?id=" + validation_id).then(function(response) {
+            validation_query = response.query;
 
-        opts = {
-            "method": "POST",
-            "contentType": "application/json",
-            "processData": false,
-            "data": JSON.stringify(validation_query)
-        };
+            $("#description").html(validation_id + ". " + validation_query.inference_method
+                        + ": " + validation_query.subsample_size + " subject per subsample, " + validation_query.iterations + " iterations")
+            validation_query["inference_method"] = "";
 
-        $.ajax("/query?data_url=true", opts).then( function(response) {
-            update_loading(-1);
-            img = new Image();
-            img.src = response;
-            $("#output_graph").html(img);
+            opts = {
+                "method": "POST",
+                "contentType": "application/json",
+                "processData": false,
+                "data": JSON.stringify(validation_query)
+            };
+
+            $("#metrics").empty();
+            for(k in response.metrics) {
+                $("#metrics").append("<li>" + k + ": " + JSON.stringify(response.metrics[k]));
+            }
+
+            $.ajax("/query?data_url=true", opts).then( function(response) {
+                update_loading(-1);
+                img = new Image();
+                img.src = response;
+                $("#output_graph").html(img);
+            }).fail( function(response) {
+                update_loading(-1);
+                $("#output_graph").html(
+                    "<p>" + response.statusText + " (" +  response.status + ")<br/>"
+                    + response.responseText + "<p>");
+            });
         }).fail( function(response) {
             update_loading(-1);
             $("#output_graph").html(
@@ -55,6 +68,9 @@
 
 <p id="loading_indicator">Loading...</p>
 <p id="description"></p>
+
+<ul id="metrics">
+</ul>
 
 <div id="output_graph">
 </div>
