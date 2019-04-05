@@ -73,7 +73,8 @@ module web
         global started_validations
         if started_validations == nothing
             files = sort([ f for f in readdir(RESULT_DIRECTORY) if occursin(r"^[0-9]+\.ser$", f) ])
-            started_validations = [ Serialization.deserialize(joinpath(RESULT_DIRECTORY, f)) for f in files ]
+            started_validations = Array{Tuple{Dict{String, Any}, AbstractArray, Any}}(undef, 0)
+            append!(started_validations, [ Serialization.deserialize(joinpath(RESULT_DIRECTORY, f)) for f in files ])
         end
     end
 

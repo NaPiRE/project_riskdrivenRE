@@ -287,7 +287,7 @@
     }
 
     function graph_window_path(i) {
-        return 'graph.html?query=' + JSON.stringify(val_queries[i]) + "&idx=" + i;
+        return 'graph.html?query=' + JSON.stringify(val_queries[i]) + "&idx=" + (i + 1);
     }
 
     function run_inference() {
