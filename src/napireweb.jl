@@ -2,6 +2,7 @@ module web
     import Base64
     import HTTP
     import JSON
+    import Serialization
     import Sockets
 
     import napire
@@ -67,8 +68,19 @@ module web
         return inference_methods
     end
 
-    const started_validations = []
+    started_validations = nothing
+    function load_started_validations()
+        global started_validations
+        if started_validations == nothing
+            files = sort([ f for f in readdir(RESULT_DIRECTORY) if occursin(r"^[0-9]+\.ser$", f) ])
+            started_validations = [ Serialization.deserialize(joinpath(RESULT_DIRECTORY, f)) for f in files ]
+        end
+    end
+
+
     function validate(query_dict)
+        load_started_validations()
+
         data = __load_graph(query_dict, "false")
 
         inference_method = string(get(query_dict, "inference_method", napire.default_inference_method))
@@ -83,16 +95,23 @@ module web
 
         progress_array, task = napire.validate(data, query, subsample_size, iterations, inference_method)
         push!(started_validations, (query_dict, progress_array, task))
-        return length(started_validations)
+        storage_file = joinpath(RESULT_DIRECTORY, string(length(started_validations)) * ".ser")
+
+        @async begin
+            data = (query_dict, [ sum (progress_array) ], fetch(task))
+            Serialization.serialize(storage_file, data)
+        end
+
     end
 
     function validations()
+        load_started_validations()
         return [ Dict(
-        "query" => q,
-        "steps_done" => sum(a),
-        "steps_total" => q["subsample_size"] * q["iterations"] * napire.ANSWERS_PER_SUBJECT,
-        "result" => istaskdone(t) ? fetch(t) : nothing;
-        ) for (q, a, t) in started_validations ]
+            "query" => q,
+            "steps_done" => sum(a),
+            "steps_total" => q["subsample_size"] * q["iterations"] * napire.ANSWERS_PER_SUBJECT,
+            "result" => isa(r, Task) ? (istaskdone(r) ? fetch(r) : nothing) : r;
+            ) for (q, a, r) in started_validations ]
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(
@@ -221,7 +240,11 @@ module web
             fn = (; ) -> HTTP.Response(301, [ ("Location", destination) ]), content = nothing)
     end
 
-    function start(webdir::String)
+    RESULT_DIRECTORY = nothing
+    function start(webdir::String, resultdir::String)
+        global RESULT_DIRECTORY = resultdir
+        mkpath(resultdir)
+
         for (rootpath, dirs, files) in walkdir(webdir; follow_symlinks = false)
             for file in files
                 fullpath = joinpath(rootpath, file)

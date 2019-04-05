@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 ! getopt --test > /dev/null
 if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
@@ -72,7 +73,7 @@ if [ $shell = "n" ]; then
         cmd="$cmd import Pkg; Pkg.instantiate();"
     fi
 
-    cmd="$cmd import napire; napire.web.start(\"$DIR/web\")"
+    cmd="$cmd using Revise; import napire; napire.web.start(\"$DIR/web\", joinpath(\"$DIR\", \"results\"))"
 
     if [ $procs -eq 0 ]; then
         echo "$cmd" | julia
