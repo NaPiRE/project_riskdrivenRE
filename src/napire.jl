@@ -337,8 +337,18 @@ module napire
     end
 
     module Metrics
-        function test(data)
-            return 5
+        function accuracy(data)
+            total = 0
+            correct = 0
+            for iteration_data in data
+                println("it")
+                expected  = iteration_data[1]
+                predicted = iteration_data[2]
+
+                total += length(expected)
+                correct += length([ s for s in keys(expected) if expected[s] == (predicted[s] > 0.5) ])
+            end
+            return correct / total
         end
     end
 end
