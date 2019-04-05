@@ -276,7 +276,7 @@
                         $("#output_validation").append(
                               "<li><a href=\"javascript:graph_window = window.open(graph_window_path(" + (val_queries.length - 1) +"), '_blank', 'width=700,height=850'); void(0)\">" + validation.query.inference_method + "</a>"
                             + ": " + validation.query.subsample_size + " subject per subsample, " + validation.query.iterations + " iterations, "
-                            + (validation.result != null ? "" : (validation.steps_done / validation.steps_total * 100).toFixed(2) + "%") + " done.</li>");
+                            + (validation.done ? "" : (validation.steps_done / validation.steps_total * 100).toFixed(2) + "%") + " done.</li>");
                     }
                 }
             });

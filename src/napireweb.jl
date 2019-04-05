@@ -99,20 +99,32 @@ module web
         storage_file = joinpath(RESULT_DIRECTORY, string(length(started_validations)) * ".ser")
 
         @async begin
-            data = (query_dict, [ sum (progress_array) ], fetch(task))
+            data = (query_dict, [ 0 ], fetch(task))
             Serialization.serialize(storage_file, data)
         end
 
     end
 
-    function validations()
-        load_started_validations()
-        return [ Dict(
-            "query" => q,
-            "steps_done" => sum(a),
-            "steps_total" => q["subsample_size"] * q["iterations"] * napire.ANSWERS_PER_SUBJECT,
-            "result" => isa(r, Task) ? (istaskdone(r) ? fetch(r) : nothing) : r;
-            ) for (q, a, r) in started_validations ]
+    function validations(; id = nothing)
+        if id == nothing
+            load_started_validations()
+            return [ Dict(
+                    "query" => q,
+                    "steps_done" => sum(a),
+                    "steps_total" => q["subsample_size"] * q["iterations"] * napire.ANSWERS_PER_SUBJECT,
+                    "done" => isa(r, Task) ? istaskdone(r) : true,
+                    "metrics" => nothing
+                ) for (q, a, r) in started_validations ]
+        else
+            q, a, r = started_validations[parse(UInt, id)]
+            return Dict(
+                    "query" => q,
+                    "steps_done" => sum(a),
+                    "steps_total" => q["subsample_size"] * q["iterations"] * napire.ANSWERS_PER_SUBJECT,
+                    "done" => isa(r, Task) ? istaskdone(r) : true,
+                    "metrics" => Dict()
+                )
+        end
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(
