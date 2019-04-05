@@ -17,7 +17,7 @@ button {
     margin-top: 25px;
 }
 
-h1, h2, #loading_indicator, #validation_indicator {
+h1, h2, #loading_indicator, #validation_indicator, #description {
     width: 100%;
     text-align: center;
 }

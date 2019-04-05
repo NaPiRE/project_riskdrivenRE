@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NaPiRE trouble predictor: Codes</title>
+  <base href="/web/">
+  <link rel="stylesheet" href="external/jquery-ui/jquery-ui.css">
+  <link rel="stylesheet" href="index.css">
+  <script src="external/jquery/jquery.js"></script>
+  <script src="external/jquery-ui/jquery-ui.js"></script>
+  <script>
+    loading = 0;
+    function update_loading(inc) {
+        loading = loading + inc;
+        if(loading < 0) loading = 0;
+
+        if(loading == 0) $("#loading_indicator").html("&nbsp;");
+        else $("#loading_indicator").text("Loading...");
+    }
+
+    $( function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        validation_query = JSON.parse(urlParams.get("query"));
+        validation_idx = urlParams.get("idx");
+
+        $("#description").html(validation_idx + ". " + validation_query.inference_method
+                    + ": " + validation_query.subsample_size + " subject per subsample, " + validation_query.iterations + " iterations")
+        validation_query["inference_method"] = "";
+
+        opts = {
+            "method": "POST",
+            "contentType": "application/json",
+            "processData": false,
+            "data": JSON.stringify(validation_query)
+        };
+
+        $.ajax("/query?data_url=true", opts).then( function(response) {
+            update_loading(-1);
+            img = new Image();
+            img.src = response;
+            $("#output_graph").html(img);
+        }).fail( function(response) {
+            update_loading(-1);
+            $("#output_graph").html(
+                "<p>" + response.statusText + " (" +  response.status + ")<br/>"
+                + response.responseText + "<p>");
+        });
+        update_loading(+1);
+
+    });
+  </script>
+</head>
+<body>
+
+<p id="loading_indicator">Loading...</p>
+<p id="description"></p>
+
+<div id="output_graph">
+</div>
+
+</body>
+</html>

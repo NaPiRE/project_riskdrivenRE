@@ -115,7 +115,7 @@
             let mw_id = "edges_min_weight_" + i;
             let mw_val = parseInt($("#" + mw_id).val());
 
-            connect.push( [ from_keys[i], to_keys[i], isNaN(mw_val) ? 8 : mw_val ]);
+            connect.push( [ from_keys[i], to_keys[i], isNaN(mw_val) ? 9 : mw_val ]);
         }
         params["connect"] = connect;
 
@@ -274,9 +274,9 @@
                     for(let validation of response) {
                         val_queries.push(validation.query);
                         $("#output_validation").append(
-                              "<li><a href=\"javascript:update_image(val_queries[" + (val_queries.length - 1) + "])\">" + validation.query.inference_method + "</a>"
+                              "<li><a href=\"javascript:graph_window = window.open(graph_window_path(" + (val_queries.length - 1) +"), '_blank', 'width=700,height=850'); void(0)\">" + validation.query.inference_method + "</a>"
                             + ": " + validation.query.subsample_size + " subject per subsample, " + validation.query.iterations + " iterations, "
-                            + (validation.done ? "" : (validation.steps_done / validation.steps_total * 100).toFixed(2) + "%") + " done.</li>");
+                            + (validation.result != null ? "" : (validation.steps_done / validation.steps_total * 100).toFixed(2) + "%") + " done.</li>");
                     }
                 }
             });
@@ -284,6 +284,10 @@
 
     function description_window_path() {
         return 'codes.html?query=' + JSON.stringify(params);
+    }
+
+    function graph_window_path(i) {
+        return 'graph.html?query=' + JSON.stringify(val_queries[i]) + "&idx=" + i;
     }
 
     function run_inference() {
