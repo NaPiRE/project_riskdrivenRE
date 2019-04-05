@@ -106,8 +106,8 @@ module web
     end
 
     function validations(; id = nothing)
+        load_started_validations()
         if id == nothing
-            load_started_validations()
             return [ Dict(
                     "query" => q,
                     "steps_done" => sum(a),

@@ -337,7 +337,7 @@ module napire
     end
 
     module Metrics
-        function accuracy(data)
+        function binary_accuracy(data)
             total = 0
             correct = 0
             for iteration_data in data
@@ -347,6 +347,16 @@ module napire
                 end
             end
             return correct / total
+        end
+
+        function brier_score(data)
+            bs = 0
+            for iteration_data in data
+                for (expected, predicted) in iteration_data
+                    bs += sum([ (convert(Int, expected[s]) - predicted[s])^2 for s in keys(expected) ])
+                end
+            end
+            return bs
         end
     end
 end
