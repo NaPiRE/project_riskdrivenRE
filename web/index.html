@@ -57,7 +57,7 @@
         else $("#loading_indicator").show();
     }
 
-    function update_connectivity_view() {
+    function update_connectivity_view(init) {
         let connectivity = Object.getOwnPropertyNames(items);
         connectivity.sort();
 
@@ -65,32 +65,33 @@
         // nodes setup
         //
 
-        $("#connectivity_available").empty()
+        if(init) {
+            $("#connectivity_available").empty()
+            for(let i of connectivity) {
+                $("#connectivity_available").append("<li>" + i + "</li>");
+            }
 
-        for(let i of connectivity) {
-            $("#connectivity_available").append("<li>" + i + "</li>");
+            $("#connectivity_nodesweight").empty();
+            for(let i of connectivity) {
+                let mw_id = "nodes_min_weight_" + i;
+                $("#connectivity_nodesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
+                    " type=\"number\" min=\"0\" value=\"5\" name=\"" + mw_id + "\"/>");
+
+                $("#" + mw_id).change(function(event) {
+                    update_items();
+                });
+            }
         }
 
         let nodes_minweight = {};
         for(let i of connectivity) {
             let mw_id = "nodes_min_weight_" + i;
-            let mw_val = parseInt($("#" + mw_id).val());
-
-            nodes_minweight[i] = isNaN(mw_val) ? 5 : mw_val;
+            nodes_minweight[i] = parseInt($("#" + mw_id).val());
         }
         params["nodes"] = nodes_minweight;
 
-        $("#connectivity_nodesweight").empty();
         $("#connectivity_nodesnumber").empty();
         for(let i of connectivity) {
-            let mw_id = "nodes_min_weight_" + i;
-            $("#connectivity_nodesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
-                " type=\"number\" min=\"0\" value=\"" + nodes_minweight[i] + "\" name=\"" + mw_id + "\"/>");
-
-            $("#" + mw_id).change(function(event) {
-                update_items();
-            });
-
             $("#connectivity_nodesnumber").append("<input class=\"min_weight\"" +
                 " type=\"number\" disabled value=\"" + items[i].length + "\"/>");
         }
@@ -120,11 +121,21 @@
         }
         params["connect"] = connect;
 
-        $("#connectivity_edgesweight").empty();
-        for(let i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
-            let mw_id = "edges_min_weight_" + i;
+        let num_edgesweight = Math.min(from_keys.length, to_keys.length);
+        let num_edgesweight_found = 0;
+        for(let ch of $("#connectivity_edgesweight").children()) {
+            ch = $(ch);
+            if(num_edgesweight_found >= num_edgesweight) {
+                ch.remove();
+            }
+
+            num_edgesweight_found++;
+        }
+
+        for(; num_edgesweight_found < num_edgesweight; num_edgesweight_found++) {
+            let mw_id = "edges_min_weight_" + num_edgesweight_found;
             $("#connectivity_edgesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
-                " type=\"number\" min=\"0\" value=\"" + connect[i][2] + "\" name=\"" + mw_id + "\"/>");
+                " type=\"number\" min=\"0\" value=\"" + connect[num_edgesweight_found][2] + "\" name=\"" + mw_id + "\"/>");
 
             $("#" + mw_id).change(function(event) {
                 update_items();
@@ -220,12 +231,14 @@
     function update_descriptions() {
         post("/descriptions?all_items=true").then(function(descriptions) {
             let types = Object.getOwnPropertyNames(items);
+
             types.sort();
             $("#codes").empty();
 
             for(type of types) {
                 let codes = items[type];
                 codes.sort();
+
                 if(codes.length == 0) {
                     continue;
                 }
@@ -249,18 +262,19 @@
             $("#connectivity_from").append("<li>CAUSES_CODE</li>");
             $("#connectivity_from").append("<li>PROBLEMS_CODE</li>");
 
+            update_connectivity_view(); // load params from the just-changed ui
+
             $.ajax("/inference").then(function(response) {
                 for(let method of response) {
                     $("#inference_method").append("<option value=\"" + method + "\">" + method + "</option>");
                 }
             });
         }
-        update_connectivity_view()
 
         post("/items").then(function(response) {
             items = response;
 
-            update_connectivity_view();
+            update_connectivity_view(init);
             update_evidence_view();
             update_descriptions();
 
