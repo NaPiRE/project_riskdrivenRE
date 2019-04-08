@@ -24,9 +24,9 @@
     description_window = null;
 
     function equals(a, b) {
-        var prs = Object.getOwnPropertyNames(a).concat(Object.getOwnPropertyNames(b));
-        for (var i = 0; i < prs.length; i++) {
-            var pr = prs[i];
+        let prs = Object.getOwnPropertyNames(a).concat(Object.getOwnPropertyNames(b));
+        for (let i = 0; i < prs.length; i++) {
+            let pr = prs[i];
             if(!a.hasOwnProperty(pr) || !b.hasOwnProperty(pr)) {
                 return false;
             }
@@ -40,7 +40,7 @@
 
     function post(url, overwrites) {
         if(!overwrites) overwrites = {};
-        query_dict = $.extend({}, params, overwrites);
+        let query_dict = $.extend({}, params, overwrites);
 
         return $.ajax(url, {
                 "method": "POST",
@@ -59,7 +59,7 @@
     }
 
     function update_connectivity_view() {
-        var connectivity = Object.getOwnPropertyNames(items);
+        let connectivity = Object.getOwnPropertyNames(items);
         connectivity.sort();
 
         //
@@ -68,12 +68,12 @@
 
         $("#connectivity_available").empty()
 
-        for(var i of connectivity) {
+        for(let i of connectivity) {
             $("#connectivity_available").append("<li>" + i + "</li>");
         }
 
-        nodes_minweight = {};
-        for(var i of connectivity) {
+        let nodes_minweight = {};
+        for(let i of connectivity) {
             let mw_id = "nodes_min_weight_" + i;
             let mw_val = parseInt($("#" + mw_id).val());
 
@@ -83,7 +83,7 @@
 
         $("#connectivity_nodesweight").empty();
         $("#connectivity_nodesnumber").empty();
-        for(var i of connectivity) {
+        for(let i of connectivity) {
             let mw_id = "nodes_min_weight_" + i;
             $("#connectivity_nodesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
                 " type=\"number\" min=\"0\" value=\"" + nodes_minweight[i] + "\" name=\"" + mw_id + "\"/>");
@@ -100,20 +100,20 @@
         // edges setup
         //
 
-        from_keys = []
-        for(var ch of $("#connectivity_from").children()) {
+        let from_keys = [];
+        for(let ch of $("#connectivity_from").children()) {
             ch = $(ch)
             from_keys.push(ch.text());
         }
 
-        to_keys = []
-        for(var ch of $("#connectivity_to").children()) {
+        let to_keys = [];
+        for(let ch of $("#connectivity_to").children()) {
             ch = $(ch)
             to_keys.push(ch.text());
         }
 
-        connect = [];
-        for(var i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
+        let connect = [];
+        for(let i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
             let mw_id = "edges_min_weight_" + i;
             let mw_val = parseInt($("#" + mw_id).val());
 
@@ -122,7 +122,7 @@
         params["connect"] = connect;
 
         $("#connectivity_edgesweight").empty();
-        for(var i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
+        for(let i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
             let mw_id = "edges_min_weight_" + i;
             $("#connectivity_edgesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
                 " type=\"number\" min=\"0\" value=\"" + connect[i][2] + "\" name=\"" + mw_id + "\"/>");
@@ -133,30 +133,37 @@
         }
     }
 
-    function update_evidence_params() {
-        function update(evidence, list, value) {
+    function update_evidence_params(category_drag) {
+        let data = {};
+
+        function update(list, value) {
             list = $(list);
 
-            for(var ch of list.children()) {
-                ch = $(ch);
-                evidence[ch.text()] = value;
+            for(let item of list.children()) {
+                item = $(item).text();
+                if(items[item]) {
+                    for(let subitem of items[item]) {
+                        if(!data[subitem]) { // do not overwrite if already present individually
+                            data[subitem] = value;
+                        }
+                    }
+                } else {
+                    data[item] = value; // do overwrite if already present by category
+                }
             }
         }
 
+        update("#evidence_true", true);
+        update("#evidence_false", false);
+        update("#evidence_output", null);
+
         params["evidence"] = {};
-        update(params["evidence"], "#evidence_true", true);
-        update(params["evidence"], "#evidence_false", false);
-
         params["query"] = [];
-        for(var ch of $("#evidence_output").children()) {
-            ch = $(ch);
-            params["query"].push(ch.text());
-        }
-
-        if(params["query"].length == 0) {
-            for(var ch of $("#evidence_unknown").children()) {
-                ch = $(ch);
-                params["query"].push(ch.text());
+        for(let item in data) {
+            if(data[item] === null) {
+                params["query"].push(item);
+            } else {
+                params["evidence"][item] = data[item];
             }
         }
 
@@ -166,19 +173,22 @@
     }
 
     function update_evidence_view() {
-        var evidence = [];
-        for(var type in items) {
-            evidence.push.apply(evidence, items[type]);
+        let evidence = [];
+        for(let type in items) {
+            if(items[type].length > 0) {
+                evidence.push(type);
+                evidence.push.apply(evidence, items[type]);
+            }
         }
 
         function update(list) {
             list = $(list);
 
-            contained = []
-            for(var ch of list.children()) {
+            let contained = []
+            for(let ch of list.children()) {
                 ch = $(ch);
                 match = false;
-                for(var e of evidence) {
+                for(let e of evidence) {
                     match = match || (ch.text() === e);
                 }
 
@@ -192,12 +202,12 @@
             return contained
         }
 
-        contained = update("#evidence_false");
+        let contained = update("#evidence_false");
         contained = contained.concat(update("#evidence_true"));
         contained = contained.concat(update("#evidence_output"));
 
-        for(var c of contained) {
-            var idx = evidence.indexOf(c);
+        for(let c of contained) {
+            let idx = evidence.indexOf(c);
             if(idx >= 0) {
                 evidence.splice(idx, 1);
             }
@@ -205,7 +215,7 @@
 
         evidence.sort();
         $("#evidence_unknown").empty();
-        for(var e of evidence) {
+        for(let e of evidence) {
             $("#evidence_unknown").append("<li>" + e + "</li>");
         }
 
@@ -221,7 +231,7 @@
             $("#connectivity_from").append("<li>PROBLEMS_CODE</li>");
 
             $.ajax("/inference").then(function(response) {
-                for(var method of response) {
+                for(let method of response) {
                     $("#inference_method").append("<option value=\"" + method + "\">" + method + "</option>");
                 }
             });
@@ -248,7 +258,7 @@
             post("/query?data_url=true")
                 .then( function(response) {
                     update_loading(-1);
-                    img = new Image();
+                    let img = new Image();
                     img.src = response;
                     $("#output_graph").html(img);
                     $("#run_inference").prop("disabled", false);
@@ -266,7 +276,6 @@
         }
     }
 
-    val_queries = [];
     function update_validations() {
         return $.ajax("/validations")
             .then( function(response) {
@@ -275,13 +284,13 @@
                     $("#validation_indicator").html("<p>No validations run so far.</p>");
                 } else {
                     $("#validation_indicator").html("");
-                    val_queries = [];
+                    let val_queries = 0;
                     for(let validation of response) {
-                        val_queries.push(validation.query);
                         $("#output_validation").append(
-                              "<li><a href=\"javascript:graph_window = window.open(graph_window_path(" + (val_queries.length - 1) +"), '_blank', 'width=700,height=850'); void(0)\">" + validation.query.inference_method + "</a>"
+                              "<li><a href=\"javascript:graph_window = window.open(graph_window_path(" + val_queries +"), '_blank', 'width=700,height=850'); void(0)\">" + validation.query.inference_method + "</a>"
                             + ": " + validation.query.subsample_size + " subjects per subsample, " + validation.query.iterations + " iterations, "
                             + (validation.done ? "" : (validation.steps_done / validation.steps_total * 100).toFixed(2) + "%") + " done.</li>");
+                        val_queries++;
                     }
                 }
             });
@@ -319,7 +328,7 @@
 
     $( function() {
 
-    for(var i of [ "#connectivity_from", "#connectivity_to", "#connectivity_available" ]) {
+    for(let i of [ "#connectivity_from", "#connectivity_to", "#connectivity_available" ]) {
         $(i).sortable({
             connectWith: "ul.connectivity_drop",
             stop: function(event, ui) { update_connectivity_view(); update_items(); },
@@ -327,7 +336,7 @@
         });
     }
 
-    for(var i of [ "#evidence_unknown", "#evidence_true", "#evidence_false", "#evidence_output" ]) {
+    for(let i of [ "#evidence_unknown", "#evidence_true", "#evidence_false", "#evidence_output" ]) {
         $(i).sortable({
             connectWith: "ul.evidence_drop",
             stop: function(event, ui) { update_evidence_params(); },
@@ -438,18 +447,18 @@
 
 <table>
 <thead>
-    <th>Present</th><th>Absent</th><th>Output</th>
+    <th>Absent</th><th>Present</th><th>Output</th>
 </thead>
 <tbody>
 <tr>
 
 <td>
-<ul id="evidence_true" class="evidence_drop">
+<ul id="evidence_false" class="evidence_drop">
 </ul>
 </td>
 
 <td>
-<ul id="evidence_false" class="evidence_drop">
+<ul id="evidence_true" class="evidence_drop">
 </ul>
 </td>
 
