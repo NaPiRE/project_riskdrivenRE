@@ -21,7 +21,6 @@
     old_params = {};
     items = {};
     loading = 0;
-    description_window = null;
 
     function equals(a, b) {
         let prs = Object.getOwnPropertyNames(a).concat(Object.getOwnPropertyNames(b));
@@ -166,10 +165,6 @@
                 params["evidence"][item] = data[item];
             }
         }
-
-        if(description_window && !description_window.closed) {
-            description_window.location.href = description_window_path();
-        }
     }
 
     function update_evidence_view() {
@@ -222,6 +217,30 @@
         update_evidence_params();
     }
 
+    function update_descriptions() {
+        post("/descriptions?all_items=true").then(function(descriptions) {
+            let types = Object.getOwnPropertyNames(items);
+            types.sort();
+            $("#codes").empty();
+
+            for(type of types) {
+                let codes = items[type];
+                codes.sort();
+                if(codes.length == 0) {
+                    continue;
+                }
+
+
+                let tcells="";
+                for(let c of codes) {
+                    tcells += "<tr><td class=\"codes-code\">" + c + "</td><td class=\"codes-description\">" + descriptions[c] + "</td></tr>";
+                }
+
+                $("#codes").append("<h2>" + type + "</h2><table><thead><th>Code</th><th>Description</th></thead><tbody>" + tcells + "</tbody></table>");
+            }
+        });
+    }
+
     function update_items(init) {
         if(init) {
             $("#connectivity_to").append("<li>PROBLEMS_CODE</li>");
@@ -243,6 +262,7 @@
 
             update_connectivity_view();
             update_evidence_view();
+            update_descriptions();
 
             if(init) {
                 setTimeout(update_image);
@@ -294,10 +314,6 @@
                     }
                 }
             });
-    }
-
-    function description_window_path() {
-        return 'codes.html?query=' + JSON.stringify(params);
     }
 
     function graph_window_path(i) {
@@ -355,7 +371,7 @@
 
 <h1>Architecture</h1>
 
-<button class="centered_button" type="button" onclick="description_window = window.open(description_window_path(), '_blank', 'width=700,height=850');">Show code-description-mapping</button>
+<button class="centered_button" type="button" onclick="$('#codes_container').toggle()">Show/hide code descriptions</button>
 
 <table>
 <thead>
@@ -473,6 +489,13 @@
 
 </div>
 
+<div id="codes_container" style="display: none">
+<h1>Codes</h1>
+
+<div id="codes">
+</div>
+</div>
+
 <div id="result">
 
 <h1>Graph representation</h1>
@@ -492,6 +515,8 @@
 <ol id="output_validation">
 
 </ol>
+
+</div>
 
 </body>
 </html>
