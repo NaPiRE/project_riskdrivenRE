@@ -249,11 +249,13 @@
                     img = new Image();
                     img.src = response;
                     $("#output_graph").html(img);
+                    $("#run_inference").prop("disabled", false);
                 }).fail( function(response) {
                     update_loading(-1);
                     $("#output_graph").html(
                         "<p>" + response.statusText + " (" +  response.status + ")<br/>"
                         + response.responseText + "<p>");
+                    $("#run_inference").prop("disabled", false);
                 });
 
             params["inference_method"] = "";
@@ -264,7 +266,7 @@
 
     val_queries = [];
     function update_validations() {
-        $.ajax("/validations")
+        return $.ajax("/validations")
             .then( function(response) {
                 $("#output_validation").empty();
                 if(response.length == 0) {
@@ -293,14 +295,24 @@
 
     function run_inference() {
         params["inference_method"] = $("#inference_method").val();
+        $("#run_inference").prop("disabled", true);
     }
 
     function run_validation() {
+        $("#run_validation").prop("disabled", true);
         post("/validate", {
             "inference_method": $("#inference_method").val(),
             "subsample_size": $("#validation_subsample_size").val(),
             "iterations": $("#validation_iterations").val()
-        }).then( function(response) { update_validations() });
+        }).then( function(response) {
+            update_validations().then(function(response) {
+                    $("#run_validation").prop("disabled", false);
+                }).fail(function(response) {
+                    $("#run_validation").prop("disabled", false)
+                });
+        }).fail(function(response) {
+            $("#run_validation").prop("disabled", false)
+        });
     }
 
     $( function() {
@@ -412,8 +424,8 @@
 
 </div>
 
-<button type="button" onclick="run_inference()">Start inference</button>
-<button type="button" onclick="run_validation()">Start validation</button>
+<button id="run_inference"  type="button" onclick="run_inference()">Start inference</button>
+<button id="run_validation" type="button" onclick="run_validation()">Start validation</button>
 
 <ul id="evidence_unknown" class="evidence_drop">
 </ul>
