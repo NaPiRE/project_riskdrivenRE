@@ -351,12 +351,14 @@ module napire
 
         function brier_score(data)
             bs = 0
+            ns = 0
             for iteration_data in data
                 for (expected, predicted) in iteration_data
                     bs += sum([ (convert(Int, expected[s]) - predicted[s])^2 for s in keys(expected) ])
+                    ns += length(expected)
                 end
             end
-            return bs
+            return bs / ns
         end
     end
 end
