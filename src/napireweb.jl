@@ -162,7 +162,8 @@ module web
         r"^.*\.json$"  => "application/json",
         r"^.*\.js$"  => "text/javascript",
         r"^.*\.css$" => "text/css",
-        r"^.*\.html$" => "text/html"
+        r"^.*\.html$" => "text/html",
+        r"^.*\.ico$" => "image/x-icon"
     )
 
     struct WebApplicationException <: Exception
