@@ -194,6 +194,7 @@
 
         contained = update("#evidence_false");
         contained = contained.concat(update("#evidence_true"));
+        contained = contained.concat(update("#evidence_output"));
 
         for(var c of contained) {
             var idx = evidence.indexOf(c);
@@ -432,6 +433,8 @@
 
 <ul id="evidence_unknown" class="evidence_drop">
 </ul>
+
+<p class="hint">Hint: if you run out of memory, reduce the number of output variables.</p>
 
 <table>
 <thead>
