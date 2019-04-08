@@ -13,6 +13,7 @@
   <script src="external/jquery-ui/jquery-ui.js"></script>
   <script>
     params = {
+        "nodes": [],
         "connect": [],
         "query": [],
         "evidence": {},
@@ -83,12 +84,12 @@
             }
         }
 
-        let nodes_minweight = {};
+        let nodes = [];
         for(let i of connectivity) {
             let mw_id = "nodes_min_weight_" + i;
-            nodes_minweight[i] = parseInt($("#" + mw_id).val());
+            nodes.push(i, false, parseInt($("#" + mw_id).val()));
         }
-        params["nodes"] = nodes_minweight;
+        params["nodes"] = nodes;
 
         $("#connectivity_nodesnumber").empty();
         for(let i of connectivity) {
@@ -99,7 +100,6 @@
         //
         // edges setup
         //
-
         let from_keys = [];
         for(let ch of $("#connectivity_from").children()) {
             ch = $(ch)
@@ -117,7 +117,7 @@
             let mw_id = "edges_min_weight_" + i;
             let mw_val = parseInt($("#" + mw_id).val());
 
-            connect.push( [ from_keys[i], to_keys[i], isNaN(mw_val) ? 9 : mw_val ]);
+            connect.push( [ from_keys[i], to_keys[i], false, isNaN(mw_val) ? 9 : mw_val ]);
         }
         params["connect"] = connect;
 

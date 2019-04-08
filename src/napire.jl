@@ -17,7 +17,7 @@ module napire
     const ANSWERS_PER_SUBJECT = 5
     export ANSWERS_PER_SUBJECT
 
-    function load(nodes::Dict{Symbol, UInt} = Dict{Symbol, UInt}(), connect::Array{Tuple{Symbol, Symbol, UInt}, 1} = Array{Tuple{Symbol, Symbol, UInt}, 1}();
+    function load(nodes::Array{Tuple{Symbol, Bool, UInt}} = Dict{Symbol, UInt}(), connect::Array{Tuple{Symbol, Symbol, Bool, UInt}, 1} = Array{Tuple{Symbol, Symbol, Bool, UInt}, 1}();
             filename = joinpath(dirname(@__FILE__), "../data/napire.csv"), summary = true, all_items = false)
         #
         # CSV parsing
@@ -76,9 +76,10 @@ module napire
         #
         # node-wise filtering
         #
-        for (node_type, min_weight) in nodes
+        for (node_type, weighted, min_weight) in nodes
             for node in items[node_type]
-                if sum(data[node]) < min_weight
+                if ((weighted && sum(data[node] .* parse.(UInt, data[:IDENTIFIERS_RANK_00])) < min_weight)
+                        || (!weighted && sum(data[node]) < min_weight))
                     deletecols!(data, node)
                     delete!(items[node_type], node)
                     delete!(descriptions, node)
@@ -93,7 +94,7 @@ module napire
         all_edges::Dict{Pair{Symbol, Symbol}, Int64} = Dict{Pair{Symbol, Symbol}, Int64}()
 
         for connect_pair in connect
-            nodes, edges= __create_edges(data, items, connect_pair[1], connect_pair[2], connect_pair[3])
+            nodes, edges= __create_edges(data, items, connect_pair[1], connect_pair[2], connect_pair[3], connect_pair[4])
             all_nodes = union(all_nodes, nodes)
             all_edges = merge(all_edges, edges)
         end
@@ -129,7 +130,7 @@ module napire
     end
     export load
 
-    function __create_edges(data, items, from ::Symbol, to ::Symbol, minimum_edge_weight)
+    function __create_edges(data, items, from::Symbol, to::Symbol, weighted::Bool, minimum_edge_weight)
         edges = Dict{Pair{Symbol, Symbol}, Int64}()
 
         for from_node in items[from]
@@ -138,7 +139,7 @@ module napire
 
                 for i in 1:size(data)[1]
                     if data[i, from_node] && data[i, to_node]
-                        edges[(from_node => to_node)] += 1
+                        edges[(from_node => to_node)] += weighted ? parse(UInt, data[i, :IDENTIFIERS_RANK_00]) : 1;
                     end
                 end
             end
