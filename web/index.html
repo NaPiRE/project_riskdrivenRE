@@ -279,7 +279,7 @@
                         val_queries.push(validation.query);
                         $("#output_validation").append(
                               "<li><a href=\"javascript:graph_window = window.open(graph_window_path(" + (val_queries.length - 1) +"), '_blank', 'width=700,height=850'); void(0)\">" + validation.query.inference_method + "</a>"
-                            + ": " + validation.query.subsample_size + " subject per subsample, " + validation.query.iterations + " iterations, "
+                            + ": " + validation.query.subsample_size + " subjects per subsample, " + validation.query.iterations + " iterations, "
                             + (validation.done ? "" : (validation.steps_done / validation.steps_total * 100).toFixed(2) + "%") + " done.</li>");
                     }
                 }
@@ -345,7 +345,7 @@
 
 <h1>Architecture</h1>
 
-<button type="button" onclick="description_window = window.open(description_window_path(), '_blank', 'width=700,height=850');">Show code-description-mapping</button>
+<button class="centered_button" type="button" onclick="description_window = window.open(description_window_path(), '_blank', 'width=700,height=850');">Show code-description-mapping</button>
 
 <table>
 <thead>
@@ -425,8 +425,10 @@
 
 </div>
 
+<div class="button_container">
 <button id="run_inference"  type="button" onclick="run_inference()">Start inference</button>
 <button id="run_validation" type="button" onclick="run_validation()">Start validation</button>
+</div>
 
 <ul id="evidence_unknown" class="evidence_drop">
 </ul>
@@ -462,7 +464,7 @@
 <div id="result">
 
 <h1>Graph representation</h1>
-<button onclick="$('#legend').toggle()">Show/hide legend</button>
+<button class="centered_button" onclick="$('#legend').toggle()">Show/hide legend</button>
 <img id="legend" style="display: none;" src="../query_legend"></img>
 
 <p id="loading_indicator">Loading...</p>
