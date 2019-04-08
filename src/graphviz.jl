@@ -14,6 +14,7 @@ module graphviz
 
     @enum DotNodeProps begin
         label
+        margin
         shape
     end
 
@@ -33,20 +34,20 @@ module graphviz
 
     struct Dot
         edges::Array{Pair{Symbol, Symbol}}
-        nodes::Set{Symbol}
+        nodes::Array{Symbol}
 
         graph_props::Dict{DotGraphProps, String}
         node_props::Dict{Symbol, Dict{DotNodeProps, String}}
         edge_props::Dict{Pair{Symbol, Symbol}, Dict{DotEdgeProps, String}}
 
-        function Dot(edges)
-            nodes = Set{Symbol}()
+        function Dot(nodes, edges)
+            nodes = collect(nodes)
             for edge in edges
                 push!(nodes, edge.first)
                 push!(nodes, edge.second)
             end
 
-            new(collect(edges), nodes,
+            new(collect(edges), unique(nodes),
                 Dict{DotGraphProps, String}(),
                 Dict{Symbol, Dict{DotNodeProps, String}}(),
                 Dict{Pair{Symbol, Symbol}, Dict{DotEdgeProps, String}}())

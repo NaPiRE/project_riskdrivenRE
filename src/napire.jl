@@ -154,16 +154,15 @@ module napire
         return nodes, edges
     end
 
-    plot_label(n) = string(n)[1:1] * string(n)[end - 2:end]
-    export plot_label
 
-    function plot(data, output_type = graphviz.default_output_type; shape = "ellipse", penwidth_factor = 5, ranksep = 3, label = plot_label)
+    function plot(data, output_type = graphviz.default_output_type; shape = shape(n) = "ellipse", penwidth_factor = 5, ranksep = 3, label = identity)
         graph_layout = data.edges
-        graph = graphviz.Dot(keys(graph_layout))
+        graph = graphviz.Dot(data.nodes, keys(graph_layout))
 
         for node in data.nodes
             graphviz.set(graph, node, graphviz.label, label(node))
-            graphviz.set(graph, node, graphviz.shape, shape)
+            graphviz.set(graph, node, graphviz.margin, 0.025)
+            graphviz.set(graph, node, graphviz.shape, shape(node))
         end
 
         graphviz.set(graph, graphviz.ranksep, ranksep)
@@ -239,10 +238,15 @@ module napire
     end
     export predict
 
-    function plot_prediction(data, evidence, results, output_type = graphviz.default_output_type; half_cell_width = 40, kwargs...)
+    function plot_prediction(data, query, evidence, results, output_type = graphviz.default_output_type; half_cell_width = 40, shorten = false, kwargs...)
         function label(node)
-            label = """< <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">"""
+            plot_label(n) = shorten ? string(n)[1:1] * string(n)[end - 2:end] : n
 
+            if !in(node, query) && !haskey(evidence, node) && !haskey(results, node)
+                return plot_label(node)
+            end
+
+            label = """< <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">"""
             label *= """<TR><TD COLSPAN="2">$(plot_label(node))</TD></TR>"""
             if haskey(results, node)
                 false_val = @sprintf("%d", round( (1 - results[node]) * 100))
@@ -258,9 +262,24 @@ module napire
             label *= "</TABLE>>"
         end
 
-        plot(data, output_type; shape = "plaintext", label = label, kwargs...)
+        function shape(node)
+            if !in(node, query) && !haskey(evidence, node) && !haskey(results, node)
+                return "ellipse"
+            else
+                return "plaintext"
+            end
+        end
+
+        plot(data, output_type; shape = shape, label = label, kwargs...)
     end
     export plot_prediction
+
+    function plot_legend(output_type = graphviz.default_output_type, kwargs...)
+        plot_prediction( ( nodes = [ :unknown, :output, :present, :absent, :result ], edges = Dict{Pair{Symbol, Symbol}, Int}()),
+                        Set{Symbol}([:output]), Dict{Symbol, Bool}(:present => true, :absent => false),
+                        Dict{Symbol, Float64}( :result => 0.3 ), output_type; shorten = false)
+    end
+    export plot_legend
 
     function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::String)
         return validate(data, output_variables, subsample_size, iterations, inference_methods[inference_method])

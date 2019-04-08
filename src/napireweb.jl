@@ -15,10 +15,10 @@ module web
 
         if query_dict != nothing
             inference_method = string(get(query_dict, "inference_method", ""))
-            query = inference_method == "" ? [] : Set(Symbol(q) for q in get(query_dict, "query"))
+            query = Set(Symbol(q) for q in get(query_dict, "query", []))
             evidence = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
 
-            if length(query) > 0
+            if inference_method != "" && length(query) > 0
                 try
                     bn = napire.bayesian_train(data)
                     results = napire.predict(bn, query, evidence, inference_method)
@@ -32,7 +32,7 @@ module web
             end
         end
 
-        data = napire.plot_prediction(data, evidence, results, napire.graphviz.png)
+        data = napire.plot_prediction(data, query, evidence, results, napire.graphviz.png)
         if parse(Bool, data_url)
             return "data:image/png;base64," * Base64.base64encode(data)
         else
