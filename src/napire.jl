@@ -161,7 +161,7 @@ module napire
 
         for node in data.nodes
             graphviz.set(graph, node, graphviz.label, label(node))
-            graphviz.set(graph, node, graphviz.margin, 0.025)
+            graphviz.set(graph, node, graphviz.margin, 0)
             graphviz.set(graph, node, graphviz.shape, shape(node))
         end
 
@@ -238,7 +238,7 @@ module napire
     end
     export predict
 
-    function plot_prediction(data, query, evidence, results, output_type = graphviz.default_output_type; half_cell_width = 40, shorten = false, kwargs...)
+    function plot_prediction(data, query, evidence, results, output_type = graphviz.default_output_type; half_cell_width = 40, shorten = true, kwargs...)
         function label(node)
             plot_label(n) = shorten ? string(n)[1:1] * string(n)[end - 2:end] : n
 
@@ -246,8 +246,10 @@ module napire
                 return plot_label(node)
             end
 
+            padding = (haskey(results, node) || haskey(evidence, node)) ? 1 : 5
+
             label = """< <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">"""
-            label *= """<TR><TD COLSPAN="2">$(plot_label(node))</TD></TR>"""
+            label *= """<TR><TD COLSPAN="2" CELLPADDING="$(padding)">$(plot_label(node))</TD></TR>"""
             if haskey(results, node)
                 false_val = @sprintf("%d", round( (1 - results[node]) * 100))
                 true_val = @sprintf("%d", round(results[node] * 100))
@@ -275,7 +277,7 @@ module napire
     export plot_prediction
 
     function plot_legend(output_type = graphviz.default_output_type, kwargs...)
-        plot_prediction( ( nodes = [ :unknown, :output, :present, :absent, :result ], edges = Dict{Pair{Symbol, Symbol}, Int}()),
+        plot_prediction( ( nodes = [ :unknown, :output, :absent, :present, :result ], edges = Dict{Pair{Symbol, Symbol}, Int}()),
                         Set{Symbol}([:output]), Dict{Symbol, Bool}(:present => true, :absent => false),
                         Dict{Symbol, Float64}( :result => 0.3 ), output_type; shorten = false)
     end

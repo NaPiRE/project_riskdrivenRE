@@ -40,6 +40,10 @@ module web
         end
     end
 
+    function query_legend()
+        return napire.plot_legend(napire.graphviz.png)
+    end
+
     function items(query_dict; all_items = "false")
         return __load_graph(query_dict, all_items).items
     end
@@ -139,6 +143,7 @@ module web
         (path = "/descriptions", method = "POST") => (fn = descriptions, content = "application/json"),
         (path = "/items", method = "POST")  => (fn = items, content = "application/json"),
         (path = "/query", method = "POST") => (fn = query, content = "image/png"),
+        (path = "/query_legend", method = "GET") => (fn = query_legend, content="image/png"),
         (path = "/validate", method = "POST")  => (fn = validate, content = "application/json"),
         (path = "/validations", method = "GET")  => (fn = validations, content = "application/json")
     )

@@ -15,8 +15,8 @@
         loading = loading + inc;
         if(loading < 0) loading = 0;
 
-        if(loading == 0) $("#loading_indicator").html("&nbsp;");
-        else $("#loading_indicator").text("Loading...");
+        if(loading == 0) $("#loading_indicator").hide();
+        else $("#loading_indicator").show();
     }
 
     $( function() {

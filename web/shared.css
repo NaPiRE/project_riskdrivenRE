@@ -81,8 +81,16 @@ table .evidence_drop {
     padding-right: 0px;
 }
 
-#evidence_unknown, #metrics {
+#evidence_unknown {
     columns: 3;
+}
+
+#metrics {
+    display: block;
+    width: 600px;
+    columns: 2;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .ui-sortable-helper {

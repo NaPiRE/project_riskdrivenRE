@@ -53,8 +53,8 @@
         loading = loading + inc;
         if(loading < 0) loading = 0;
 
-        if(loading == 0) $("#loading_indicator").html("&nbsp;");
-        else $("#loading_indicator").text("Loading...");
+        if(loading == 0) $("#loading_indicator").hide();
+        else $("#loading_indicator").show();
     }
 
     function update_connectivity_view() {
@@ -449,6 +449,9 @@
 <div id="result">
 
 <h1>Graph representation</h1>
+<button onclick="$('#legend').toggle()">Show/hide legend</button>
+<img id="legend" style="display: none;" src="../query_legend"></img>
+
 <p id="loading_indicator">Loading...</p>
 
 
