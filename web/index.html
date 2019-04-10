@@ -87,7 +87,7 @@
         let nodes = [];
         for(let i of connectivity) {
             let mw_id = "nodes_min_weight_" + i;
-            nodes.push(i, false, parseInt($("#" + mw_id).val()));
+            nodes.push( [i, false, parseInt($("#" + mw_id).val())] );
         }
         params["nodes"] = nodes;
 

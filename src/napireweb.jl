@@ -54,12 +54,12 @@ module web
 
     function __load_graph(query_dict, all_items)
         nodes_raw = get(query_dict, "nodes", [])
-        nodes = [ ( Symbol(n[1]), convert(Bool, n[2]), convert(UInt, n[3]) ) for n in nodes_raw ]
+        nodes::Array{Tuple{Symbol,Bool,UInt64}} = [ ( Symbol(n[1]), convert(Bool, n[2]), convert(UInt, n[3]) ) for n in nodes_raw ]
 
         connect_raw = get(query_dict, "connect", [])
-        connect = [ ( Symbol(c[1]),  Symbol(c[2]), convert(Bool, c[3]), convert(UInt, c[4]) ) for c in connect_raw ]
+        connect::Array{Tuple{Symbol,Symbol,Bool,UInt64}} = [ ( Symbol(c[1]),  Symbol(c[2]), convert(Bool, c[3]), convert(UInt, c[4]) ) for c in connect_raw ]
 
-        return napire.load(nodes, connect, weighted; summary = false, all_items = parse(Bool, all_items))
+        return napire.load(nodes, connect; summary = false, all_items = parse(Bool, all_items))
     end
 
     function inference()
