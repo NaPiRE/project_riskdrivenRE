@@ -19,23 +19,51 @@
         "evidence": {},
         "inference_method": ""
     };
-    old_params = {};
+    old_params = null;
     items = {};
     loading = 0;
 
-    function equals(a, b) {
-        let prs = Object.getOwnPropertyNames(a).concat(Object.getOwnPropertyNames(b));
-        for (let i = 0; i < prs.length; i++) {
-            let pr = prs[i];
-            if(!a.hasOwnProperty(pr) || !b.hasOwnProperty(pr)) {
-                return false;
-            }
-
-            if (a[pr] !== b[pr]) {
-                return false;
-            }
+    function query_changed() {
+        if(old_params === null) {
+            return true;
         }
-        return true;
+
+        function obj_equals(a, b, eq_fun = (a, b) => a === b) {
+            let prs = Object.getOwnPropertyNames(a).concat(Object.getOwnPropertyNames(b));
+            for (let i = 0; i < prs.length; i++) {
+                let pr = prs[i];
+                if(!a.hasOwnProperty(pr) || !b.hasOwnProperty(pr)) {
+                    return false;
+                }
+
+                if (!eq_fun(a[pr], b[pr])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        if(!obj_equals(old_params.nodes, params.nodes, obj_equals)) {
+            return true;
+        }
+
+        if(!obj_equals(old_params.connect, params.connect, obj_equals)) {
+            return true;
+        }
+
+        if(!obj_equals(old_params.query, params.query)) {
+            return true;
+        }
+
+        if(!obj_equals(old_params.evidence, params.evidence)) {
+            return true;
+        }
+
+        if(!obj_equals(old_params.inference_method, params.inference_method)) {
+            return true;
+        }
+
+        return false;
     }
 
     function post(url, overwrites) {
@@ -58,7 +86,7 @@
         else $("#loading_indicator").show();
     }
 
-    function update_connectivity_view(init) {
+    function update_architecture_params(init) {
         let connectivity = Object.getOwnPropertyNames(items);
         connectivity.sort();
 
@@ -66,18 +94,24 @@
         // nodes setup
         //
 
-        if(init) {
-            $("#connectivity_available").empty()
-            for(let i of connectivity) {
-                $("#connectivity_available").append("<li>" + i + "</li>");
-            }
+        $("#connectivity_available").empty()
+        for(let i of connectivity) {
+            $("#connectivity_available").append("<li>" + i + "</li>");
+        }
 
+        if(init) {
             $("#connectivity_nodesweight").empty();
+            $("#connectivity_nodesweightedfilter").empty();
             for(let i of connectivity) {
                 let mw_id = "nodes_min_weight_" + i;
                 $("#connectivity_nodesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
                     " type=\"number\" min=\"0\" value=\"5\" name=\"" + mw_id + "\"/>");
+                $("#" + mw_id).change(function(event) {
+                    update_items();
+                });
 
+                mw_id = "nodes_min_weight_weighted_" + i;
+                $("#connectivity_nodesweightedfilter").append("<input id=\""+ mw_id + "\" type=\"checkbox\" class=\"min_weight\"/>");
                 $("#" + mw_id).change(function(event) {
                     update_items();
                 });
@@ -86,8 +120,9 @@
 
         let nodes = [];
         for(let i of connectivity) {
-            let mw_id = "nodes_min_weight_" + i;
-            nodes.push( [i, false, parseInt($("#" + mw_id).val())] );
+            nodes.push( [i,
+                $("#nodes_min_weight_weighted_" + i)[0].checked,
+                parseInt($("#nodes_min_weight_" + i).val())] );
         }
         params["nodes"] = nodes;
 
@@ -114,10 +149,11 @@
 
         let connect = [];
         for(let i = 0; i < Math.min(from_keys.length, to_keys.length); i++) {
-            let mw_id = "edges_min_weight_" + i;
-            let mw_val = parseInt($("#" + mw_id).val());
+            let mw_val = parseInt($("#edges_min_weight_" + i).val());
+            let mv_valweighted = $("#edges_min_weight_weighted_" + i)[0];
+            mv_valweighted = mv_valweighted ? mv_valweighted.checked : false;
 
-            connect.push( [ from_keys[i], to_keys[i], false, isNaN(mw_val) ? 9 : mw_val ]);
+            connect.push( [ from_keys[i], to_keys[i], mv_valweighted, isNaN(mw_val) ? 9 : mw_val ]);
         }
         params["connect"] = connect;
 
@@ -132,11 +168,27 @@
             num_edgesweight_found++;
         }
 
+        num_edgesweight_found = 0
+        for(let ch of $("#connectivity_edgesweight_weighted").children()) {
+            ch = $(ch);
+            if(num_edgesweight_found >= num_edgesweight) {
+                ch.remove();
+            }
+
+            num_edgesweight_found++;
+        }
+
         for(; num_edgesweight_found < num_edgesweight; num_edgesweight_found++) {
             let mw_id = "edges_min_weight_" + num_edgesweight_found;
             $("#connectivity_edgesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
-                " type=\"number\" min=\"0\" value=\"" + connect[num_edgesweight_found][2] + "\" name=\"" + mw_id + "\"/>");
+                " type=\"number\" min=\"0\" value=\"9\" name=\"" + mw_id + "\"/>");
+            $("#" + mw_id).change(function(event) {
+                update_items();
+            });
 
+            mw_id = "edges_min_weight_weighted_" + num_edgesweight_found;
+            $("#connectivity_edgesweight_weighted").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
+                " type=\"checkbox\" name=\"" + mw_id + "\"/>");
             $("#" + mw_id).change(function(event) {
                 update_items();
             });
@@ -262,8 +314,6 @@
             $("#connectivity_from").append("<li>CAUSES_CODE</li>");
             $("#connectivity_from").append("<li>PROBLEMS_CODE</li>");
 
-            update_connectivity_view(); // load params from the just-changed ui
-
             $.ajax("/inference").then(function(response) {
                 for(let method of response) {
                     $("#inference_method").append("<option value=\"" + method + "\">" + method + "</option>");
@@ -271,10 +321,12 @@
             });
         }
 
+        update_architecture_params(); // load params from the just-changed ui
+
         post("/items").then(function(response) {
             items = response;
 
-            update_connectivity_view(init);
+            update_architecture_params(init); // insert stuff from the newly loaded items to the UI
             update_evidence_view();
             update_descriptions();
 
@@ -288,7 +340,7 @@
     }
 
     function update_image() {
-        if(!equals(old_params, params)) {
+        if(query_changed()) {
             post("/query?data_url=true")
                 .then( function(response) {
                     update_loading(-1);
@@ -361,7 +413,7 @@
     for(let i of [ "#connectivity_from", "#connectivity_to", "#connectivity_available" ]) {
         $(i).sortable({
             connectWith: "ul.connectivity_drop",
-            stop: function(event, ui) { update_connectivity_view(); update_items(); },
+            stop: function(event, ui) { update_architecture_params(); update_items(); },
             revert: 200
         });
     }
@@ -389,13 +441,16 @@
 
 <table>
 <thead>
-<th>Available node types</th><th>Filter</th><th>Number</th>
+<th>Available node types</th><th colspan="2">Filter</th><th>Number</th>
 </thead>
 <tbody>
 
 <td>
 <ul id="connectivity_available" class="connectivity_drop">
 </ul>
+</td>
+
+<td id="connectivity_nodesweightedfilter">
 </td>
 
 <td id="connectivity_nodesweight">
@@ -409,7 +464,7 @@
 
 <table>
 <thead>
-    <th>From</th><th>To</th><th>Filter</th>
+    <th>From</th><th>To</th><th colspan="2">Filter</th>
 </thead>
 <tbody>
 <tr>
@@ -420,6 +475,9 @@
 <td>
 <ul id="connectivity_to" class="connectivity_drop">
 </ul>
+</td>
+
+<td id="connectivity_edgesweight_weighted">
 </td>
 
 <td id="connectivity_edgesweight">

@@ -3,6 +3,10 @@ body {
     flex-direction: column;
 }
 
+/*
+ * Codes
+ */
+
 #codes table {
     display: block;
     width: 600px;
@@ -24,6 +28,64 @@ body {
     width: 400px;
 }
 
+/*
+ * Architecture
+ */
+
+#connectivity_edgesweight, #connectivity_nodesweight, #connectivity_nodesnumber {
+    width: 100px;
+}
+
+#legend {
+    margin-bottom: 20px;
+}
+
+.min_weight[type="number"] {
+    display: block;
+    margin-top: 5px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    color: black;
+}
+
+.min_weight[type="checkbox"] {
+    display: block;
+    margin-top: 8px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    color: black;
+}
+
+.evidence_drop li, .connectivity_drop li {
+    margin-bottom: 2px;
+    margin-top: 2px;
+    background-color: lightgrey;
+}
+
+.evidence_drop, .connectivity_drop {
+    display: block;
+    min-height: 50px;
+    cursor: grab;
+    list-style-type: none;
+    padding: 5px;
+    margin: 0px;
+}
+
+.evidence_drop li {
+    width: 190px;
+}
+
+table .evidence_drop {
+    width: 190px;
+    padding-right: 0px;
+}
+
+#evidence_unknown {
+    columns: 3;
+}
+
 @media(min-width: 1250px)  {
     body {
         flex-direction: row;
@@ -33,5 +95,5 @@ body {
         width: 700px;
         margin-left: inherit;
         margin-right: inherit;
-}
+    }
 }
