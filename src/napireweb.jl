@@ -70,20 +70,18 @@ module web
         return inference_methods
     end
 
-    started_validations = nothing
-    function load_started_validations()
-        global started_validations
-        if started_validations == nothing
-            files = sort([ f for f in readdir(RESULT_DIRECTORY) if occursin(r"^[0-9]+\.ser$", f) ])
-            started_validations = Array{Tuple{Dict{String, Any}, AbstractArray, Any}}(undef, 0)
-            append!(started_validations, [ Serialization.deserialize(joinpath(RESULT_DIRECTORY, f)) for f in files ])
-        end
+    STARTED_VALIDATIONS = nothing
+    RESULT_DIRECTORY = nothing
+    function load_started_validations(result_directory::String)
+        global RESULT_DIRECTORY, STARTED_VALIDATIONS
+        RESULT_DIRECTORY = result_directory
+        files = sort([ f for f in readdir(result_directory) if occursin(r"^[0-9]+\.ser$", f) ])
+        STARTED_VALIDATIONS = Array{Tuple{Dict{String, Any}, AbstractArray, Any}}(undef, 0)
+        append!(STARTED_VALIDATIONS, [ Serialization.deserialize(joinpath(result_directory, f)) for f in files ])
     end
 
 
     function validate(query_dict)
-        load_started_validations()
-
         data = __load_graph(query_dict, "false")
 
         inference_method = string(get(query_dict, "inference_method", napire.default_inference_method))
@@ -97,8 +95,8 @@ module web
         query_dict["query"] = query
 
         progress_array, task = napire.validate(data, query, subsample_size, iterations, inference_method)
-        push!(started_validations, (query_dict, progress_array, task))
-        storage_file = joinpath(RESULT_DIRECTORY, string(length(started_validations)) * ".ser")
+        push!(STARTED_VALIDATIONS, (query_dict, progress_array, task))
+        storage_file = joinpath(RESULT_DIRECTORY, string(length(STARTED_VALIDATIONS)) * ".ser")
 
         @async begin
             data = (query_dict, [ 0 ], fetch(task))
@@ -108,7 +106,6 @@ module web
     end
 
     function validations(; id = nothing)
-        load_started_validations()
         if id == nothing
             return [ Dict(
                     "query" => q,
@@ -116,9 +113,9 @@ module web
                     "steps_total" => q["subsample_size"] * q["iterations"] * napire.ANSWERS_PER_SUBJECT,
                     "done" => isa(r, Task) ? istaskdone(r) : true,
                     "metrics" => nothing
-                ) for (q, a, r) in started_validations ]
+                ) for (q, a, r) in STARTED_VALIDATIONS ]
         else
-            q, a, r = started_validations[parse(UInt, id)]
+            q, a, r = STARTED_VALIDATIONS[parse(UInt, id)]
             metrics = nothing
             if isa(r, Task) && istaskdone(r)
                 metrics = napire.calc_metrics(fetch(r))
@@ -264,10 +261,9 @@ module web
             fn = (; ) -> HTTP.Response(301, [ ("Location", destination) ]), content = nothing)
     end
 
-    RESULT_DIRECTORY = nothing
     function start(webdir::String, resultdir::String)
-        global RESULT_DIRECTORY = resultdir
         mkpath(resultdir)
+        load_started_validations(resultdir)
 
         for (rootpath, dirs, files) in walkdir(webdir; follow_symlinks = false)
             for file in files

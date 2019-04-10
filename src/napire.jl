@@ -353,9 +353,22 @@ module napire
     end
 
     function calc_metrics(data = nothing)
-        return Dict((s => getfield(napire.Metrics, s)(data))
-                        for s in names(napire.Metrics; all = true)
-                        if isa(getfield(napire.Metrics, s), Function) && s != :eval && s != :include)
+        metrics = Dict{Symbol, Float64}()
+        for s in names(napire.Metrics; all = true)
+            if !isa(getfield(napire.Metrics, s), Function) || s == :eval || s == :include
+                continue
+            end
+
+            m = getfield(napire.Metrics, s)(data)
+            if isa(m, Dict)
+                for (k, v) in m
+                    metrics[k == nothing ? s : Symbol(String(s) * "_" * String(k))] = convert(Float64, v)
+                end
+            else
+                metrics[s] = m
+            end
+        end
+        metrics
     end
 
     module Metrics
@@ -381,6 +394,33 @@ module napire
                 end
             end
             return bs / ns
+        end
+
+        function recall(data)
+            to_be_found = 0
+            found = 0
+            for iteration_data in data
+                for (expected, predicted) in iteration_data
+                    to_be_found += sum([ convert(Int, v) for v in values(expected) ])
+                    found += sum([ predicted[s] > 0.5 ? 1 : 0 for s in keys(expected) if expected[s] ])
+                end
+            end
+
+
+            return Dict(nothing => found / to_be_found, :found => found, :to_be_found => to_be_found)
+        end
+
+        function precision(data)
+            positives = 0
+            true_positives = 0
+            for iteration_data in data
+                for (expected, predicted) in iteration_data
+                    positives += sum([ 1 for s in keys(predicted) if predicted[s] > 0.5 ])
+                    true_positives += sum( [ convert(Int, expected[s]) for s in keys(predicted) if predicted[s] > 0.5 ] )
+                end
+            end
+
+            return Dict(nothing => true_positives / positives, :positives => positives, :true_positives => true_positives)
         end
     end
 end
