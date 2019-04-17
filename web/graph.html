@@ -28,9 +28,13 @@
 
         $.ajax("/validations?id=" + validation_id).then(function(response) {
             validation_query = response.query;
-            $("#description").html(validation_id + ". " + validation_query.inference_method
-                        + ": " + validation_query.subsample_size + " subject per subsample, " + validation_query.iterations + " iterations"
-                        + (validation_query.merge_subjects ? ", merged" : ""));
+            $("#description").html("Result report for validation run " + validation_id);
+
+            //$("#validation").append("<tr><td></td><td class=\"filter\"></td></tr>");
+            $("#validation").append("<tr><td>Inference method</td><td class=\"filter\">" + validation_query.inference_method + "</td></tr>");
+            $("#validation").append("<tr><td>Subject answers merged</td><td class=\"filter\">" + validation_query.merge_subjects + "</td></tr>");
+            $("#validation").append("<tr><td>Subjects per subsample</td><td class=\"filter\">" + validation_query.subsample_size + "</td></tr>");
+            $("#validation").append("<tr><td>Iterations</td><td class=\"filter\">" + validation_query.iterations + "</td></tr>");
             validation_query["inference_method"] = "";
             validation_query["merge_subjects"] = false;
 
@@ -136,9 +140,20 @@
 
 <table>
 <thead>
-    <th style="width: 30%">From</th><th style="width: 30%">To</th><th style="width: 20%">Weight filter</th><th style="width: 20%">Filter</th>
+    <th style="width: 30%">From</th><th style="width: 30%">To</th><th style="width: 20%">Weight filter</th><th class="filter" style="width: 20%">Filter</th>
 </thead>
 <tbody id="connections">
+</tbody>
+</table>
+</div>
+
+<h1>Inference</h1>
+
+<table>
+<thead>
+    <th style="width: 55%">Setting</th><th class="filter" style="width: 50%">Value</th>
+</thead>
+<tbody id="validation">
 </tbody>
 </table>
 </div>
