@@ -80,6 +80,7 @@
                     });
                     setTimeout( () => {
                         let layout = {
+                            xaxis: { title: response.metrics[k].data_xlabel },
                             yaxis: { range: response.metrics[k].limits },
                             yaxis2: { overlaying: 'y', side: 'right', rangemode: 'tozero' }
                         };

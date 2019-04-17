@@ -403,7 +403,8 @@ module napire
                 return (value = correct / total, correct = correct, total = total)
             end
 
-            return (limits = [ 0, 1 ], data = [ (t, calc(t)) for t in config ])
+            return (limits = [ 0, 1 ], data_xlabel = "Node-present threshold",
+                        data = [ (t, calc(t)) for t in config ])
         end
 
         function recall(data, config = [ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ])
@@ -419,7 +420,8 @@ module napire
                 return (value = found / to_be_found, found = found, to_be_found = to_be_found)
             end
 
-            return (limits = [ 0, 1 ], data = [ (t, calc(t)) for t in config ])
+            return (limits = [ 0, 1 ], data_xlabel = "Node-present threshold",
+                        data = [ (t, calc(t)) for t in config ])
         end
 
         function precision(data, config = [ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ])
@@ -435,7 +437,8 @@ module napire
                 return (value = true_positives / positives, positives = positives, true_positives = true_positives)
             end
 
-            return (limits = [ 0, 1 ], data = [ (t, calc(t)) for t in config ])
+            return (limits = [ 0, 1 ], data_xlabel = "Node-present threshold",
+                        data = [ (t, calc(t)) for t in config ])
         end
     end
 end
