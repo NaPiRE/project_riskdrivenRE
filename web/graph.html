@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="graph.css">
   <script src="external/jquery/jquery.js"></script>
   <script src="external/jquery-ui/jquery-ui.js"></script>
+  <script src="external/plotly-latest.min.js" charset="utf-8"></script>
   <script>
     loading = 0;
     function update_loading(inc) {
@@ -40,20 +41,44 @@
             };
 
             $("#metrics").empty();
-            for(k in response.metrics) {
+            for(let k in response.metrics) {
                 let data = response.metrics[k].data;
                 let annotation = null;
-                if(data.length == 1) {
+                let repr = null;
+                if(data.length == 0) {
+                    repr = "no data";
+                } else if(data.length == 1) {
                     if(data[0][0] == null) {
-                        data = JSON.stringify(data[0][1]);
+                        repr = JSON.stringify(data[0][1]);
                     }  else {
-                        data = JSON.stringify(data[0][1]);
-                        annotation = data = JSON.stringify(data[0][0]);
+                        repr = JSON.stringify(data[0][1]);
+                        annotation = JSON.stringify(data[0][0]);
                     }
                 } else {
-                    data = "Too many data points";
+                    repr = "<div id=\"plot_" + k + "\"></div>";
+                    let traces = Object.keys(data[0][1]).map(dk => {
+                        let tr = {
+                            "type": "scatter",
+                            "name": dk,
+                            "x": data.map( xy => xy[0] ),
+                            "y": data.map( xy => xy[1][dk] )
+                        };
+
+                        if(dk != "value") {
+                            tr["yaxis"] = "y2";
+                        }
+                        return tr;
+                    });
+                    setTimeout( () => {
+                        let layout = {
+                            yaxis: { range: response.metrics[k].limits },
+                            yaxis2: { overlaying: 'y', side: 'right', rangemode: 'tozero' }
+                        };
+
+                        Plotly.newPlot("plot_" + k, traces, layout, { responsive: true });
+                    });
                 }
-                $("#metrics").append("<li>" + k + (annotation == null ? "": " (" + annotation + ") ") + ": " + data);
+                $("#metrics").append("<li>" + k + (annotation == null ? "": " (" + annotation + ") ") + ": " + repr);
 
             }
 
