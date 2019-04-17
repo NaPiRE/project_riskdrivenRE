@@ -14,11 +14,12 @@ module napire
     export napireweb
     export graphviz
 
-    const ANSWERS_PER_SUBJECT = 5
+    ANSWERS_PER_SUBJECT = nothing
     export ANSWERS_PER_SUBJECT
 
-    function load(nodes::Array{Tuple{Symbol, Bool, UInt}} = Dict{Symbol, UInt}(), connect::Array{Tuple{Symbol, Symbol, Bool, UInt}, 1} = Array{Tuple{Symbol, Symbol, Bool, UInt}, 1}();
-            filename = joinpath(dirname(@__FILE__), "../data/napire.csv"), summary = true, all_items = false)
+    function load(nodes::Array{Tuple{Symbol, Bool, UInt}} = Dict{Symbol, UInt}(),
+            connect::Array{Tuple{Symbol, Symbol, Bool, UInt}, 1} = Array{Tuple{Symbol, Symbol, Bool, UInt}, 1}(),
+            merge_individuals::Bool = false; filename = joinpath(dirname(@__FILE__), "../data/napire.csv"), summary = true, all_items = false)
         #
         # CSV parsing
         #
@@ -112,6 +113,20 @@ module napire
                     delete!(descriptions, key)
                 end
             end
+        end
+
+        ANSWERS_PER_SUBJECT = 5
+        if merge_individuals
+            new_data = similar(data, 0)
+            for i in 1:(size(data, 1) / ANSWERS_PER_SUBJECT)
+                rows = collect(StepRange( convert(Int, ((i-1) * ANSWERS_PER_SUBJECT + 1)), 1, convert(Int, (i * ANSWERS_PER_SUBJECT)) ))
+                println(rows)
+#                 println(data[rows, :])
+                ld = DataFrame(colwise(x -> [ sum(x) >= 1 ], data[rows, :]), names(data))
+                new_data = vcat(new_data, ld)
+            end
+            data = new_data
+            ANSWERS_PER_SUBJECT = 1
         end
 
         #
