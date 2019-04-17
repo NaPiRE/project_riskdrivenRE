@@ -7,8 +7,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
     exit 1
 fi
 
-OPTIONS=snp:
-LONGOPTS=shell,nodep,procs:
+OPTIONS=hsnp:
+LONGOPTS=help,shell,nodep,procs:
 
 # -use ! and PIPESTATUS to get exit code with errexit set
 # -temporarily store output to be able to check for errors
@@ -44,6 +44,10 @@ while true; do
             default_procs="n"
             shift 2
             ;;
+        -h|--help)
+            echo "Usage: $0 [--shell|--nodep|--procs=Nm|--help]"
+            exit 0
+            ;;
         --)
             shift
             break
@@ -57,7 +61,7 @@ done
 
 # handle non-option arguments
 if [[ $# -ne 0 ]]; then
-    echo "$0: No positional arguments are supported."
+    echo "$0: No positional arguments are supported. Try --help."
     exit 4
 fi
 
