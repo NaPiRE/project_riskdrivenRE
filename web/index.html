@@ -17,7 +17,8 @@
         "connect": [],
         "query": [],
         "evidence": {},
-        "inference_method": ""
+        "inference_method": "",
+        "merge_subjects": false
     };
     old_params = null;
     items = {};
@@ -60,6 +61,10 @@
         }
 
         if(!obj_equals(old_params.inference_method, params.inference_method)) {
+            return true;
+        }
+
+        if(!obj_equals(old_params.merge_subjects, params.merge_subjects)) {
             return true;
         }
 
@@ -357,6 +362,7 @@
                 });
 
             params["inference_method"] = "";
+            params["merge_subjects"] = false;
             old_params = Object.assign({}, params);
             update_loading(+1);
         }
@@ -375,6 +381,7 @@
                         $("#output_validation").append(
                               "<li><a href=\"javascript:graph_window = window.open(graph_window_path(" + val_queries +"), '_blank', 'width=700,height=850'); void(0)\">" + validation.query.inference_method + "</a>"
                             + ": " + validation.query.subsample_size + " subjects per subsample, " + validation.query.iterations + " iterations, "
+                            + (validation.query.merge_subjects ? "merged, " : "")
                             + (validation.done ? "" : (validation.steps_done / validation.steps_total * 100).toFixed(2) + "%") + " done.</li>");
                         val_queries++;
                     }
@@ -388,6 +395,7 @@
 
     function run_inference() {
         params["inference_method"] = $("#inference_method").val();
+        params["merge_subjects"] = $("#merge_subjects")[0].checked;
         $("#run_inference").prop("disabled", true);
     }
 
@@ -395,6 +403,7 @@
         $("#run_validation").prop("disabled", true);
         post("/validate", {
             "inference_method": $("#inference_method").val(),
+            "merge_subjects": $("#merge_subjects")[0].checked,
             "subsample_size": $("#validation_subsample_size").val(),
             "iterations": $("#validation_iterations").val()
         }).then( function(response) {
@@ -489,6 +498,17 @@
 <h1>Inference</h1>
 
 <div class="settings_container">
+
+<div class="settings_row">
+<div class="settings_cell">
+<label for="merge_subjects">Merge subject answers</label>
+</div>
+
+<div class="settings_cell">
+<input id="merge_subjects" name="merge_subjects" type="checkbox"/>
+</select>
+</div>
+</div>
 
 <div class="settings_row">
 <div class="settings_cell">

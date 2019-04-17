@@ -14,12 +14,12 @@ module napire
     export napireweb
     export graphviz
 
-    ANSWERS_PER_SUBJECT = nothing
+    const ANSWERS_PER_SUBJECT = 5
     export ANSWERS_PER_SUBJECT
 
     function load(nodes::Array{Tuple{Symbol, Bool, UInt}} = Dict{Symbol, UInt}(),
             connect::Array{Tuple{Symbol, Symbol, Bool, UInt}, 1} = Array{Tuple{Symbol, Symbol, Bool, UInt}, 1}(),
-            merge_individuals::Bool = false; filename = joinpath(dirname(@__FILE__), "../data/napire.csv"), summary = true, all_items = false)
+            merge_subjects::Bool = false; filename = joinpath(dirname(@__FILE__), "../data/napire.csv"), summary = true, all_items = false)
         #
         # CSV parsing
         #
@@ -115,18 +115,14 @@ module napire
             end
         end
 
-        ANSWERS_PER_SUBJECT = 5
-        if merge_individuals
+        if merge_subjects
             new_data = similar(data, 0)
             for i in 1:(size(data, 1) / ANSWERS_PER_SUBJECT)
                 rows = collect(StepRange( convert(Int, ((i-1) * ANSWERS_PER_SUBJECT + 1)), 1, convert(Int, (i * ANSWERS_PER_SUBJECT)) ))
-                println(rows)
-#                 println(data[rows, :])
                 ld = DataFrame(colwise(x -> [ sum(x) >= 1 ], data[rows, :]), names(data))
                 new_data = vcat(new_data, ld)
             end
             data = new_data
-            ANSWERS_PER_SUBJECT = 1
         end
 
         #
@@ -140,7 +136,7 @@ module napire
             println("Samples: ", size(data)[1])
         end
 
-        return (data = data, items = items, descriptions = descriptions,
+        return (data = data, items = items, descriptions = descriptions, merge_subjects = merge_subjects,
             edges = all_edges, nodes = all_nodes, subjects = subjects)
     end
     export load
@@ -304,11 +300,12 @@ module napire
     end
 
     function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::Type = default_inference_method)
+        answers_per_subject = data.merge_subjects ? 1 : ANSWERS_PER_SUBJECT
 
         evidence_variables = setdiff(Set{Symbol}(names(data.data)), output_variables)
-        per_subj = collect(0:(ANSWERS_PER_SUBJECT - 1))
+        per_subj = collect(0:(answers_per_subject - 1))
 
-        progress_array = SharedArrays.SharedArray{Int}( (iterations, subsample_size * ANSWERS_PER_SUBJECT))
+        progress_array = SharedArrays.SharedArray{Int}( (iterations, subsample_size * answers_per_subject))
         task = @async begin
             iteration_tasks = []
             for i in 1:iterations
@@ -316,13 +313,13 @@ module napire
                     println("Validation run " * string(i))
                     samples = Random.randperm(length(data.subjects)) .- 1
 
-                    validation_samples = samples[1:subsample_size]   .* ANSWERS_PER_SUBJECT
-                    training_samples   = samples[subsample_size + 1:end] .* ANSWERS_PER_SUBJECT
+                    validation_samples = samples[1:subsample_size]   .* answers_per_subject
+                    training_samples   = samples[subsample_size + 1:end] .* answers_per_subject
 
                     validation_samples = reduce(vcat, [ s .+ per_subj for s in validation_samples ]) .+ 1
                     training_samples   = reduce(vcat, [ s .+ per_subj for s in training_samples ]) .+ 1
 
-                    @assert length(validation_samples) == subsample_size * ANSWERS_PER_SUBJECT
+                    @assert length(validation_samples) == subsample_size * answers_per_subject
                     @assert length(validation_samples) + length(training_samples) == nrow(data.data)
                     @assert length(intersect(validation_samples, training_samples)) == 0
 
@@ -336,7 +333,7 @@ module napire
                     subtasks = Distributed.@distributed __merge_arrays for si in 1:length(validation_samples)
                         s = validation_samples[si]
 
-                        println(string(si) * " of " * string(subsample_size * ANSWERS_PER_SUBJECT))
+                        println(string(si) * " of " * string(subsample_size * answers_per_subject))
                         evidence = Dict{Symbol, Bool}()
                         for ev in evidence_variables
                             evidence[ev] = data.data[s, ev]

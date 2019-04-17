@@ -28,10 +28,11 @@
 
         $.ajax("/validations?id=" + validation_id).then(function(response) {
             validation_query = response.query;
-
             $("#description").html(validation_id + ". " + validation_query.inference_method
-                        + ": " + validation_query.subsample_size + " subject per subsample, " + validation_query.iterations + " iterations")
+                        + ": " + validation_query.subsample_size + " subject per subsample, " + validation_query.iterations + " iterations"
+                        + (validation_query.merge_subjects ? ", merged" : ""));
             validation_query["inference_method"] = "";
+            validation_query["merge_subjects"] = false;
 
             opts = {
                 "method": "POST",

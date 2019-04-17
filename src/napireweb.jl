@@ -59,7 +59,8 @@ module web
         connect_raw = get(query_dict, "connect", [])
         connect::Array{Tuple{Symbol,Symbol,Bool,UInt64}} = [ ( Symbol(c[1]),  Symbol(c[2]), convert(Bool, c[3]), convert(UInt, c[4]) ) for c in connect_raw ]
 
-        return napire.load(nodes, connect; summary = false, all_items = parse(Bool, all_items))
+        merge_subjects = get(query_dict, "merge_subjects", false)
+        return napire.load(nodes, connect, merge_subjects; summary = false, all_items = parse(Bool, all_items))
     end
 
     function inference()
@@ -114,7 +115,7 @@ module web
             return [ Dict(
                     "query" => q,
                     "steps_done" => sum(a),
-                    "steps_total" => q["subsample_size"] * q["iterations"] * napire.ANSWERS_PER_SUBJECT,
+                    "steps_total" => q["subsample_size"] * q["iterations"] * (get(q, "merge_subjects", false) ? 1 : napire.ANSWERS_PER_SUBJECT),
                     "done" => isa(r, Task) ? istaskdone(r) : true,
                     "metrics" => nothing
                 ) for (q, a, r) in STARTED_VALIDATIONS ]
@@ -130,7 +131,7 @@ module web
             return Dict(
                     "query" => q,
                     "steps_done" => sum(a),
-                    "steps_total" => q["subsample_size"] * q["iterations"] * napire.ANSWERS_PER_SUBJECT,
+                    "steps_total" => q["subsample_size"] * q["iterations"] * (get(q, "merge_subjects", false) ? 1 : napire.ANSWERS_PER_SUBJECT),
                     "done" => isa(r, Task) ? istaskdone(r) : true,
                     "metrics" => metrics
                 )
