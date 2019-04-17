@@ -34,6 +34,14 @@
             validation_query["inference_method"] = "";
             validation_query["merge_subjects"] = false;
 
+            for(let node of validation_query.nodes) {
+                $("#node_types").append("<tr><td>" + node[0] + "</td><td class=\"filter\">" + node[1] + "</td><td class=\"filter\">" + node[2] + "</td></tr>");
+            }
+
+            for(let conn of validation_query.connect) {
+                $("#connections").append("<tr><td>" + conn[0] + "</td><td>" + conn[1] + "</td><td class=\"filter\">" + conn[2] + "</td><td class=\"filter\">" + conn[3] + "</td></tr>");
+            }
+
             opts = {
                 "method": "POST",
                 "contentType": "application/json",
@@ -79,7 +87,7 @@
                         Plotly.newPlot("plot_" + k, traces, layout, { responsive: true });
                     });
                 }
-                $("#metrics").append("<li>" + k + (annotation == null ? "": " (" + annotation + ") ") + ": " + repr);
+                $("#metrics").append("<h2>" + k + (annotation == null ? "": " (" + annotation + ") ") + "</h2><p style=\"text-align: center\">" + repr + "</p>");
 
             }
 
@@ -111,10 +119,31 @@
 <p id="loading_indicator">Loading...</p>
 
 <div id="main">
+
+<div>
+<h1>Architecture</h1>
 <div id="output_graph">
 </div>
 
+<table style="margin-top: 40px">
+<thead>
+    <th style="width: 60%">Node types</th><th class="filter" style="width: 20%">Weight filter</th><th class="filter" style="width: 20%">Filter</th>
+</thead>
+<tbody id="node_types">
+</tbody>
+</table>
+
+<table>
+<thead>
+    <th style="width: 30%">From</th><th style="width: 30%">To</th><th style="width: 20%">Weight filter</th><th style="width: 20%">Filter</th>
+</thead>
+<tbody id="connections">
+</tbody>
+</table>
+</div>
+
 <div>
+<h1>Metrics</h1>
 <ul id="metrics">
 </ul>
 </div>

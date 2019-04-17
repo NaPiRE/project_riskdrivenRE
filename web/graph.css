@@ -3,3 +3,15 @@
     flex-direction: column;
     width: 100%;
 }
+
+
+table {
+    display: block;
+    width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.filter {
+    text-align: right;
+}
