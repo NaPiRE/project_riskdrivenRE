@@ -1,0 +1,23 @@
+#main {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+
+@media(min-width: 1250px)  {
+    #main {
+        flex-direction: row;
+    }
+
+    #main>div {
+        width: 100%;
+    }
+}
+
+#metrics {
+    display: block;
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+}

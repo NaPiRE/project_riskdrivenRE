@@ -353,20 +353,13 @@ module napire
     end
 
     function calc_metrics(data = nothing)
-        metrics = Dict{Symbol, Float64}()
+        metrics = Dict{Symbol, Any}()
         for s in names(napire.Metrics; all = true)
             if !isa(getfield(napire.Metrics, s), Function) || s == :eval || s == :include
                 continue
             end
 
-            m = getfield(napire.Metrics, s)(data)
-            if isa(m, Dict)
-                for (k, v) in m
-                    metrics[k == nothing ? s : Symbol(String(s) * "_" * String(k))] = convert(Float64, v)
-                end
-            else
-                metrics[s] = m
-            end
+            metrics[s] = getfield(napire.Metrics, s)(data)
         end
         metrics
     end
@@ -381,7 +374,7 @@ module napire
                     correct += length([ s for s in keys(expected) if expected[s] == (predicted[s] > 0.5) ])
                 end
             end
-            return correct / total
+            return (limits = [ 0, 1 ], data = [ (nothing, correct / total) ])
         end
 
         function brier_score(data)
@@ -393,34 +386,39 @@ module napire
                     ns += length(expected)
                 end
             end
-            return bs / ns
+            return (limits = [ 0, 1 ], data = [ (nothing, bs / ns) ])
         end
 
-        function recall(data)
-            to_be_found = 0
-            found = 0
-            for iteration_data in data
-                for (expected, predicted) in iteration_data
-                    to_be_found += sum([ convert(Int, v) for v in values(expected) ])
-                    found += sum([ predicted[s] > 0.5 ? 1 : 0 for s in keys(expected) if expected[s] ])
+        function recall(data, config = [ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ])
+            function calc(threshold)
+                to_be_found = 0
+                found = 0
+                for iteration_data in data
+                    for (expected, predicted) in iteration_data
+                        to_be_found += sum([ convert(Int, v) for v in values(expected) ])
+                        found += sum([ predicted[s] > threshold ? 1 : 0 for s in keys(expected) if expected[s] ])
+                    end
                 end
+                return Dict(:recall => found / to_be_found, :found => found, :to_be_found => to_be_found)
             end
 
-
-            return Dict(nothing => found / to_be_found, :found => found, :to_be_found => to_be_found)
+            return (limits = [ 0, 1 ], data = [ (t, calc(t)) for t in config ])
         end
 
-        function precision(data)
-            positives = 0
-            true_positives = 0
-            for iteration_data in data
-                for (expected, predicted) in iteration_data
-                    positives += sum([ 1 for s in keys(predicted) if predicted[s] > 0.5 ])
-                    true_positives += sum( [ convert(Int, expected[s]) for s in keys(predicted) if predicted[s] > 0.5 ] )
+        function precision(data, config = [ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ])
+            function calc(threshold)
+                positives = 0
+                true_positives = 0
+                for iteration_data in data
+                    for (expected, predicted) in iteration_data
+                        positives += sum([ 1 for s in keys(predicted) if predicted[s] > 0.5 ])
+                        true_positives += sum( [ convert(Int, expected[s]) for s in keys(predicted) if predicted[s] > 0.5 ] )
+                    end
                 end
+                return Dict(:precision => true_positives / positives, :positives => positives, :true_positives => true_positives)
             end
 
-            return Dict(nothing => true_positives / positives, :positives => positives, :true_positives => true_positives)
+            return (limits = [ 0, 1 ], data = [ (t, calc(t)) for t in config ])
         end
     end
 end

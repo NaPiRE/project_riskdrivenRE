@@ -3,6 +3,20 @@ body {
     flex-direction: column;
 }
 
+
+@media(min-width: 1250px)  {
+    body {
+        flex-direction: row;
+    }
+
+    #codes_container {
+        width: 700px;
+        margin-left: inherit;
+        margin-right: inherit;
+    }
+}
+
+
 /*
  * Codes
  */
@@ -84,16 +98,4 @@ table .evidence_drop {
 
 #evidence_unknown {
     columns: 3;
-}
-
-@media(min-width: 1250px)  {
-    body {
-        flex-direction: row;
-    }
-
-    #codes_container {
-        width: 700px;
-        margin-left: inherit;
-        margin-right: inherit;
-    }
 }

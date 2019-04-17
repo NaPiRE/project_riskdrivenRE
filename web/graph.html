@@ -8,6 +8,7 @@
   <link rel="shortcut icon" href="./favicon.ico">
   <link rel="stylesheet" href="external/jquery-ui/jquery-ui.css">
   <link rel="stylesheet" href="shared.css">
+  <link rel="stylesheet" href="graph.css">
   <script src="external/jquery/jquery.js"></script>
   <script src="external/jquery-ui/jquery-ui.js"></script>
   <script>
@@ -40,7 +41,20 @@
 
             $("#metrics").empty();
             for(k in response.metrics) {
-                $("#metrics").append("<li>" + k + ": " + JSON.stringify(response.metrics[k]));
+                let data = response.metrics[k].data;
+                let annotation = null;
+                if(data.length == 1) {
+                    if(data[0][0] == null) {
+                        data = JSON.stringify(data[0][1]);
+                    }  else {
+                        data = JSON.stringify(data[0][1]);
+                        annotation = data = JSON.stringify(data[0][0]);
+                    }
+                } else {
+                    data = "Too many data points";
+                }
+                $("#metrics").append("<li>" + k + (annotation == null ? "": " (" + annotation + ") ") + ": " + data);
+
             }
 
             $.ajax("/query?data_url=true", opts).then( function(response) {
@@ -67,13 +81,18 @@
 </head>
 <body>
 
-<p id="loading_indicator">Loading...</p>
 <p id="description"></p>
+<p id="loading_indicator">Loading...</p>
 
+<div id="main">
+<div id="output_graph">
+</div>
+
+<div>
 <ul id="metrics">
 </ul>
+</div>
 
-<div id="output_graph">
 </div>
 
 </body>
