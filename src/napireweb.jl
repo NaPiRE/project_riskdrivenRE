@@ -94,6 +94,10 @@ module web
         query_dict["iterations"] = iterations
         query_dict["query"] = query
 
+        if length(query) == 0
+            throw(WebApplicationException(400, "No query defined"))
+        end
+
         progress_array, task = napire.validate(data, query, subsample_size, iterations, inference_method)
         push!(STARTED_VALIDATIONS, (query_dict, progress_array, task))
         storage_file = joinpath(RESULT_DIRECTORY, string(length(STARTED_VALIDATIONS)) * ".ser")
