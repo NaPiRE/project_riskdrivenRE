@@ -40,6 +40,18 @@ module web
         end
     end
 
+    function __load_graph(query_dict, all_items)
+        dataset = string(get(query_dict, "dataset", napire.default_dataset))
+
+        nodes_raw = get(query_dict, "nodes", [])
+        nodes::Array{Tuple{Symbol,Bool,UInt64}} = [ ( Symbol(n[1]), convert(Bool, n[2]), convert(UInt, n[3]) ) for n in nodes_raw ]
+
+        connect_raw = get(query_dict, "connect", [])
+        connect::Array{Tuple{Symbol,Symbol,Bool,UInt64}} = [ ( Symbol(c[1]),  Symbol(c[2]), convert(Bool, c[3]), convert(UInt, c[4]) ) for c in connect_raw ]
+
+        return napire.load(dataset, nodes, connect, parse(Bool, all_items))
+    end
+
     function query_legend()
         return napire.plot_legend(napire.graphviz.png)
     end
@@ -52,23 +64,13 @@ module web
         return __load_graph(query_dict, all_items).descriptions
     end
 
-    function __load_graph(query_dict, all_items)
-        nodes_raw = get(query_dict, "nodes", [])
-        nodes::Array{Tuple{Symbol,Bool,UInt64}} = [ ( Symbol(n[1]), convert(Bool, n[2]), convert(UInt, n[3]) ) for n in nodes_raw ]
+    function options(dict, default)
+        return () -> begin d = string(default)
+            inference_methods = [ d ]
+            append!(inference_methods, sort([ k for k in keys(dict) if k != d ]))
 
-        connect_raw = get(query_dict, "connect", [])
-        connect::Array{Tuple{Symbol,Symbol,Bool,UInt64}} = [ ( Symbol(c[1]),  Symbol(c[2]), convert(Bool, c[3]), convert(UInt, c[4]) ) for c in connect_raw ]
-
-        merge_subjects = get(query_dict, "merge_subjects", false)
-        return napire.load(nodes, connect, merge_subjects; summary = false, all_items = parse(Bool, all_items))
-    end
-
-    function inference()
-        d = string(napire.default_inference_method)
-        inference_methods = [ d ]
-        append!(inference_methods, sort([ k for k in keys(napire.inference_methods) if k != d ]))
-
-        return inference_methods
+            return inference_methods
+        end
     end
 
     STARTED_VALIDATIONS = nothing
@@ -115,7 +117,7 @@ module web
             return [ Dict(
                     "query" => q,
                     "steps_done" => sum(a),
-                    "steps_total" => q["subsample_size"] * q["iterations"] * (get(q, "merge_subjects", false) ? 1 : napire.ANSWERS_PER_SUBJECT),
+                    "steps_total" => q["subsample_size"] * q["iterations"],
                     "done" => isa(r, Task) ? istaskdone(r) : true,
                     "metrics" => nothing
                 ) for (q, a, r) in STARTED_VALIDATIONS ]
@@ -131,7 +133,7 @@ module web
             return Dict(
                     "query" => q,
                     "steps_done" => sum(a),
-                    "steps_total" => q["subsample_size"] * q["iterations"] * (get(q, "merge_subjects", false) ? 1 : napire.ANSWERS_PER_SUBJECT),
+                    "steps_total" => q["subsample_size"] * q["iterations"],
                     "done" => isa(r, Task) ? istaskdone(r) : true,
                     "metrics" => metrics
                 )
@@ -139,7 +141,8 @@ module web
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(
-        (path = "/inference", method = "GET") => (fn = inference, content = "application/json"),
+        (path = "/inference", method = "GET") => (fn = options(napire.inference_methods, napire.default_inference_method), content = "application/json"),
+        (path = "/datasets", method = "GET") => (fn = options(napire.datasets, napire.default_dataset), content = "application/json"),
         (path = "/descriptions", method = "POST") => (fn = descriptions, content = "application/json"),
         (path = "/items", method = "POST")  => (fn = items, content = "application/json"),
         (path = "/query", method = "POST") => (fn = query, content = "image/png"),

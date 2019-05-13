@@ -4,168 +4,60 @@ module napire
     using Printf
 
     import BayesNets
-    import CSV
     import Distributed
     import Random
     import SharedArrays
 
     include("graphviz.jl")
-    include("napireweb.jl")
-    export napireweb
     export graphviz
 
-    const ANSWERS_PER_SUBJECT = 5
-    export ANSWERS_PER_SUBJECT
-
-    function load(nodes::Array{Tuple{Symbol, Bool, UInt}} = Dict{Symbol, UInt}(),
-            connect::Array{Tuple{Symbol, Symbol, Bool, UInt}, 1} = Array{Tuple{Symbol, Symbol, Bool, UInt}, 1}(),
-            merge_subjects::Bool = false; filename = joinpath(dirname(@__FILE__), "../data/napire.csv"), summary = true, all_items = false)
-        #
-        # CSV parsing
-        #
-
-        to_col_name = function(secname, number)
-            return Symbol("$(String(secname))_$(@sprintf("%02d", number))")
-        end
-
-        data = CSV.read(filename; datarow = 1, delim = ';', quotechar = '"');
-        data_meta = data[1:4, :]
-        data = data[4:end, :]
-
-        current_title = ""
-        current_subtitle = ""
-        current_framestart = 0
-        items = Dict{Symbol, Set{Symbol}}()
-        descriptions = Dict{Symbol, Union{Missing, String}}()
-        for i in 1:size(data_meta)[2]
-            if !ismissing(data_meta[1, i])
-                current_title = data_meta[1, i]
-                current_subtitle = ""
-                current_framestart = i
-            end
-            if !ismissing(data_meta[2, i])
-                current_subtitle = data_meta[2, i]
-                current_framestart = i
+    function __analyse_module_content(dict, mod, filter)
+        for n in names(mod; all = true)
+            if !isdefined(mod, n)
+                continue
             end
 
-            secname = "$(current_title)_$(current_subtitle)"
-
-            colname = to_col_name(secname, i - current_framestart)
-            rename!(data, names(data)[i] => colname)
-            descriptions[colname] = data_meta[3, i]
-
-            if current_subtitle == "CODE" || current_subtitle == "CATEGORIES"
-                if current_framestart == i
-                    items[Symbol(secname)] = Set{Symbol}()
-                end
-
-                data[colname] = .! ismissing.(data[colname])
-                push!(items[Symbol(secname)], colname)
-            elseif current_subtitle == "FAILURE"
-                data[colname] = data[colname] .== "1"
+            f = getfield(mod, n)
+            if !startswith(string(n), "__",) && filter(n, f)
+                dict[string(mod) * "." * string(n)] = f
             end
         end
+        return dict
+    end
 
-        #
-        # Make sure the data is properly sorted so
-        # subjects are identifiable before cross-validation
-        #
-        sort!(data, (:IDENTIFIERS_SUBJECT_00, :IDENTIFIERS_RANK_00) )
-        subjects = unique(data[:IDENTIFIERS_SUBJECT_00])
-        sort!(subjects)
+    include("datasets.jl")
+    include("metrics.jl")
 
-        #
-        # node-wise filtering
-        #
-        for (node_type, weighted, min_weight) in nodes
-            for node in items[node_type]
-                if ((weighted && sum(data[node] .* parse.(UInt, data[:IDENTIFIERS_RANK_00])) < min_weight)
-                        || (!weighted && sum(data[node]) < min_weight))
-                    deletecols!(data, node)
-                    delete!(items[node_type], node)
-                    delete!(descriptions, node)
-                end
-            end
-        end
+    const inference_methods = __analyse_module_content(Dict{String, Type}(), BayesNets,
+                    (n, f) -> isa(f, Type) && f != BayesNets.InferenceMethod && f <: BayesNets.InferenceMethod)
+    const datasets = __analyse_module_content(Dict{String, Function}(), napire.DataSets,
+                    (n, f) -> isa(f, Function) && n != :eval && n != :include)
+    const metrics = __analyse_module_content(Dict{String, Function}(), napire.Metrics,
+                    (n, f) -> isa(f, Function) && n != :eval && n != :include)
 
-        #
-        # edge-wise filtering
-        #
-        all_nodes::Set{Symbol} = Set{Symbol}()
-        all_edges::Dict{Pair{Symbol, Symbol}, Int64} = Dict{Pair{Symbol, Symbol}, Int64}()
+    const default_inference_method = inference_methods["BayesNets.GibbsSamplingNodewise"]
+    const default_dataset = datasets["napire.DataSets.load_2014"]
 
-        for connect_pair in connect
-            nodes, edges= __create_edges(data, items, connect_pair[1], connect_pair[2], connect_pair[3], connect_pair[4])
-            all_nodes = union(all_nodes, nodes)
-            all_edges = merge(all_edges, edges)
-        end
+    export inference_methods, datasets, metrics, default_inference_method, default_dataset
 
-        # remove now unused data from previously created structures
-        data = data[:, collect(all_nodes)]
+    include("napireweb.jl")
+    export napireweb
 
-        if !all_items
-            for key in keys(items)
-                items[key] = intersect(items[key], all_nodes)
-            end
-
-            for key in keys(descriptions)
-                if !in(key, all_nodes)
-                    delete!(descriptions, key)
-                end
-            end
-        end
-
-        if merge_subjects
-            new_data = similar(data, 0)
-            for i in 1:(size(data, 1) / ANSWERS_PER_SUBJECT)
-                rows = collect(StepRange( convert(Int, ((i-1) * ANSWERS_PER_SUBJECT + 1)), 1, convert(Int, (i * ANSWERS_PER_SUBJECT)) ))
-                ld = DataFrame(colwise(x -> [ sum(x) >= 1 ], data[rows, :]), names(data))
-                new_data = vcat(new_data, ld)
-            end
-            data = new_data
-        end
+    function load(dataset, args...; summary = false)
+        data = datasets[string(dataset)](args...)
 
         #
         # summary
         #
-
         if summary
-            println("Nodes: ", length(all_nodes))
-            println("Descriptions: ", length(descriptions))
-            println("Edges: ", length(all_edges))
-            println("Samples: ", size(data)[1])
+            println("Nodes: ", length(data.nodes))
+            println("Descriptions: ", length(data.descriptions))
+            println("Edges: ", length(data.edges))
+            println("Samples: ", size(data.data)[1])
         end
 
-        return (data = data, items = items, descriptions = descriptions, merge_subjects = merge_subjects,
-            edges = all_edges, nodes = all_nodes, subjects = subjects)
+        return data
     end
-    export load
-
-    function __create_edges(data, items, from::Symbol, to::Symbol, weighted::Bool, minimum_edge_weight)
-        edges = Dict{Pair{Symbol, Symbol}, Int64}()
-
-        for from_node in items[from]
-            for to_node in items[to]
-                edges[(from_node => to_node)] = 0
-
-                for i in 1:size(data)[1]
-                    if data[i, from_node] && data[i, to_node]
-                        edges[(from_node => to_node)] += weighted ? parse(UInt, data[i, :IDENTIFIERS_RANK_00]) : 1;
-                    end
-                end
-            end
-        end
-
-        edges = filter((kv) -> kv.second >= minimum_edge_weight, edges)
-        nodes = Set{Symbol}()
-        for (n1, n2) in keys(edges)
-            push!(nodes, n1)
-            push!(nodes, n2)
-        end
-
-        return nodes, edges
-    end
-
 
     function plot(data, output_type = graphviz.default_output_type; shape = shape(n) = "ellipse", penwidth_factor = 5, ranksep = 3, label = identity)
         graph_layout = data.edges
@@ -213,24 +105,6 @@ module napire
         return BayesNets.fit(BayesNets.DiscreteBayesNet, graph_data, graph_layout)
     end
     export bayesian_train
-
-    function add_inference_methods(m = BayesNets)
-        ns = names(m)
-        for n in ns
-            if !isdefined(m, n)
-                continue
-            end
-
-            f = getfield(m, n)
-            if isa(f, Type) && f != BayesNets.InferenceMethod && f <: BayesNets.InferenceMethod
-                inference_methods[string(f)] = f
-            end
-        end
-    end
-
-    inference_methods = Dict{String, Type}()
-    add_inference_methods(BayesNets)
-    default_inference_method = inference_methods["BayesNets.GibbsSamplingNodewise"]
 
     function predict(bn::BayesNets.DiscreteBayesNet, query::Set{Symbol}, evidence::Dict{Symbol, Bool}, inference_method::String)
         return predict(bn, query, evidence, inference_methods[inference_method])
@@ -300,12 +174,9 @@ module napire
     end
 
     function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::Type = default_inference_method)
-        answers_per_subject = data.merge_subjects ? 1 : ANSWERS_PER_SUBJECT
-
         evidence_variables = setdiff(Set{Symbol}(names(data.data)), output_variables)
-        per_subj = collect(0:(answers_per_subject - 1))
 
-        progress_array = SharedArrays.SharedArray{Int}( (iterations, subsample_size * answers_per_subject))
+        progress_array = SharedArrays.SharedArray{Int}( (iterations, subsample_size))
         task = @async begin
             iteration_tasks = []
             for i in 1:iterations
@@ -313,13 +184,10 @@ module napire
                     println("Validation run " * string(i))
                     samples = Random.randperm(length(data.subjects)) .- 1
 
-                    validation_samples = samples[1:subsample_size]   .* answers_per_subject
-                    training_samples   = samples[subsample_size + 1:end] .* answers_per_subject
+                    validation_samples = samples[1:subsample_size]
+                    training_samples   = samples[subsample_size + 1:end]
 
-                    validation_samples = reduce(vcat, [ s .+ per_subj for s in validation_samples ]) .+ 1
-                    training_samples   = reduce(vcat, [ s .+ per_subj for s in training_samples ]) .+ 1
-
-                    @assert length(validation_samples) == subsample_size * answers_per_subject
+                    @assert length(validation_samples) == subsample_size
                     @assert length(validation_samples) + length(training_samples) == nrow(data.data)
                     @assert length(intersect(validation_samples, training_samples)) == 0
 
@@ -329,11 +197,14 @@ module napire
                     @assert max(training_samples...)   <= nrow(data.data)
 
                     bn = bayesian_train(data, training_samples)
+                    function __merge_arrays(a1, a2)
+                        append!(a1, a2); a1
+                    end
 
                     subtasks = Distributed.@distributed __merge_arrays for si in 1:length(validation_samples)
                         s = validation_samples[si]
 
-                        println(string(si) * " of " * string(subsample_size * answers_per_subject))
+                        println(string(si) * " of " * string(subsample_size))
                         evidence = Dict{Symbol, Bool}()
                         for ev in evidence_variables
                             evidence[ev] = data.data[s, ev]
@@ -360,85 +231,7 @@ module napire
         return progress_array, task
     end
 
-    function __merge_arrays(a1, a2)
-        append!(a1, a2); a1
-    end
-
     function calc_metrics(data = nothing)
-        metrics = Dict{Symbol, Any}()
-        for s in names(napire.Metrics; all = true)
-            if !isa(getfield(napire.Metrics, s), Function) || s == :eval || s == :include
-                continue
-            end
-
-            metrics[s] = getfield(napire.Metrics, s)(data)
-        end
-        metrics
-    end
-
-    module Metrics
-        function brier_score(data)
-            bs = 0
-            ns = 0
-            for iteration_data in data
-                for (expected, predicted) in iteration_data
-                    bs += sum([ (convert(Int, expected[s]) - predicted[s])^2 for s in keys(expected) ])
-                    ns += length(expected)
-                end
-            end
-            return (limits = [ 0, 1 ], data = [ (nothing, bs / ns) ])
-        end
-
-        function binary_accuracy(data, config = [ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ])
-            function calc(threshold)
-                total = 0
-                correct = 0
-                for iteration_data in data
-                    for (expected, predicted) in iteration_data
-                        total += length(expected)
-                        correct += length([ s for s in keys(expected) if expected[s] == (predicted[s] > threshold) ])
-                    end
-                end
-
-                return (value = correct / total, correct = correct, total = total)
-            end
-
-            return (limits = [ 0, 1 ], data_xlabel = "Node-present threshold",
-                        data = [ (t, calc(t)) for t in config ])
-        end
-
-        function recall(data, config = [ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ])
-            function calc(threshold)
-                to_be_found = 0
-                found = 0
-                for iteration_data in data
-                    for (expected, predicted) in iteration_data
-                        to_be_found += sum([ convert(Int, v) for v in values(expected) ])
-                        found += sum([ predicted[s] > threshold ? 1 : 0 for s in keys(expected) if expected[s] ])
-                    end
-                end
-                return (value = found / to_be_found, found = found, to_be_found = to_be_found)
-            end
-
-            return (limits = [ 0, 1 ], data_xlabel = "Node-present threshold",
-                        data = [ (t, calc(t)) for t in config ])
-        end
-
-        function precision(data, config = [ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ])
-            function calc(threshold)
-                positives = 0
-                true_positives = 0
-                for iteration_data in data
-                    for (expected, predicted) in iteration_data
-                        positives += sum([ 1 for s in keys(predicted) if predicted[s] > threshold ])
-                        true_positives += sum( [ convert(Int, expected[s]) for s in keys(predicted) if predicted[s] > threshold ] )
-                    end
-                end
-                return (value = true_positives / positives, positives = positives, true_positives = true_positives)
-            end
-
-            return (limits = [ 0, 1 ], data_xlabel = "Node-present threshold",
-                        data = [ (t, calc(t)) for t in config ])
-        end
+        return Dict{String, Any}(n => f(data) for (n, f) in metrics)
     end
 end

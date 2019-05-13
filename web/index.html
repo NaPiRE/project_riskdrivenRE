@@ -13,12 +13,12 @@
   <script src="external/jquery-ui/jquery-ui.js"></script>
   <script>
     params = {
+        "dataset": "",
         "nodes": [],
         "connect": [],
         "query": [],
         "evidence": {},
         "inference_method": "",
-        "merge_subjects": false
     };
     old_params = null;
     items = {};
@@ -61,10 +61,6 @@
         }
 
         if(!obj_equals(old_params.inference_method, params.inference_method)) {
-            return true;
-        }
-
-        if(!obj_equals(old_params.merge_subjects, params.merge_subjects)) {
             return true;
         }
 
@@ -318,12 +314,6 @@
 
             $("#connectivity_from").append("<li>CAUSES_CODE</li>");
             $("#connectivity_from").append("<li>PROBLEMS_CODE</li>");
-
-            $.ajax("/inference").then(function(response) {
-                for(let method of response) {
-                    $("#inference_method").append("<option value=\"" + method + "\">" + method + "</option>");
-                }
-            });
         }
 
         update_architecture_params(); // load params from the just-changed ui
@@ -362,7 +352,6 @@
                 });
 
             params["inference_method"] = "";
-            params["merge_subjects"] = false;
             old_params = Object.assign({}, params);
             update_loading(+1);
         }
@@ -381,7 +370,6 @@
                         $("#output_validation").append(
                               "<li><a href=\"javascript:graph_window = window.open(graph_window_path(" + val_queries +"), '_blank', 'width=700,height=850'); void(0)\">" + validation.query.inference_method + "</a>"
                             + ": " + validation.query.subsample_size + " subjects per subsample, " + validation.query.iterations + " iterations, "
-                            + (validation.query.merge_subjects ? "merged, " : "")
                             + (validation.done ? "" : (validation.steps_done / validation.steps_total * 100).toFixed(2) + "%") + " done.</li>");
                         val_queries++;
                     }
@@ -395,7 +383,6 @@
 
     function run_inference() {
         params["inference_method"] = $("#inference_method").val();
-        params["merge_subjects"] = $("#merge_subjects")[0].checked;
         $("#run_inference").prop("disabled", true);
     }
 
@@ -403,7 +390,6 @@
         $("#run_validation").prop("disabled", true);
         post("/validate", {
             "inference_method": $("#inference_method").val(),
-            "merge_subjects": $("#merge_subjects")[0].checked,
             "subsample_size": $("#validation_subsample_size").val(),
             "iterations": $("#validation_iterations").val()
         }).then( function(response) {
@@ -435,7 +421,25 @@
         });
     }
 
-    update_items(true);
+    Promise.all([
+        $.ajax("/datasets").then(function(response) {
+            for(let ds of response) {
+                $("#dataset").append("<option value=\"" + ds + "\">" + ds + "</option>");
+            }
+            params["dataset"] = response[0];
+            console.log(params);
+
+            $("#dataset").select(function() {
+                params["dataset"] = $("#dataset").value();
+                update_items();
+            });
+        }),
+
+        $.ajax("/inference").then(function(response) {
+            for(let method of response) {
+                $("#inference_method").append("<option value=\"" + method + "\">" + method + "</option>");
+            }
+        }) ]).then(function() { update_items(true) });
 
     });
   </script>
@@ -446,7 +450,10 @@
 
 <h1>Architecture</h1>
 
-<button class="centered_button" type="button" onclick="$('#codes_container').toggle()">Show/hide code descriptions</button>
+<div class="button_container" style="width: 500px">
+<select id="dataset" name="dataset"></select>
+<button type="button" style="width: 200px;" onclick="$('#codes_container').toggle()">Show/hide descriptions</button>
+</div>
 
 <table>
 <thead>
@@ -506,17 +513,6 @@
 
 <div class="settings_cell">
 <select id="inference_method" name="inference_method">
-</select>
-</div>
-</div>
-
-<div class="settings_row">
-<div class="settings_cell">
-<label for="merge_subjects">Merge subject answers</label>
-</div>
-
-<div class="settings_cell">
-<input id="merge_subjects" name="merge_subjects" type="checkbox"/>
 </select>
 </div>
 </div>

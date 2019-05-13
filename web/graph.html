@@ -32,11 +32,9 @@
 
             //$("#validation").append("<tr><td></td><td class=\"filter\"></td></tr>");
             $("#validation").append("<tr><td>Inference method</td><td class=\"filter\">" + validation_query.inference_method + "</td></tr>");
-            $("#validation").append("<tr><td>Subject answers merged</td><td class=\"filter\">" + validation_query.merge_subjects + "</td></tr>");
             $("#validation").append("<tr><td>Subjects per subsample</td><td class=\"filter\">" + validation_query.subsample_size + "</td></tr>");
             $("#validation").append("<tr><td>Iterations</td><td class=\"filter\">" + validation_query.iterations + "</td></tr>");
             validation_query["inference_method"] = "";
-            validation_query["merge_subjects"] = false;
 
             for(let node of validation_query.nodes) {
                 $("#node_types").append("<tr><td>" + node[0] + "</td><td class=\"filter\">" + node[1] + "</td><td class=\"filter\">" + node[2] + "</td></tr>");
