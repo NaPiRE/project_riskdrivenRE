@@ -27,7 +27,7 @@
     width: 140px;
 }
 
-h1, h2, #loading_indicator, #validation_indicator, #description {
+h1, h2, #loading_indicator, #no_tasks_indicator, #description {
     width: 100%;
     text-align: center;
 }

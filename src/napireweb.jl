@@ -8,34 +8,146 @@ module web
 
     import napire
 
-    function query(query_dict = nothing)
-        data = __load_graph(query_dict, "false")
+    function query_legend()
+        return napire.plot_legend(napire.graphviz.png)
+    end
 
-        evidence = Dict{Symbol, Bool}()
-        results = Dict{Symbol, Float64}()
+    function options(dict, default)
+        return () -> begin d = string(default)
+            opts = [ d ]
+            append!(opts, sort([ k for k in keys(dict) if k != d ]))
 
-        if query_dict != nothing
-            inference_method = string(get(query_dict, "inference_method", ""))
-            query = Set(Symbol(q) for q in get(query_dict, "query", []))
-            evidence = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
+            return opts
+        end
+    end
+
+    STARTED_TASKS = nothing
+    RESULT_DIRECTORY = nothing
+    LAST_ID = nothing
+    function load_started_tasks(result_directory::String)
+        global RESULT_DIRECTORY, STARTED_TASKS, LAST_ID
+        RESULT_DIRECTORY = result_directory
+        files = sort([ f for f in readdir(result_directory) if occursin(r"^[0-9]+\.ser$", f) ])
+        STARTED_TASKS = Array{Tuple{Symbol, Int64, Dict{String, Any}, AbstractArray, Int64, Any}}(undef, 0)
+        append!(STARTED_TASKS, [ Serialization.deserialize(joinpath(result_directory, f)) for f in files ])
+        LAST_ID = length(STARTED_TASKS) > 0 ? maximum( [ t[2] for t in STARTED_TASKS ] ) : 0
+    end
+
+    struct SerTask
+        state::Symbol
+        result::Any
+    end
+
+    function task_state(t::Task)
+        if !istaskdone(t)
+            return :RUNNING
+        elseif t.state == :failed
+            return :FAILED
+        else
+            return :DONE
+        end
+    end
+
+    function task_state(t::SerTask)
+        return t.state
+    end
+
+    function task_fetch(t::Task)
+        if !istaskdone(t)
+            return nothing
         end
 
-        if inference_method != "" && length(query) > 0
-            try
-                bn = napire.bayesian_train(data)
-                results = napire.predict(bn, query, evidence, inference_method)
-            catch e
-                if isa(e, ArgumentError)
-                    throw(WebApplicationException(400, e.msg))
-                end
+        try
+            return Base.fetch(t)
+        catch e
+            return sprint(showerror, e, t.backtrace)
+        end
+    end
 
-                rethrow(e)
+    function task_fetch(t::SerTask)
+        return t.result
+    end
+
+    function tasks(; id = nothing, cancel = "false")
+        function serialise(t, printresult)
+            task_type, task_id, query, steps_done, steps_total, task = t
+
+            state = task_state(task)
+            if state == :RUNNING && cancel == "true"
+                Base.throwto(task, InterruptException())
             end
 
-            return __run_task(pa -> napire.plot_prediction(data, query, evidence, results, napire.graphviz.png), query_dict, (1, ), "pngdata")
-        else
-            return "data:image/png;base64," * Base64.base64encode(napire.plot_prediction(data, query, evidence, results, napire.graphviz.png))
+            task_result = task_fetch(task)
+            if state == :DONE && task_type == :TASK_VALIDATION
+                task_result = napire.calc_metrics(task_result)
+            elseif state == :DONE && task_type == :TASK_INFERENCE
+                task_result = "data:image/png;base64," * Base64.base64encode(task_result)
+            end
+
+            result = Dict(
+                    "type" => task_type,
+                    "id" => task_id,
+                    "query" => query,
+                    "steps_done" => sum(steps_done),
+                    "steps_total" => steps_total,
+                    "state" => state,
+                    "result" => printresult ? task_result : nothing
+                )
+            return result
         end
+
+        if id == nothing
+            return [ serialise(t, false) for t in STARTED_TASKS ]
+        else
+            return serialise(STARTED_TASKS[parse(UInt, id)], true)
+        end
+    end
+
+    function __run_task(task_type, fun, query_dict, progress_array_shape)
+        global LAST_ID
+        LAST_ID += 1
+        task_id = LAST_ID
+
+        progress_array = SharedArrays.SharedArray{Int}(progress_array_shape)
+        task = @async fun(progress_array)
+
+        push!(STARTED_TASKS, (task_type, task_id, query_dict, progress_array, prod(progress_array_shape), task))
+        storage_file = joinpath(RESULT_DIRECTORY,  string(task_id) * ".ser")
+
+        @async begin
+            sertask = SerTask(task_state(task), task_fetch(task))
+            Serialization.serialize(storage_file, (task_type, task_id, query_dict, [ prod(progress_array_shape) ], prod(progress_array_shape), sertask))
+        end
+
+        return task_id
+    end
+
+    function plot(query_dict = nothing)
+        data = __load_graph(query_dict, "false")
+
+        query = Set(Symbol(q) for q in get(query_dict, "query", []))
+        evidence = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
+        return "data:image/png;base64," * Base64.base64encode(napire.plot_prediction(data, query, evidence, Dict(), napire.graphviz.png))
+    end
+
+    function infer(query_dict = nothing)
+        data = __load_graph(query_dict, "false")
+
+        inference_method = string(get(query_dict, "inference_method", napire.default_inference_method))
+        query = Set(Symbol(q) for q in get(query_dict, "query", []))
+        evidence = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
+
+        if length(query) == 0
+            throw(WebApplicationException(400, "No query defined"))
+        end
+
+        function infer_task(progress_array)
+            bn = napire.bayesian_train(data)
+            results = napire.predict(bn, query, evidence, inference_method)
+            return napire.plot_prediction(data, query, evidence, results, napire.graphviz.png)
+        end
+
+        return __run_task(:TASK_INFERENCE, infer_task, query_dict, (1, ))
     end
 
     function __load_graph(query_dict, all_items)
@@ -50,10 +162,6 @@ module web
         return napire.load(dataset, nodes, connect, parse(Bool, all_items))
     end
 
-    function query_legend()
-        return napire.plot_legend(napire.graphviz.png)
-    end
-
     function items(query_dict; all_items = "false")
         return __load_graph(query_dict, all_items).items
     end
@@ -61,26 +169,6 @@ module web
     function descriptions(query_dict; all_items = "false")
         return __load_graph(query_dict, all_items).descriptions
     end
-
-    function options(dict, default)
-        return () -> begin d = string(default)
-            inference_methods = [ d ]
-            append!(inference_methods, sort([ k for k in keys(dict) if k != d ]))
-
-            return inference_methods
-        end
-    end
-
-    STARTED_TASKS = nothing
-    RESULT_DIRECTORY = nothing
-    function load_started_tasks(result_directory::String)
-        global RESULT_DIRECTORY, STARTED_TASKS
-        RESULT_DIRECTORY = result_directory
-        files = sort([ f for f in readdir(result_directory) if occursin(r"^[0-9]+\.ser$", f) ])
-        STARTED_TASKS = Array{Tuple{Dict{String, Any}, AbstractArray, Int64, Any, String}}(undef, 0)
-        append!(STARTED_TASKS, [ Serialization.deserialize(joinpath(result_directory, f)) for f in files ])
-    end
-
 
     function validate(query_dict)
         data = __load_graph(query_dict, "false")
@@ -99,61 +187,7 @@ module web
             throw(WebApplicationException(400, "No query defined"))
         end
 
-        return __run_task(pa -> napire.validate(data, query, subsample_size, iterations, inference_method, pa), query_dict, (iterations, subsample_size), "metrics")
-    end
-
-    function __run_task(fun, query_dict, progress_array_shape, postproc = nothing)
-        progress_array = SharedArrays.SharedArray{Int}(progress_array_shape)
-        task = @async fun(progress_array)
-
-        push!(STARTED_TASKS, (query_dict, progress_array, prod(progress_array_shape), task, postproc))
-        storage_file = joinpath(RESULT_DIRECTORY, string(length(STARTED_TASKS)) * ".ser")
-
-        @async begin
-            data = (query_dict, [ prod(progress_array_shape) ], prod(progress_array_shape), fetch(task), postproc)
-            Serialization.serialize(storage_file, data)
-        end
-
-        return length(STARTED_TASKS)
-    end
-
-    function tasks(; id = nothing)
-        if id == nothing
-            return [ Dict(
-                    "query" => t[1],
-                    "steps_done" => sum(t[2]),
-                    "steps_total" => t[3],
-                    "done" => isa(t[4], Task) ? istaskdone(t[4]) : true,
-                    "data" => nothing,
-                    "postproc" => t[5]
-                ) for t in STARTED_TASKS ]
-        else
-            query, steps_done, steps_total, taskresult, postproc = STARTED_TASKS[parse(UInt, id)]
-
-            data = nothing
-            if isa(taskresult, Task) && istaskdone(taskresult)
-                data = fetch(taskresult)
-            elseif !isa(taskresult, Task)
-                data = taskresult
-            end
-
-            if data != nothing
-                if postproc == "metrics"
-                    data = napire.calc_metrics(data)
-                elseif postproc == "pngdata"
-                    data = "data:image/png;base64," * Base64.base64encode(data)
-                end
-            end
-
-            return Dict(
-                    "query" => query,
-                    "steps_done" => sum(steps_done),
-                    "steps_total" => steps_total,
-                    "done" => isa(taskresult, Task) ? istaskdone(taskresult) : true,
-                    "data" => data,
-                    "postproc" => postproc
-                )
-        end
+        return __run_task(:TASK_VALIDATION, pa -> napire.validate(data, query, subsample_size, iterations, inference_method, pa), query_dict, (iterations, subsample_size))
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(
@@ -161,8 +195,8 @@ module web
         (path = "/datasets", method = "GET") => (fn = options(napire.datasets, napire.default_dataset), content = "application/json"),
         (path = "/descriptions", method = "POST") => (fn = descriptions, content = "application/json"),
         (path = "/items", method = "POST")  => (fn = items, content = "application/json"),
-        (path = "/query", method = "POST") => (fn = query, content = "image/png"),
-        (path = "/infer", method = "POST") => (fn = query, content = "application/json"),
+        (path = "/plot", method = "POST") => (fn = plot, content = "image/png"),
+        (path = "/infer", method = "POST") => (fn = infer, content = "application/json"),
         (path = "/query_legend", method = "GET") => (fn = query_legend, content="image/png"),
         (path = "/validate", method = "POST")  => (fn = validate, content = "application/json"),
         (path = "/tasks", method = "GET")  => (fn = tasks, content = "application/json")

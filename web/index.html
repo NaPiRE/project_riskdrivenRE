@@ -154,7 +154,7 @@
             let mv_valweighted = $("#edges_min_weight_weighted_" + i)[0];
             mv_valweighted = mv_valweighted ? mv_valweighted.checked : false;
 
-            connect.push( [ from_keys[i], to_keys[i], mv_valweighted, isNaN(mw_val) ? 9 : mw_val ]);
+            connect.push( [ from_keys[i], to_keys[i], mv_valweighted, isNaN(mw_val) ? 15 : mw_val ]);
         }
         params["connect"] = connect;
 
@@ -182,7 +182,7 @@
         for(; num_edgesweight_found < num_edgesweight; num_edgesweight_found++) {
             let mw_id = "edges_min_weight_" + num_edgesweight_found;
             $("#connectivity_edgesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
-                " type=\"number\" min=\"0\" value=\"9\" name=\"" + mw_id + "\"/>");
+                " type=\"number\" min=\"0\" value=\"15\" name=\"" + mw_id + "\"/>");
             $("#" + mw_id).change(function(event) {
                 update_items();
             });
@@ -229,6 +229,9 @@
                 params["evidence"][item] = data[item];
             }
         }
+
+        $("#run_inference") .prop("disabled", params["query"].length <= 0);
+        $("#run_validation").prop("disabled", params["query"].length <= 0);
     }
 
     function update_evidence_view() {
@@ -336,7 +339,7 @@
 
     function update_image() {
         if(query_changed()) {
-            post("/query")
+            post("/plot")
                 .then( function(response) {
                     update_loading(-1);
                     let img = new Image();
@@ -362,13 +365,17 @@
                     $("#no_tasks_indicator").html("<p>No task run so far.</p>");
                 } else {
                     $("#no_tasks_indicator").html("");
-                    let val_queries = 0;
+                    let numtasks = 0;
                     for(let task of response) {
-                        $("#output_tasks").append(
-                              "<li><a href=\"javascript:graph_window = window.open(graph_window_path(" + val_queries +"), '_blank', 'width=700,height=850'); void(0)\">" + task.query.inference_method + "</a>"
-                            + ": " + task.query.subsample_size + " subjects per subsample, " + task.query.iterations + " iterations, "
-                            + (task.done ? "" : (task.steps_done / task.steps_total * 100).toFixed(2) + "%") + " done.</li>");
-                        val_queries++;
+                        let task_description = "<a href=\"javascript:graph_window = window.open(graph_window_path(" + numtasks +"), '_blank', 'width=700,height=850'); void(0)\">" + task.type + "</a>" + ": ";
+
+                        if(task.type == "TASK_VALIDATION") {
+                            task_description += task.query.subsample_size + " subjects per subsample, " + task.query.iterations + " iterations, "
+                        }
+                        task_description += (task.state != "RUNNING" ? "" : (task.steps_done / task.steps_total * 100).toFixed(2) + "%") + " " + task.state.toLowerCase() + ".";
+
+                        $("#output_tasks").append("<li>" + task_description + "</li>");
+                        numtasks++;
                     }
                 }
             });
@@ -546,8 +553,8 @@
 </div>
 
 <div class="button_container">
-<button id="run_inference"  type="button" onclick="run_inference()">Start inference</button>
-<button id="run_validation" type="button" onclick="run_validation()">Start validation</button>
+<button id="run_inference"  type="button" onclick="run_inference()" disabled>Start inference</button>
+<button id="run_validation" type="button" onclick="run_validation()" disabled>Start validation</button>
 </div>
 
 <ul id="evidence_unknown" class="evidence_drop">

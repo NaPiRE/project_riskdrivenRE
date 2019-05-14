@@ -168,8 +168,8 @@ module napire
     end
     export plot_legend
 
-    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::String)
-        return validate(data, output_variables, subsample_size, iterations, inference_methods[inference_method])
+    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::String, progress_array = nothing)
+        return validate(data, output_variables, subsample_size, iterations, inference_methods[inference_method], progress_array)
     end
 
     function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::Type = default_inference_method, progress_array = nothing)

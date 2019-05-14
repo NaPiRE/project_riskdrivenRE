@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NaPiRE trouble predictor: Codes</title>
+  <title>NaPiRE trouble predictor: Results</title>
   <base href="/web/">
   <link rel="shortcut icon" href="./favicon.ico">
   <link rel="stylesheet" href="external/jquery-ui/jquery-ui.css">
@@ -24,16 +24,21 @@
 
     $( function() {
         const urlParams = new URLSearchParams(window.location.search);
-        validation_id = urlParams.get("id");
+        task_id = urlParams.get("id");
+        document.title += " for task " + task_id;
 
-        $.ajax("/tasks?id=" + validation_id).then(function(response) {
+        $.ajax("/tasks?id=" + task_id).then(function(response) {
             query = response.query;
-            $("#description").html("Result report for validation run " + validation_id);
 
-            //$("#validation").append("<tr><td></td><td class=\"filter\"></td></tr>");
-            $("#validation").append("<tr><td>Inference method</td><td class=\"filter\">" + query.inference_method + "</td></tr>");
-            $("#validation").append("<tr><td>Subjects per subsample</td><td class=\"filter\">" + query.subsample_size + "</td></tr>");
-            $("#validation").append("<tr><td>Iterations</td><td class=\"filter\">" + query.iterations + "</td></tr>");
+            //$("#task").append("<tr><td></td><td class=\"filter\"></td></tr>");
+            $("#task").append("<tr><td>Task number</td><td class=\"filter\">" + response.id + "</td></tr>");
+            $("#task").append("<tr><td>Task type</td><td class=\"filter\">" + response.type + "</td></tr>");
+            $("#task").append("<tr><td>Task status</td><td class=\"filter\">" + response.state + "</td></tr>");
+            if(response.state == "FAILED") {
+                $("#task").append("<tr><td>Task error</td><td class=\"filter\">" + response.result +"</td></tr>");
+            }
+            $("#task").append("<tr><td>Inference method</td><td class=\"filter\">" + query.inference_method + "</td></tr>");
+
             query["inference_method"] = "";
 
             for(let node of query.nodes) {
@@ -44,7 +49,31 @@
                 $("#connections").append("<tr><td>" + conn[0] + "</td><td>" + conn[1] + "</td><td class=\"filter\">" + conn[2] + "</td><td class=\"filter\">" + conn[3] + "</td></tr>");
             }
 
-            if(response.postproc == "metrics") {
+            function plotQuery() {
+                opts = {
+                    "method": "POST",
+                    "contentType": "application/json",
+                    "processData": false,
+                    "data": JSON.stringify(query)
+                };
+
+                $.ajax("/plot", opts).then( function(response) {
+                    update_loading(-1);
+                    img = new Image();
+                    img.src = response;
+                    $("#output_graph").html(img);
+                }).fail( function(response) {
+                    update_loading(-1);
+                    $("#output_graph").html(
+                        "<p>" + response.statusText + " (" +  response.status + ")<br/>"
+                        + response.responseText + "<p>");
+                });
+            }
+
+            if(response.type == "TASK_VALIDATION") {
+                $("#task").append("<tr><td>Subjects per subsample</td><td class=\"filter\">" + query.subsample_size + "</td></tr>");
+                $("#task").append("<tr><td>Iterations</td><td class=\"filter\">" + query.iterations + "</td></tr>");
+
                 $("#metrics").show();
                 $("#metrics_list").empty();
                 for(let k in response.data) {
@@ -88,29 +117,16 @@
                     $("#metrics_list").append("<h2>" + k + (annotation == null ? "": " (" + annotation + ") ") + "</h2><p style=\"text-align: center\">" + repr + "</p>");
                 }
 
-                opts = {
-                    "method": "POST",
-                    "contentType": "application/json",
-                    "processData": false,
-                    "data": JSON.stringify(query)
-                };
-
-                $.ajax("/query", opts).then( function(response) {
+                plotQuery();
+            } else if(response.type == "TASK_INFERENCE") {
+                if(response.state == "DONE") {
                     update_loading(-1);
                     img = new Image();
-                    img.src = response;
+                    img.src = response.result;
                     $("#output_graph").html(img);
-                }).fail( function(response) {
-                    update_loading(-1);
-                    $("#output_graph").html(
-                        "<p>" + response.statusText + " (" +  response.status + ")<br/>"
-                        + response.responseText + "<p>");
-                });
-            } else if(response.postproc == "pngdata") {
-                update_loading(-1);
-                img = new Image();
-                img.src = response.data;
-                $("#output_graph").html(img);
+                } else {
+                    plotQuery();
+                }
             }
         }).fail( function(response) {
             update_loading(-1);
@@ -158,7 +174,7 @@
 <thead>
     <th style="width: 55%">Setting</th><th class="filter" style="width: 50%">Value</th>
 </thead>
-<tbody id="validation">
+<tbody id="task">
 </tbody>
 </table>
 </div>
