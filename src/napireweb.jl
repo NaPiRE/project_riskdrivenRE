@@ -3,11 +3,12 @@ module web
     import HTTP
     import JSON
     import Serialization
+    import SharedArrays
     import Sockets
 
     import napire
 
-    function query(query_dict = nothing; data_url = "false")
+    function query(query_dict = nothing)
         data = __load_graph(query_dict, "false")
 
         evidence = Dict{Symbol, Bool}()
@@ -17,26 +18,23 @@ module web
             inference_method = string(get(query_dict, "inference_method", ""))
             query = Set(Symbol(q) for q in get(query_dict, "query", []))
             evidence = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
-
-            if inference_method != "" && length(query) > 0
-                try
-                    bn = napire.bayesian_train(data)
-                    results = napire.predict(bn, query, evidence, inference_method)
-                catch e
-                    if isa(e, ArgumentError)
-                        throw(WebApplicationException(400, e.msg))
-                    end
-
-                    rethrow(e)
-                end
-            end
         end
 
-        data = napire.plot_prediction(data, query, evidence, results, napire.graphviz.png)
-        if parse(Bool, data_url)
-            return "data:image/png;base64," * Base64.base64encode(data)
+        if inference_method != "" && length(query) > 0
+            try
+                bn = napire.bayesian_train(data)
+                results = napire.predict(bn, query, evidence, inference_method)
+            catch e
+                if isa(e, ArgumentError)
+                    throw(WebApplicationException(400, e.msg))
+                end
+
+                rethrow(e)
+            end
+
+            return __run_task(pa -> napire.plot_prediction(data, query, evidence, results, napire.graphviz.png), query_dict, (1, ), "pngdata")
         else
-            return data
+            return "data:image/png;base64," * Base64.base64encode(napire.plot_prediction(data, query, evidence, results, napire.graphviz.png))
         end
     end
 
@@ -73,14 +71,14 @@ module web
         end
     end
 
-    STARTED_VALIDATIONS = nothing
+    STARTED_TASKS = nothing
     RESULT_DIRECTORY = nothing
-    function load_started_validations(result_directory::String)
-        global RESULT_DIRECTORY, STARTED_VALIDATIONS
+    function load_started_tasks(result_directory::String)
+        global RESULT_DIRECTORY, STARTED_TASKS
         RESULT_DIRECTORY = result_directory
         files = sort([ f for f in readdir(result_directory) if occursin(r"^[0-9]+\.ser$", f) ])
-        STARTED_VALIDATIONS = Array{Tuple{Dict{String, Any}, AbstractArray, Any}}(undef, 0)
-        append!(STARTED_VALIDATIONS, [ Serialization.deserialize(joinpath(result_directory, f)) for f in files ])
+        STARTED_TASKS = Array{Tuple{Dict{String, Any}, AbstractArray, Int64, Any, String}}(undef, 0)
+        append!(STARTED_TASKS, [ Serialization.deserialize(joinpath(result_directory, f)) for f in files ])
     end
 
 
@@ -101,41 +99,59 @@ module web
             throw(WebApplicationException(400, "No query defined"))
         end
 
-        progress_array, task = napire.validate(data, query, subsample_size, iterations, inference_method)
-        push!(STARTED_VALIDATIONS, (query_dict, progress_array, task))
-        storage_file = joinpath(RESULT_DIRECTORY, string(length(STARTED_VALIDATIONS)) * ".ser")
+        return __run_task(pa -> napire.validate(data, query, subsample_size, iterations, inference_method, pa), query_dict, (iterations, subsample_size), "metrics")
+    end
+
+    function __run_task(fun, query_dict, progress_array_shape, postproc = nothing)
+        progress_array = SharedArrays.SharedArray{Int}(progress_array_shape)
+        task = @async fun(progress_array)
+
+        push!(STARTED_TASKS, (query_dict, progress_array, prod(progress_array_shape), task, postproc))
+        storage_file = joinpath(RESULT_DIRECTORY, string(length(STARTED_TASKS)) * ".ser")
 
         @async begin
-            data = (query_dict, [ 0 ], fetch(task))
+            data = (query_dict, [ prod(progress_array_shape) ], prod(progress_array_shape), fetch(task), postproc)
             Serialization.serialize(storage_file, data)
         end
 
+        return length(STARTED_TASKS)
     end
 
-    function validations(; id = nothing)
+    function tasks(; id = nothing)
         if id == nothing
             return [ Dict(
-                    "query" => q,
-                    "steps_done" => sum(a),
-                    "steps_total" => q["subsample_size"] * q["iterations"],
-                    "done" => isa(r, Task) ? istaskdone(r) : true,
-                    "metrics" => nothing
-                ) for (q, a, r) in STARTED_VALIDATIONS ]
+                    "query" => t[1],
+                    "steps_done" => sum(t[2]),
+                    "steps_total" => t[3],
+                    "done" => isa(t[4], Task) ? istaskdone(t[4]) : true,
+                    "data" => nothing,
+                    "postproc" => t[5]
+                ) for t in STARTED_TASKS ]
         else
-            q, a, r = STARTED_VALIDATIONS[parse(UInt, id)]
-            metrics = nothing
-            if isa(r, Task) && istaskdone(r)
-                metrics = napire.calc_metrics(fetch(r))
-            elseif !isa(r, Task)
-                metrics = napire.calc_metrics(r)
+            query, steps_done, steps_total, taskresult, postproc = STARTED_TASKS[parse(UInt, id)]
+
+            data = nothing
+            if isa(taskresult, Task) && istaskdone(taskresult)
+                data = fetch(taskresult)
+            elseif !isa(taskresult, Task)
+                data = taskresult
+            end
+
+            if data != nothing
+                if postproc == "metrics"
+                    data = napire.calc_metrics(data)
+                elseif postproc == "pngdata"
+                    data = "data:image/png;base64," * Base64.base64encode(data)
+                end
             end
 
             return Dict(
-                    "query" => q,
-                    "steps_done" => sum(a),
-                    "steps_total" => q["subsample_size"] * q["iterations"],
-                    "done" => isa(r, Task) ? istaskdone(r) : true,
-                    "metrics" => metrics
+                    "query" => query,
+                    "steps_done" => sum(steps_done),
+                    "steps_total" => steps_total,
+                    "done" => isa(taskresult, Task) ? istaskdone(taskresult) : true,
+                    "data" => data,
+                    "postproc" => postproc
                 )
         end
     end
@@ -146,9 +162,10 @@ module web
         (path = "/descriptions", method = "POST") => (fn = descriptions, content = "application/json"),
         (path = "/items", method = "POST")  => (fn = items, content = "application/json"),
         (path = "/query", method = "POST") => (fn = query, content = "image/png"),
+        (path = "/infer", method = "POST") => (fn = query, content = "application/json"),
         (path = "/query_legend", method = "GET") => (fn = query_legend, content="image/png"),
         (path = "/validate", method = "POST")  => (fn = validate, content = "application/json"),
-        (path = "/validations", method = "GET")  => (fn = validations, content = "application/json")
+        (path = "/tasks", method = "GET")  => (fn = tasks, content = "application/json")
     )
 
     const BODYMETHODS = Set([ "POST", "PUT" ])
@@ -271,7 +288,7 @@ module web
 
     function start(webdir::String, resultdir::String)
         mkpath(resultdir)
-        load_started_validations(resultdir)
+        load_started_tasks(resultdir)
 
         for (rootpath, dirs, files) in walkdir(webdir; follow_symlinks = false)
             for file in files

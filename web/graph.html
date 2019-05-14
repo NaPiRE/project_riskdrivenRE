@@ -26,85 +26,92 @@
         const urlParams = new URLSearchParams(window.location.search);
         validation_id = urlParams.get("id");
 
-        $.ajax("/validations?id=" + validation_id).then(function(response) {
-            validation_query = response.query;
+        $.ajax("/tasks?id=" + validation_id).then(function(response) {
+            query = response.query;
             $("#description").html("Result report for validation run " + validation_id);
 
             //$("#validation").append("<tr><td></td><td class=\"filter\"></td></tr>");
-            $("#validation").append("<tr><td>Inference method</td><td class=\"filter\">" + validation_query.inference_method + "</td></tr>");
-            $("#validation").append("<tr><td>Subjects per subsample</td><td class=\"filter\">" + validation_query.subsample_size + "</td></tr>");
-            $("#validation").append("<tr><td>Iterations</td><td class=\"filter\">" + validation_query.iterations + "</td></tr>");
-            validation_query["inference_method"] = "";
+            $("#validation").append("<tr><td>Inference method</td><td class=\"filter\">" + query.inference_method + "</td></tr>");
+            $("#validation").append("<tr><td>Subjects per subsample</td><td class=\"filter\">" + query.subsample_size + "</td></tr>");
+            $("#validation").append("<tr><td>Iterations</td><td class=\"filter\">" + query.iterations + "</td></tr>");
+            query["inference_method"] = "";
 
-            for(let node of validation_query.nodes) {
+            for(let node of query.nodes) {
                 $("#node_types").append("<tr><td>" + node[0] + "</td><td class=\"filter\">" + node[1] + "</td><td class=\"filter\">" + node[2] + "</td></tr>");
             }
 
-            for(let conn of validation_query.connect) {
+            for(let conn of query.connect) {
                 $("#connections").append("<tr><td>" + conn[0] + "</td><td>" + conn[1] + "</td><td class=\"filter\">" + conn[2] + "</td><td class=\"filter\">" + conn[3] + "</td></tr>");
             }
 
-            opts = {
-                "method": "POST",
-                "contentType": "application/json",
-                "processData": false,
-                "data": JSON.stringify(validation_query)
-            };
-
-            $("#metrics").empty();
-            for(let k in response.metrics) {
-                let data = response.metrics[k].data;
-                let annotation = null;
-                let repr = null;
-                if(data.length == 0) {
-                    repr = "no data";
-                } else if(data.length == 1) {
-                    if(data[0][0] == null) {
-                        repr = JSON.stringify(data[0][1]);
-                    }  else {
-                        repr = JSON.stringify(data[0][1]);
-                        annotation = JSON.stringify(data[0][0]);
-                    }
-                } else {
-                    repr = "<div id=\"plot_" + k + "\"></div>";
-                    let traces = Object.keys(data[0][1]).map(dk => {
-                        let tr = {
-                            "type": "scatter",
-                            "name": dk,
-                            "x": data.map( xy => xy[0] ),
-                            "y": data.map( xy => xy[1][dk] )
-                        };
-
-                        if(dk != "value") {
-                            tr["yaxis"] = "y2";
+            if(response.postproc == "metrics") {
+                $("#metrics").show();
+                $("#metrics_list").empty();
+                for(let k in response.data) {
+                    let data = response.data[k].data;
+                    let annotation = null;
+                    let repr = null;
+                    if(data.length == 0) {
+                        repr = "no data";
+                    } else if(data.length == 1) {
+                        if(data[0][0] == null) {
+                            repr = JSON.stringify(data[0][1]);
+                        }  else {
+                            repr = JSON.stringify(data[0][1]);
+                            annotation = JSON.stringify(data[0][0]);
                         }
-                        return tr;
-                    });
-                    setTimeout( () => {
-                        let layout = {
-                            xaxis: { title: response.metrics[k].data_xlabel },
-                            yaxis: { range: response.metrics[k].limits },
-                            yaxis2: { overlaying: 'y', side: 'right', rangemode: 'tozero' }
-                        };
+                    } else {
+                        repr = "<div id=\"plot_" + k + "\"></div>";
+                        let traces = Object.keys(data[0][1]).map(dk => {
+                            let tr = {
+                                "type": "scatter",
+                                "name": dk,
+                                "x": data.map( xy => xy[0] ),
+                                "y": data.map( xy => xy[1][dk] )
+                            };
 
-                        Plotly.newPlot("plot_" + k, traces, layout, { responsive: true });
-                    });
+                            if(dk != "value") {
+                                tr["yaxis"] = "y2";
+                            }
+                            return tr;
+                        });
+                        setTimeout( () => {
+                            let layout = {
+                                xaxis: { title: response.data[k].data_xlabel },
+                                yaxis: { range: response.data[k].limits },
+                                yaxis2: { overlaying: 'y', side: 'right', rangemode: 'tozero' }
+                            };
+
+                            Plotly.newPlot("plot_" + k, traces, layout, { responsive: true });
+                        });
+                    }
+                    $("#metrics_list").append("<h2>" + k + (annotation == null ? "": " (" + annotation + ") ") + "</h2><p style=\"text-align: center\">" + repr + "</p>");
                 }
-                $("#metrics").append("<h2>" + k + (annotation == null ? "": " (" + annotation + ") ") + "</h2><p style=\"text-align: center\">" + repr + "</p>");
 
-            }
+                opts = {
+                    "method": "POST",
+                    "contentType": "application/json",
+                    "processData": false,
+                    "data": JSON.stringify(query)
+                };
 
-            $.ajax("/query?data_url=true", opts).then( function(response) {
+                $.ajax("/query", opts).then( function(response) {
+                    update_loading(-1);
+                    img = new Image();
+                    img.src = response;
+                    $("#output_graph").html(img);
+                }).fail( function(response) {
+                    update_loading(-1);
+                    $("#output_graph").html(
+                        "<p>" + response.statusText + " (" +  response.status + ")<br/>"
+                        + response.responseText + "<p>");
+                });
+            } else if(response.postproc == "pngdata") {
                 update_loading(-1);
                 img = new Image();
-                img.src = response;
+                img.src = response.data;
                 $("#output_graph").html(img);
-            }).fail( function(response) {
-                update_loading(-1);
-                $("#output_graph").html(
-                    "<p>" + response.statusText + " (" +  response.status + ")<br/>"
-                    + response.responseText + "<p>");
-            });
+            }
         }).fail( function(response) {
             update_loading(-1);
             $("#output_graph").html(
@@ -156,9 +163,9 @@
 </table>
 </div>
 
-<div>
+<div id="metrics" style="display: none">
 <h1>Metrics</h1>
-<ul id="metrics">
+<ul id="metrics_list">
 </ul>
 </div>
 

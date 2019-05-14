@@ -327,50 +327,47 @@
 
             if(init) {
                 setTimeout(update_image);
-                setTimeout(update_validations);
+                setTimeout(update_tasks);
                 setInterval(update_image, 1000);
-                setInterval(update_validations, 3000);
+                setInterval(update_tasks, 3000);
             }
         });
     }
 
     function update_image() {
         if(query_changed()) {
-            post("/query?data_url=true")
+            post("/query")
                 .then( function(response) {
                     update_loading(-1);
                     let img = new Image();
                     img.src = response;
                     $("#output_graph").html(img);
-                    $("#run_inference").prop("disabled", false);
                 }).fail( function(response) {
                     update_loading(-1);
                     $("#output_graph").html(
                         "<p>" + response.statusText + " (" +  response.status + ")<br/>"
                         + response.responseText + "<p>");
-                    $("#run_inference").prop("disabled", false);
                 });
 
-            params["inference_method"] = "";
             old_params = Object.assign({}, params);
             update_loading(+1);
         }
     }
 
-    function update_validations() {
-        return $.ajax("/validations")
+    function update_tasks() {
+        return $.ajax("/tasks")
             .then( function(response) {
-                $("#output_validation").empty();
+                $("#output_tasks").empty();
                 if(response.length == 0) {
-                    $("#validation_indicator").html("<p>No validations run so far.</p>");
+                    $("#no_tasks_indicator").html("<p>No task run so far.</p>");
                 } else {
-                    $("#validation_indicator").html("");
+                    $("#no_tasks_indicator").html("");
                     let val_queries = 0;
-                    for(let validation of response) {
-                        $("#output_validation").append(
-                              "<li><a href=\"javascript:graph_window = window.open(graph_window_path(" + val_queries +"), '_blank', 'width=700,height=850'); void(0)\">" + validation.query.inference_method + "</a>"
-                            + ": " + validation.query.subsample_size + " subjects per subsample, " + validation.query.iterations + " iterations, "
-                            + (validation.done ? "" : (validation.steps_done / validation.steps_total * 100).toFixed(2) + "%") + " done.</li>");
+                    for(let task of response) {
+                        $("#output_tasks").append(
+                              "<li><a href=\"javascript:graph_window = window.open(graph_window_path(" + val_queries +"), '_blank', 'width=700,height=850'); void(0)\">" + task.query.inference_method + "</a>"
+                            + ": " + task.query.subsample_size + " subjects per subsample, " + task.query.iterations + " iterations, "
+                            + (task.done ? "" : (task.steps_done / task.steps_total * 100).toFixed(2) + "%") + " done.</li>");
                         val_queries++;
                     }
                 }
@@ -382,8 +379,18 @@
     }
 
     function run_inference() {
-        params["inference_method"] = $("#inference_method").val();
         $("#run_inference").prop("disabled", true);
+        post("/infer", {
+            "inference_method": $("#inference_method").val(),
+        }).then( function(response) {
+            update_tasks().then(function(response) {
+                    $("#run_inference").prop("disabled", false);
+                }).fail(function(response) {
+                    $("#run_inference").prop("disabled", false)
+                });
+        }).fail(function(response) {
+            $("#run_inference").prop("disabled", false)
+        });
     }
 
     function run_validation() {
@@ -393,7 +400,7 @@
             "subsample_size": $("#validation_subsample_size").val(),
             "iterations": $("#validation_iterations").val()
         }).then( function(response) {
-            update_validations().then(function(response) {
+            update_tasks().then(function(response) {
                     $("#run_validation").prop("disabled", false);
                 }).fail(function(response) {
                     $("#run_validation").prop("disabled", false)
@@ -427,7 +434,6 @@
                 $("#dataset").append("<option value=\"" + ds + "\">" + ds + "</option>");
             }
             params["dataset"] = response[0];
-            console.log(params);
 
             $("#dataset").select(function() {
                 params["dataset"] = $("#dataset").value();
@@ -596,11 +602,11 @@
 <div id="output_graph">
 </div>
 
-<h1>Validation results</h1>
+<h1>Results</h1>
 
-<div id="validation_indicator"></div>
+<div id="no_tasks_indicator"></div>
 
-<ol id="output_validation">
+<ol id="output_tasks">
 
 </ol>
 

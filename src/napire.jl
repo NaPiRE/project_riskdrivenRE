@@ -6,7 +6,6 @@ module napire
     import BayesNets
     import Distributed
     import Random
-    import SharedArrays
 
     include("graphviz.jl")
     export graphviz
@@ -173,62 +172,58 @@ module napire
         return validate(data, output_variables, subsample_size, iterations, inference_methods[inference_method])
     end
 
-    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::Type = default_inference_method)
+    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::Type = default_inference_method, progress_array = nothing)
         evidence_variables = setdiff(Set{Symbol}(names(data.data)), output_variables)
+        iteration_tasks = []
+        for i in 1:iterations
+            it_task = @async begin
+                println("Validation run " * string(i))
+                samples = Random.randperm(length(data.subjects)) .- 1
 
-        progress_array = SharedArrays.SharedArray{Int}( (iterations, subsample_size))
-        task = @async begin
-            iteration_tasks = []
-            for i in 1:iterations
-                it_task = @async begin
-                    println("Validation run " * string(i))
-                    samples = Random.randperm(length(data.subjects)) .- 1
+                validation_samples = samples[1:subsample_size]
+                training_samples   = samples[subsample_size + 1:end]
 
-                    validation_samples = samples[1:subsample_size]
-                    training_samples   = samples[subsample_size + 1:end]
+                @assert length(validation_samples) == subsample_size
+                @assert length(validation_samples) + length(training_samples) == nrow(data.data)
+                @assert length(intersect(validation_samples, training_samples)) == 0
 
-                    @assert length(validation_samples) == subsample_size
-                    @assert length(validation_samples) + length(training_samples) == nrow(data.data)
-                    @assert length(intersect(validation_samples, training_samples)) == 0
+                @assert min(validation_samples...) > 0
+                @assert min(training_samples...)   > 0
+                @assert max(validation_samples...) <= nrow(data.data)
+                @assert max(training_samples...)   <= nrow(data.data)
 
-                    @assert min(validation_samples...) > 0
-                    @assert min(training_samples...)   > 0
-                    @assert max(validation_samples...) <= nrow(data.data)
-                    @assert max(training_samples...)   <= nrow(data.data)
-
-                    bn = bayesian_train(data, training_samples)
-                    function __merge_arrays(a1, a2)
-                        append!(a1, a2); a1
-                    end
-
-                    subtasks = Distributed.@distributed __merge_arrays for si in 1:length(validation_samples)
-                        s = validation_samples[si]
-
-                        println(string(si) * " of " * string(subsample_size))
-                        evidence = Dict{Symbol, Bool}()
-                        for ev in evidence_variables
-                            evidence[ev] = data.data[s, ev]
-                        end
-
-                        expected = Dict{Symbol, Bool}()
-                        for ov in output_variables
-                            expected[ov] = data.data[s, ov]
-                        end
-
-                        prediction = predict(bn, output_variables, evidence, inference_method)
-                        progress_array[i, si] += 1
-                        [ (expected, prediction) ]
-                    end
-
-                    fetch(subtasks)
+                bn = bayesian_train(data, training_samples)
+                function __merge_arrays(a1, a2)
+                    append!(a1, a2); a1
                 end
 
-                push!(iteration_tasks, it_task)
-            end
-            [ fetch(it_task) for it_task in iteration_tasks ]
-        end
+                subtasks = Distributed.@distributed __merge_arrays for si in 1:length(validation_samples)
+                    s = validation_samples[si]
 
-        return progress_array, task
+                    println(string(si) * " of " * string(subsample_size))
+                    evidence = Dict{Symbol, Bool}()
+                    for ev in evidence_variables
+                        evidence[ev] = data.data[s, ev]
+                    end
+
+                    expected = Dict{Symbol, Bool}()
+                    for ov in output_variables
+                        expected[ov] = data.data[s, ov]
+                    end
+
+                    prediction = predict(bn, output_variables, evidence, inference_method)
+                    if progress_array != nothing
+                        progress_array[i, si] += 1
+                    end
+                    [ (expected, prediction) ]
+                end
+
+                fetch(subtasks)
+            end
+
+            push!(iteration_tasks, it_task)
+        end
+        return [ fetch(it_task) for it_task in iteration_tasks ]
     end
 
     function calc_metrics(data = nothing)
