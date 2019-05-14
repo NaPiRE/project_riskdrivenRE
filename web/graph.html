@@ -27,7 +27,7 @@
         task_id = urlParams.get("id");
         document.title += " for task " + task_id;
 
-        $.ajax("/tasks?id=" + task_id).then(function(response) {
+        $.ajax("/tasks?printresult=true&id=" + task_id).then(function(response) {
             query = response.query;
 
             //$("#task").append("<tr><td></td><td class=\"filter\"></td></tr>");
@@ -36,6 +36,9 @@
             $("#task").append("<tr><td>Task status</td><td class=\"filter\">" + response.state + "</td></tr>");
             if(response.state == "FAILED") {
                 $("#task").append("<tr><td>Task error</td><td class=\"filter\">" + response.result +"</td></tr>");
+            }
+            if(response.state == "RUNNING") {
+                $("#task").append("<tr><td>Task completion</td><td class=\"filter\">" + (response.steps_done / response.steps_total * 100).toFixed(2) + "%" +"</td></tr>");
             }
             $("#task").append("<tr><td>Inference method</td><td class=\"filter\">" + query.inference_method + "</td></tr>");
 
@@ -71,53 +74,54 @@
             }
 
             if(response.type == "TASK_VALIDATION") {
+                plotQuery();
                 $("#task").append("<tr><td>Subjects per subsample</td><td class=\"filter\">" + query.subsample_size + "</td></tr>");
                 $("#task").append("<tr><td>Iterations</td><td class=\"filter\">" + query.iterations + "</td></tr>");
 
-                $("#metrics").show();
-                $("#metrics_list").empty();
-                for(let k in response.data) {
-                    let data = response.data[k].data;
-                    let annotation = null;
-                    let repr = null;
-                    if(data.length == 0) {
-                        repr = "no data";
-                    } else if(data.length == 1) {
-                        if(data[0][0] == null) {
-                            repr = JSON.stringify(data[0][1]);
-                        }  else {
-                            repr = JSON.stringify(data[0][1]);
-                            annotation = JSON.stringify(data[0][0]);
-                        }
-                    } else {
-                        repr = "<div id=\"plot_" + k + "\"></div>";
-                        let traces = Object.keys(data[0][1]).map(dk => {
-                            let tr = {
-                                "type": "scatter",
-                                "name": dk,
-                                "x": data.map( xy => xy[0] ),
-                                "y": data.map( xy => xy[1][dk] )
-                            };
-
-                            if(dk != "value") {
-                                tr["yaxis"] = "y2";
+                if(response.status == "DONE") {
+                    $("#metrics").show();
+                    $("#metrics_list").empty();
+                    for(let k in response.data) {
+                        let data = response.data[k].data;
+                        let annotation = null;
+                        let repr = null;
+                        if(data.length == 0) {
+                            repr = "no data";
+                        } else if(data.length == 1) {
+                            if(data[0][0] == null) {
+                                repr = JSON.stringify(data[0][1]);
+                            }  else {
+                                repr = JSON.stringify(data[0][1]);
+                                annotation = JSON.stringify(data[0][0]);
                             }
-                            return tr;
-                        });
-                        setTimeout( () => {
-                            let layout = {
-                                xaxis: { title: response.data[k].data_xlabel },
-                                yaxis: { range: response.data[k].limits },
-                                yaxis2: { overlaying: 'y', side: 'right', rangemode: 'tozero' }
-                            };
+                        } else {
+                            repr = "<div id=\"plot_" + k + "\"></div>";
+                            let traces = Object.keys(data[0][1]).map(dk => {
+                                let tr = {
+                                    "type": "scatter",
+                                    "name": dk,
+                                    "x": data.map( xy => xy[0] ),
+                                    "y": data.map( xy => xy[1][dk] )
+                                };
 
-                            Plotly.newPlot("plot_" + k, traces, layout, { responsive: true });
-                        });
+                                if(dk != "value") {
+                                    tr["yaxis"] = "y2";
+                                }
+                                return tr;
+                            });
+                            setTimeout( () => {
+                                let layout = {
+                                    xaxis: { title: response.data[k].data_xlabel },
+                                    yaxis: { range: response.data[k].limits },
+                                    yaxis2: { overlaying: 'y', side: 'right', rangemode: 'tozero' }
+                                };
+
+                                Plotly.newPlot("plot_" + k, traces, layout, { responsive: true });
+                            });
+                        }
+                        $("#metrics_list").append("<h2>" + k + (annotation == null ? "": " (" + annotation + ") ") + "</h2><p style=\"text-align: center\">" + repr + "</p>");
                     }
-                    $("#metrics_list").append("<h2>" + k + (annotation == null ? "": " (" + annotation + ") ") + "</h2><p style=\"text-align: center\">" + repr + "</p>");
                 }
-
-                plotQuery();
             } else if(response.type == "TASK_INFERENCE") {
                 if(response.state == "DONE") {
                     update_loading(-1);
@@ -141,10 +145,19 @@
 </head>
 <body>
 
-<p id="description"></p>
 <p id="loading_indicator">Loading...</p>
 
 <div id="main">
+
+<h1>Task settings</h1>
+
+<table>
+<thead>
+    <th style="width: 55%">Setting</th><th class="filter" style="width: 50%">Value</th>
+</thead>
+<tbody id="task">
+</tbody>
+</table>
 
 <div>
 <h1>Architecture</h1>
@@ -168,15 +181,6 @@
 </table>
 </div>
 
-<h1>Inference</h1>
-
-<table>
-<thead>
-    <th style="width: 55%">Setting</th><th class="filter" style="width: 50%">Value</th>
-</thead>
-<tbody id="task">
-</tbody>
-</table>
 </div>
 
 <div id="metrics" style="display: none">

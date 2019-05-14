@@ -365,24 +365,26 @@
                     $("#no_tasks_indicator").html("<p>No task run so far.</p>");
                 } else {
                     $("#no_tasks_indicator").html("");
-                    let numtasks = 0;
                     for(let task of response) {
-                        let task_description = "<a href=\"javascript:graph_window = window.open(graph_window_path(" + numtasks +"), '_blank', 'width=700,height=850'); void(0)\">" + task.type + "</a>" + ": ";
+                        let task_description = "<a href=\"javascript:graph_window = window.open('graph.html?id=" + task.id +"', '_blank', 'width=700,height=850'); void(0)\">" + task.type + "</a>" + ": ";
 
                         if(task.type == "TASK_VALIDATION") {
                             task_description += task.query.subsample_size + " subjects per subsample, " + task.query.iterations + " iterations, "
                         }
-                        task_description += (task.state != "RUNNING" ? "" : (task.steps_done / task.steps_total * 100).toFixed(2) + "%") + " " + task.state.toLowerCase() + ".";
 
-                        $("#output_tasks").append("<li>" + task_description + "</li>");
-                        numtasks++;
+                        task_description += task.state.toLowerCase() + ". ";
+                        if(task.state == "RUNNING") {
+                            task_description += "(" + (task.steps_done / task.steps_total * 100).toFixed(2) + "%). ";
+                            task_description += "<a href=\"javascript:$.ajax('/tasks?id=" + task.id + "', { 'method': 'POST' }); update_tasks(); void(0)\">cancel</a>";
+                        } else {
+                            task_description += "<a href=\"javascript:$.ajax('/tasks?id=" + task.id + "', { 'method': 'DELETE' }); update_tasks(); void(0)\">delete</a>";
+                        }
+
+
+                        $("#output_tasks").append("<li value=\"" + task.id + "\">" + task_description + "</li>");
                     }
                 }
             });
-    }
-
-    function graph_window_path(i) {
-        return 'graph.html?id=' + (i + 1);
     }
 
     function run_inference() {

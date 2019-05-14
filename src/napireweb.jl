@@ -23,14 +23,13 @@ module web
 
     STARTED_TASKS = nothing
     RESULT_DIRECTORY = nothing
-    LAST_ID = nothing
     function load_started_tasks(result_directory::String)
-        global RESULT_DIRECTORY, STARTED_TASKS, LAST_ID
+        global RESULT_DIRECTORY, STARTED_TASKS
         RESULT_DIRECTORY = result_directory
         files = sort([ f for f in readdir(result_directory) if occursin(r"^[0-9]+\.ser$", f) ])
-        STARTED_TASKS = Array{Tuple{Symbol, Int64, Dict{String, Any}, AbstractArray, Int64, Any}}(undef, 0)
-        append!(STARTED_TASKS, [ Serialization.deserialize(joinpath(result_directory, f)) for f in files ])
-        LAST_ID = length(STARTED_TASKS) > 0 ? maximum( [ t[2] for t in STARTED_TASKS ] ) : 0
+        files = [ Serialization.deserialize(joinpath(result_directory, f)) for f in files ]
+
+        STARTED_TASKS = Dict{Int64, Tuple{Symbol, Int64, Dict{String, Any}, AbstractArray, Int64, Any}}(f[2] => f for f in files)
     end
 
     struct SerTask
@@ -52,8 +51,8 @@ module web
         return t.state
     end
 
-    function task_fetch(t::Task)
-        if !istaskdone(t)
+    function task_fetch(t::Task, block = false)
+        if !istaskdone(t) && block
             return nothing
         end
 
@@ -64,59 +63,87 @@ module web
         end
     end
 
-    function task_fetch(t::SerTask)
+    function task_fetch(t::SerTask, block = false)
         return t.result
     end
 
-    function tasks(; id = nothing, cancel = "false")
-        function serialise(t, printresult)
-            task_type, task_id, query, steps_done, steps_total, task = t
+    function task_serialize(t::Tuple, printresult = true, action = x -> nothing)
+        task_type, task_id, query, steps_done, steps_total, task = t
 
-            state = task_state(task)
-            if state == :RUNNING && cancel == "true"
-                Base.throwto(task, InterruptException())
+        state = task_state(task)
+        result = printresult ? task_fetch(task) : nothing
+
+        if result != nothing && state == :DONE
+            if task_type == :TASK_VALIDATION
+                result = napire.calc_metrics(result)
+            elseif task_type == :TASK_INFERENCE
+                result = "data:image/png;base64," * Base64.base64encode(result)
             end
-
-            task_result = task_fetch(task)
-            if state == :DONE && task_type == :TASK_VALIDATION
-                task_result = napire.calc_metrics(task_result)
-            elseif state == :DONE && task_type == :TASK_INFERENCE
-                task_result = "data:image/png;base64," * Base64.base64encode(task_result)
-            end
-
-            result = Dict(
-                    "type" => task_type,
-                    "id" => task_id,
-                    "query" => query,
-                    "steps_done" => sum(steps_done),
-                    "steps_total" => steps_total,
-                    "state" => state,
-                    "result" => printresult ? task_result : nothing
-                )
-            return result
         end
 
-        if id == nothing
-            return [ serialise(t, false) for t in STARTED_TASKS ]
+        action(t)
+
+        task_data = Dict(
+                "type" => task_type,
+                "id" => task_id,
+                "query" => query,
+                "steps_done" => sum(steps_done),
+                "steps_total" => steps_total,
+                "state" => state,
+                "result" => result
+            )
+        return task_data
+    end
+
+    function task_serialize(tid::Union{Nothing, Int64}, args...)
+        if tid == nothing
+            return [ task_serialize(STARTED_TASKS[tid], args...) for tid in sort(collect(keys(STARTED_TASKS))) ]
         else
-            return serialise(STARTED_TASKS[parse(UInt, id)], true)
+            return task_serialize(STARTED_TASKS[tid], args...)
         end
     end
 
+    function tasks(; id = nothing, printresult = "false")
+        return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult))
+    end
+
+    function tasks_cancel(; id = nothing, printresult = "false")
+        function cancel(t)
+            if task_state(t[6]) != :RUNNING
+                return
+            end
+            Base.throwto(t[6], InterruptException())
+        end
+
+        return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult), cancel)
+    end
+
+    function tasks_delete(; id = nothing, printresult = "false")
+        function delete(t)
+            if task_state(t[6]) == :RUNNING
+                return
+            end
+
+            delete!(STARTED_TASKS, t[2])
+            storage_file = joinpath(RESULT_DIRECTORY,  string(t[2]) * ".ser")
+            rm(storage_file)
+        end
+
+        return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult), delete)
+    end
+
     function __run_task(task_type, fun, query_dict, progress_array_shape)
-        global LAST_ID
-        LAST_ID += 1
-        task_id = LAST_ID
+        task_id = isempty(STARTED_TASKS) ? 1 : maximum(keys(STARTED_TASKS)) + 1
 
         progress_array = SharedArrays.SharedArray{Int}(progress_array_shape)
         task = @async fun(progress_array)
 
-        push!(STARTED_TASKS, (task_type, task_id, query_dict, progress_array, prod(progress_array_shape), task))
+        STARTED_TASKS[task_id] = (task_type, task_id, query_dict, progress_array, prod(progress_array_shape), task)
         storage_file = joinpath(RESULT_DIRECTORY,  string(task_id) * ".ser")
 
         @async begin
-            sertask = SerTask(task_state(task), task_fetch(task))
-            Serialization.serialize(storage_file, (task_type, task_id, query_dict, [ prod(progress_array_shape) ], prod(progress_array_shape), sertask))
+            result = task_fetch(task, true)
+            Serialization.serialize(storage_file, (task_type, task_id, query_dict, [ prod(progress_array_shape) ], prod(progress_array_shape), SerTask(task_state(task), result)))
         end
 
         return task_id
@@ -197,15 +224,19 @@ module web
         (path = "/items", method = "POST")  => (fn = items, content = "application/json"),
         (path = "/plot", method = "POST") => (fn = plot, content = "image/png"),
         (path = "/infer", method = "POST") => (fn = infer, content = "application/json"),
-        (path = "/query_legend", method = "GET") => (fn = query_legend, content="image/png"),
+        (path = "/query_legend", method = "GET") => (fn = query_legend, content = "image/png"),
         (path = "/validate", method = "POST")  => (fn = validate, content = "application/json"),
-        (path = "/tasks", method = "GET")  => (fn = tasks, content = "application/json")
+        (path = "/tasks", method = "GET")  => (fn = tasks, content = "application/json"),
+        (path = "/tasks", method = "POST")  => (fn = tasks_cancel, content = "application/json"),
+        (path = "/tasks", method = "DELETE")  => (fn = tasks_delete, content = "application/json")
+
     )
 
     const BODYMETHODS = Set([ "POST", "PUT" ])
 
     const REQUEST_CONVERSION = Dict(
-        "application/json" => (b) -> JSON.parse(String(b))
+        "application/json" => (b) -> JSON.parse(String(b)),
+        "" => (b) -> nothing
     )
 
     const RESPONSE_CONVERSION = Dict(
@@ -239,22 +270,20 @@ module web
 
         params = Dict(Symbol(k) => v for (k, v) in HTTP.queryparams(uri))
 
-        body = ""
-        if in(key.method, BODYMETHODS)
-            content_type = HTTP.header(request, "Content-Type", "")
-            if !haskey(REQUEST_CONVERSION, content_type)
-                throw(WebApplicationException(400, "Unknown Content-Type"))
-            end
+        body_content_type = HTTP.header(request, "Content-Type", "")
+        if !haskey(REQUEST_CONVERSION, body_content_type)
+            throw(WebApplicationException(400, "Unknown Content-Type"))
+        end
 
-            try
-                body = REQUEST_CONVERSION[content_type](request.body)
-            catch e
-                throw(WebApplicationException(400, "Unparsable body: " * e.msg))
-            end
+        body = nothing
+        try
+            body = REQUEST_CONVERSION[body_content_type](request.body)
+        catch e
+            throw(WebApplicationException(400, "Unparsable body: " * e.msg))
         end
 
         try
-            if in(key.method, BODYMETHODS)
+            if body != nothing
                 response = endpoint.fn(body; params...)
             else
                 response = endpoint.fn(; params...)
