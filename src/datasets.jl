@@ -5,6 +5,8 @@ module DataSets
 
     import CSV
 
+    const MAX_RANK = 5
+
     function __filter(data, items, descriptions, rankcol, subjectcol,
 
             nodes::Array{Tuple{Symbol, Bool, UInt}, 1} = Array{Tuple{Symbol, Bool, UInt}, 1}(),
@@ -86,6 +88,14 @@ module DataSets
             edges = all_edges, nodes = all_nodes, subjects = subjects)
     end
 
+    function __dummy!(data, column, node_id)
+        for sym in values(node_id); data[sym] = falses(size(data, 1)); end
+
+        for (idx, identifier) in enumerate(data[column])
+            data[node_id[identifier]][idx] = true
+        end
+    end
+
     function __create_edges(data, rankcol::Symbol, items, from::Symbol, to::Symbol, weighted::Bool, minimum_edge_weight)
         edges = Dict{Pair{Symbol, Symbol}, Int64}()
 
@@ -95,7 +105,7 @@ module DataSets
 
                 for i in 1:size(data)[1]
                     if data[i, from_node] && data[i, to_node]
-                        edges[(from_node => to_node)] += weighted ? parse(UInt, data[i, rankcol]) : 1;
+                        edges[(from_node => to_node)] += weighted ? (MAX_RANK - parse(UInt, data[i, rankcol])) : 1;
                     end
                 end
             end
@@ -112,4 +122,5 @@ module DataSets
     end
 
     include("datasets_nap_2014.jl")
+    include("datasets_nap_2018.jl")
 end

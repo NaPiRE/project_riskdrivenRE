@@ -12,7 +12,7 @@
   <script src="external/jquery/jquery.js"></script>
   <script src="external/jquery-ui/jquery-ui.js"></script>
   <script>
-    params = {
+    initial_params = {
         "dataset": "",
         "nodes": [],
         "connect": [],
@@ -20,6 +20,8 @@
         "evidence": {},
         "inference_method": "",
     };
+    params = Object.assign({}, initial_params);
+
     old_params = null;
     items = {};
     loading = 0;
@@ -92,7 +94,7 @@
         connectivity.sort();
 
         //
-        // nodes setup
+        // update node types form
         //
 
         $("#connectivity_available").empty()
@@ -100,25 +102,50 @@
             $("#connectivity_available").append("<li>" + i + "</li>");
         }
 
-        if(init) {
-            $("#connectivity_nodesweight").empty();
-            $("#connectivity_nodesweightedfilter").empty();
-            for(let i of connectivity) {
-                let mw_id = "nodes_min_weight_" + i;
-                $("#connectivity_nodesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
-                    " type=\"number\" min=\"0\" value=\"5\" name=\"" + mw_id + "\"/>");
-                $("#" + mw_id).change(function(event) {
-                    update_items();
-                });
-
-                mw_id = "nodes_min_weight_weighted_" + i;
-                $("#connectivity_nodesweightedfilter").append("<input id=\""+ mw_id + "\" type=\"checkbox\" class=\"min_weight\"/>");
-                $("#" + mw_id).change(function(event) {
-                    update_items();
-                });
+        let num_nodesweight = connectivity.length;
+        let num_nodesweight_found = 0;
+        for(let ch of $("#connectivity_nodesweight").children()) {
+            ch = $(ch);
+            if(num_nodesweight_found >= num_nodesweight) {
+                ch.remove();
             }
+
+            num_nodesweight_found++;
         }
 
+        num_nodesweight_found = 0;
+        for(let ch of $("#connectivity_nodesweightedfilter").children()) {
+            ch = $(ch);
+            if(num_nodesweight_found >= num_nodesweight) {
+                ch.remove();
+            }
+
+            num_nodesweight_found++;
+        }
+
+        for(; num_nodesweight_found < num_nodesweight; num_nodesweight_found++) {
+            let mw_id = "nodes_min_weight_" + connectivity[num_nodesweight_found];
+            $("#connectivity_nodesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
+                " type=\"number\" min=\"0\" value=\"5\" name=\"" + mw_id + "\"/>");
+            $("#" + mw_id).change(function(event) {
+                update_items();
+            });
+
+            mw_id = "nodes_min_weight_weighted_" + connectivity[num_nodesweight_found];
+            $("#connectivity_nodesweightedfilter").append("<input id=\""+ mw_id + "\" type=\"checkbox\" class=\"min_weight\"/>");
+            $("#" + mw_id).change(function(event) {
+                update_items();
+            });
+
+        }
+
+        $("#connectivity_nodesnumber").empty();
+        for(let i of connectivity) {
+            $("#connectivity_nodesnumber").append("<input class=\"min_weight\"" +
+                " type=\"number\" disabled value=\"" + items[i].length + "\"/>");
+        }
+
+        // load data from form
         let nodes = [];
         for(let i of connectivity) {
             nodes.push( [i,
@@ -127,15 +154,11 @@
         }
         params["nodes"] = nodes;
 
-        $("#connectivity_nodesnumber").empty();
-        for(let i of connectivity) {
-            $("#connectivity_nodesnumber").append("<input class=\"min_weight\"" +
-                " type=\"number\" disabled value=\"" + items[i].length + "\"/>");
-        }
+        //
+        // update edges form
+        //
 
-        //
-        // edges setup
-        //
+        // load data from form
         let from_keys = [];
         for(let ch of $("#connectivity_from").children()) {
             ch = $(ch)
@@ -324,7 +347,7 @@
         post("/items").then(function(response) {
             items = response;
 
-            update_architecture_params(init); // insert stuff from the newly loaded items to the UI
+            update_architecture_params(); // insert stuff from the newly loaded items to the UI
             update_evidence_view();
             update_descriptions();
 
@@ -444,8 +467,10 @@
             }
             params["dataset"] = response[0];
 
-            $("#dataset").select(function() {
-                params["dataset"] = $("#dataset").value();
+            $("#dataset").change(function() {
+                params = Object.assign({}, initial_params);
+                params["dataset"] = $("#dataset").val();
+                items = {};
                 update_items();
             });
         }),
