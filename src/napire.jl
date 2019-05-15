@@ -35,7 +35,7 @@ module napire
                     (n, f) -> isa(f, Function) && n != :eval && n != :include)
 
     const default_inference_method = inference_methods["BayesNets.GibbsSamplingNodewise"]
-    const default_dataset = datasets["napire.DataSets.load_2014"]
+    const default_dataset = datasets["napire.DataSets.nap_2014"]
 
     export inference_methods, datasets, metrics, default_inference_method, default_dataset
 
@@ -178,7 +178,7 @@ module napire
         for i in 1:iterations
             it_task = @async begin
                 println("Validation run " * string(i))
-                samples = Random.randperm(length(data.subjects)) .- 1
+                samples = Random.randperm(length(data.subjects))
 
                 validation_samples = samples[1:subsample_size]
                 training_samples   = samples[subsample_size + 1:end]

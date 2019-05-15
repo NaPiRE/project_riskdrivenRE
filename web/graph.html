@@ -40,6 +40,7 @@
             if(response.state == "RUNNING") {
                 $("#task").append("<tr><td>Task completion</td><td class=\"filter\">" + (response.steps_done / response.steps_total * 100).toFixed(2) + "%" +"</td></tr>");
             }
+            $("#task").append("<tr><td>Data Set</td><td class=\"filter\">" + response.query.dataset + "</td></tr>");
             $("#task").append("<tr><td>Inference method</td><td class=\"filter\">" + query.inference_method + "</td></tr>");
 
             query["inference_method"] = "";
@@ -78,30 +79,30 @@
                 $("#task").append("<tr><td>Subjects per subsample</td><td class=\"filter\">" + query.subsample_size + "</td></tr>");
                 $("#task").append("<tr><td>Iterations</td><td class=\"filter\">" + query.iterations + "</td></tr>");
 
-                if(response.status == "DONE") {
+                if(response.state == "DONE") {
                     $("#metrics").show();
                     $("#metrics_list").empty();
-                    for(let k in response.data) {
-                        let data = response.data[k].data;
+                    for(let k in response.result) {
+                        let result = response.result[k].data;
                         let annotation = null;
                         let repr = null;
-                        if(data.length == 0) {
-                            repr = "no data";
-                        } else if(data.length == 1) {
-                            if(data[0][0] == null) {
-                                repr = JSON.stringify(data[0][1]);
+                        if(result.length == 0) {
+                            repr = "no result";
+                        } else if(result.length == 1) {
+                            if(result[0][0] == null) {
+                                repr = JSON.stringify(result[0][1]);
                             }  else {
-                                repr = JSON.stringify(data[0][1]);
-                                annotation = JSON.stringify(data[0][0]);
+                                repr = JSON.stringify(result[0][1]);
+                                annotation = JSON.stringify(result[0][0]);
                             }
                         } else {
                             repr = "<div id=\"plot_" + k + "\"></div>";
-                            let traces = Object.keys(data[0][1]).map(dk => {
+                            let traces = Object.keys(result[0][1]).map(dk => {
                                 let tr = {
                                     "type": "scatter",
                                     "name": dk,
-                                    "x": data.map( xy => xy[0] ),
-                                    "y": data.map( xy => xy[1][dk] )
+                                    "x": result.map( xy => xy[0] ),
+                                    "y": result.map( xy => xy[1][dk] )
                                 };
 
                                 if(dk != "value") {
@@ -111,8 +112,8 @@
                             });
                             setTimeout( () => {
                                 let layout = {
-                                    xaxis: { title: response.data[k].data_xlabel },
-                                    yaxis: { range: response.data[k].limits },
+                                    xaxis: { title: response.result[k].data_xlabel },
+                                    yaxis: { range: response.result[k].limits },
                                     yaxis2: { overlaying: 'y', side: 'right', rangemode: 'tozero' }
                                 };
 

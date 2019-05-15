@@ -52,7 +52,7 @@ module web
     end
 
     function task_fetch(t::Task, block = false)
-        if !istaskdone(t) && block
+        if !block && !istaskdone(t)
             return nothing
         end
 
@@ -229,7 +229,6 @@ module web
         (path = "/tasks", method = "GET")  => (fn = tasks, content = "application/json"),
         (path = "/tasks", method = "POST")  => (fn = tasks_cancel, content = "application/json"),
         (path = "/tasks", method = "DELETE")  => (fn = tasks_delete, content = "application/json")
-
     )
 
     const BODYMETHODS = Set([ "POST", "PUT" ])

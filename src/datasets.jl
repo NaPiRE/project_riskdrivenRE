@@ -7,7 +7,7 @@ module DataSets
 
     const ANSWERS_PER_SUBJECT = 5
 
-    function load_2014(nodes::Array{Tuple{Symbol, Bool, UInt}} = Dict{Symbol, UInt}(),
+    function nap_2014(nodes::Array{Tuple{Symbol, Bool, UInt}, 1} = Array{Tuple{Symbol, Bool, UInt}, 1}(),
             connect::Array{Tuple{Symbol, Symbol, Bool, UInt}, 1} = Array{Tuple{Symbol, Symbol, Bool, UInt}, 1}(), all_items = false)
 
         filename = joinpath(dirname(@__FILE__), "../data/2014/napire.csv")
