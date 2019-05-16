@@ -11,6 +11,22 @@ module Metrics
         return (limits = [ 0, 1 ], data = [ (nothing, bs / ns) ])
     end
 
+    function ranking(data, config = [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ])
+        number = 0
+        summation = [ 0.0 for c in config ]
+
+        for iteration_data in data
+            for (expected, predicted) in iteration_data
+                predicted_highest = sort(collect(predicted), by = ex -> -ex[2])
+                summation = summation .+ [ c <= length(predicted_highest) ? (sum(convert(Int64, expected[k]) for (k, _) in predicted_highest[1:c]) / c)  : missing for c in config ]
+                number += 1
+            end
+        end
+        summation = summation / number
+
+        return (limits = [ 0, 1 ], data_xlabel = "Considered elements at the top of the list", data = [ (c, (value = summation[c], )) for c in config ])
+    end
+
     function binary_accuracy(data, config = [ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ])
         function calc(threshold)
             total = 0
@@ -22,7 +38,7 @@ module Metrics
                 end
             end
 
-            return (value = correct / total, correct = correct, total = total)
+            return (value = correct / total, )
         end
 
         return (limits = [ 0, 1 ], data_xlabel = "Node-present threshold",
@@ -39,7 +55,7 @@ module Metrics
                     found += sum([ predicted[s] > threshold ? 1 : 0 for s in keys(expected) if expected[s] ])
                 end
             end
-            return (value = found / to_be_found, found = found, to_be_found = to_be_found)
+            return (value = found / to_be_found, )
         end
 
         return (limits = [ 0, 1 ], data_xlabel = "Node-present threshold",
@@ -56,7 +72,7 @@ module Metrics
                     true_positives += sum( [ convert(Int, expected[s]) for s in keys(predicted) if predicted[s] > threshold ] )
                 end
             end
-            return (value = true_positives / positives, positives = positives, true_positives = true_positives)
+            return (value = true_positives / positives, )
         end
 
         return (limits = [ 0, 1 ], data_xlabel = "Node-present threshold",
