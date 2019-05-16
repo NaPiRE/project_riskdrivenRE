@@ -70,6 +70,24 @@ if [ $procs -lt 0 ]; then procs=0; fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export JULIA_PROJECT="$DIR"
+export JULIA_REVISE_INCLUDE="1"
+
+loadcode="
+using Revise
+
+files = []
+for (root, _, dirfiles) in walkdir(\"$DIR/src\")
+    for file in dirfiles
+        push!(files, joinpath(root, file))
+    end
+end
+
+@async Revise.entr(files, [ ] ) do
+    println(\"-- reload --\")
+    println()
+end
+import napire
+"
 
 if [ $shell = "n" ]; then
     cmd=""
@@ -77,7 +95,7 @@ if [ $shell = "n" ]; then
         cmd="$cmd import Pkg; Pkg.instantiate();"
     fi
 
-    cmd="$cmd using Revise; import napire; napire.web.start(\"$DIR/web\", joinpath(\"$DIR\", \"results\"))"
+    cmd="$cmd $loadcode; import napire; napire.web.start(\"$DIR/web\", joinpath(\"$DIR\", \"results\"))"
 
     if [ $procs -eq 0 ]; then
         echo "$cmd" | julia
@@ -86,8 +104,15 @@ if [ $shell = "n" ]; then
     fi
 else
     tmp=$(mktemp)
-    echo "using Revise" >> "$tmp"
-    echo "import napire" >> "$tmp"
+    echo "atreplinit() do repl
+    @eval begin
+        $loadcode
+    end
+end"> "$tmp"
+
+    echo "####"
+    cat "$tmp"
+    echo "####"
 
     if [ $procs -eq 0 ]; then
         julia -L "$tmp"
