@@ -82,8 +82,14 @@
                 if(response.state == "DONE") {
                     $("#metrics").show();
                     $("#metrics_list").empty();
-                    for(let k in response.result) {
-                        let result = response.result[k].data;
+
+                    metrics = [ "napire.Metrics.brier_score", "napire.Metrics.binary_accuracy", "napire.Metrics.recall", "napire.Metrics.precision" ]
+                    metrics = metrics.filter(v => response.result[v])
+                    other_metrics = Object.getOwnPropertyNames(response.result).filter(v => metrics.indexOf(v) == -1).sort();
+
+                    for(let k of metrics.concat(other_metrics)) {
+                        let meta = response.result[k];
+                        let result = meta.data;
                         let annotation = null;
                         let repr = null;
                         if(result.length == 0) {
@@ -112,8 +118,8 @@
                             });
                             setTimeout( () => {
                                 let layout = {
-                                    xaxis: { title: response.result[k].data_xlabel },
-                                    yaxis: { range: response.result[k].limits },
+                                    xaxis: { title: meta.data_xlabel },
+                                    yaxis: { range: meta.limits },
                                     yaxis2: { overlaying: 'y', side: 'right', rangemode: 'tozero' }
                                 };
 
