@@ -35,13 +35,14 @@
             $("#task").append("<tr><td>Task type</td><td class=\"filter\">" + response.type + "</td></tr>");
             $("#task").append("<tr><td>Task status</td><td class=\"filter\">" + response.state + "</td></tr>");
             if(response.state == "FAILED") {
-                $("#task").append("<tr><td>Task error</td><td class=\"filter\">" + response.result +"</td></tr>");
+                $("#task").append("<tr><td>Task error</td><td class=\"filter\"><pre style=\"text-align: left; max-width: 400px; overflow-x: scroll;\">" + response.result +"</pre></td></tr>");
             }
             if(response.state == "RUNNING") {
                 $("#task").append("<tr><td>Task completion</td><td class=\"filter\">" + (response.steps_done / response.steps_total * 100).toFixed(2) + "%" +"</td></tr>");
             }
             $("#task").append("<tr><td>Data Set</td><td class=\"filter\">" + response.query.dataset + "</td></tr>");
-            $("#task").append("<tr><td>Inference method</td><td class=\"filter\">" + query.inference_method + "</td></tr>");
+            $("#task").append("<tr><td>Model type</td><td class=\"filter\">" + query.model + "</td></tr>");
+            $("#task").append("<tr><td>Inference</td><td class=\"filter\">" + query.inference_method + "</td></tr>");
 
             query["inference_method"] = "";
 
@@ -92,26 +93,26 @@
                         let result = meta.data;
                         let annotation = null;
                         let repr = null;
+                        console.log(k);
+                        console.log(result);
                         if(result.length == 0) {
                             repr = "no result";
                         } else if(result.length == 1) {
-                            if(result[0][0] == null) {
-                                repr = JSON.stringify(result[0][1]);
-                            }  else {
-                                repr = JSON.stringify(result[0][1]);
-                                annotation = JSON.stringify(result[0][0]);
-                            }
+                            annotation = result[0]["config"];
+                            repr = JSON.stringify(result[0]["value"]);
                         } else {
                             repr = "<div id=\"plot_" + k + "\"></div>";
-                            let traces = Object.keys(result[0][1]).map(dk => {
+                            let traces = Object.keys(result[0])
+                                    .filter(dk => dk != "config")
+                                    .map(dk => {
                                 let tr = {
                                     "type": "scatter",
                                     "name": dk,
-                                    "x": result.map( xy => xy[0] ),
-                                    "y": result.map( xy => xy[1][dk] )
+                                    "x": result.map( xy => xy["config"]),
+                                    "y": result.map( xy => xy[dk] )
                                 };
 
-                                if(dk != "value") {
+                                if(dk != "value" && dk != "baseline") {
                                     tr["yaxis"] = "y2";
                                 }
                                 return tr;
@@ -160,7 +161,9 @@
 
 <table>
 <thead>
-    <th style="width: 55%">Setting</th><th class="filter" style="width: 50%">Value</th>
+    <tr>
+        <th style="width: 30%">Setting</th><th class="filter" style="width: 70%">Value</th>
+    </tr>
 </thead>
 <tbody id="task">
 </tbody>

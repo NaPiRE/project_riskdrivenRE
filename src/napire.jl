@@ -33,9 +33,12 @@ module napire
                     (n, f) -> isa(f, Function) && n != :eval && n != :include)
     const metrics = __analyse_module_content(Dict{String, Function}(), napire.Metrics,
                     (n, f) -> isa(f, Function) && n != :eval && n != :include)
+    const models = Dict(string(:bayesnet) => nothing, string(:independent) => nothing)
 
     const default_inference_method = inference_methods["BayesNets.GibbsSamplingNodewise"]
     const default_dataset = datasets["napire.DataSets.nap_2014"]
+    const default_model = string(:bayesnet)
+    const default_baseline_model = string(:independent)
 
     export inference_methods, datasets, metrics, default_inference_method, default_dataset
 
@@ -84,14 +87,10 @@ module napire
     end
     export plot
 
-    function bayesian_train(data, subsample = nothing)
+    function train(data, model::Val{:bayesnet}, subsample = nothing)
         # extract graph layout
         graph_layout = Tuple(keys(data.edges))
-
-        graph_data = data.data
-        if subsample != nothing
-            graph_data = graph_data[subsample,:]
-        end
+        graph_data = subsample != nothing ? data.data[subsample,:] : data.data
 
         if size(graph_data, 2) > 0
             # remove completely empty lines, BayesNets does not like them
@@ -105,12 +104,21 @@ module napire
     end
     export bayesian_train
 
-    function predict(bn::BayesNets.DiscreteBayesNet, query::Set{Symbol}, evidence::Dict{Symbol, Bool}, inference_method::String)
-        return predict(bn, query, evidence, inference_methods[inference_method])
+    function train(data, model::Val{:independent}, subsample = nothing)
+        graph_data = subsample != nothing ? data.data[subsample,:] : data.data
+        return Dict( k => v for (k, v) in zip(names(graph_data), colwise(x -> sum(x), graph_data) / size(graph_data, 1)) )
+    end
+    export independent_train
+
+    function predict(model, query::Set{Symbol}, evidence::Dict{Symbol, Bool}, inference_method::String)
+        return predict(model, query, evidence, inference_methods[inference_method])
+    end
+
+    function predict(independent_model::AbstractDict{Symbol,Float64}, query::Set{Symbol}, evidence::Dict{Symbol, Bool}, inference_method::Type = default_inference_method)
+        return Dict(symbol => independent_model[symbol] for symbol in query)
     end
 
     function predict(bn::BayesNets.DiscreteBayesNet, query::Set{Symbol}, evidence::Dict{Symbol, Bool}, inference_method::Type = default_inference_method)
-
         evidence = Dict{Symbol, Any}( kv.first => convert(Int8, kv.second) + 1 for kv in evidence)
 
         f = BayesNets.infer(inference_method(), bn, collect(query), evidence = evidence)
@@ -168,11 +176,14 @@ module napire
     end
     export plot_legend
 
-    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::String, progress_array = nothing)
-        return validate(data, output_variables, subsample_size, iterations, inference_methods[inference_method], progress_array)
+    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::String,
+                model::Symbol = default_model, baseline_model = default_baseline_model, progress_array = nothing)
+        return validate(data, output_variables, subsample_size, iterations, inference_methods[inference_method], model, baseline_model, progress_array)
     end
 
-    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::Type = default_inference_method, progress_array = nothing)
+    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int,
+            inference_method::Type = default_inference_method, model::Symbol = default_model, baseline_model::Symbol = default_baseline_model, progress_array = nothing)
+
         evidence_variables = setdiff(Set{Symbol}(names(data.data)), output_variables)
         iteration_tasks = []
         for i in 1:iterations
@@ -192,7 +203,8 @@ module napire
                 @assert max(validation_samples...) <= nrow(data.data)
                 @assert max(training_samples...)   <= nrow(data.data)
 
-                bn = bayesian_train(data, training_samples)
+                mod = train(data, Val(model), training_samples)
+                blmod = train(data, Val(baseline_model), training_samples)
                 function __merge_arrays(a1, a2)
                     append!(a1, a2); a1
                 end
@@ -211,11 +223,12 @@ module napire
                         expected[ov] = data.data[s, ov]
                     end
 
-                    prediction = predict(bn, output_variables, evidence, inference_method)
+                    prediction = predict(mod, output_variables, evidence, inference_method)
+                    baseline_prediction = predict(blmod, output_variables, evidence, inference_method)
                     if progress_array != nothing
                         progress_array[i, si] += 1
                     end
-                    [ (expected, prediction) ]
+                    [ (expected, prediction, baseline_prediction) ]
                 end
 
                 fetch(subtasks)

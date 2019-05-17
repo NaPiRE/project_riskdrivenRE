@@ -414,6 +414,7 @@
         $("#run_inference").prop("disabled", true);
         post("/infer", {
             "inference_method": $("#inference_method").val(),
+            "model": $("#model").val()
         }).then( function(response) {
             update_tasks().then(function(response) {
                     $("#run_inference").prop("disabled", false);
@@ -430,7 +431,8 @@
         post("/validate", {
             "inference_method": $("#inference_method").val(),
             "subsample_size": $("#validation_subsample_size").val(),
-            "iterations": $("#validation_iterations").val()
+            "iterations": $("#validation_iterations").val(),
+            "model": $("#model").val()
         }).then( function(response) {
             update_tasks().then(function(response) {
                     $("#run_validation").prop("disabled", false);
@@ -478,6 +480,13 @@
         $.ajax("/inference").then(function(response) {
             for(let method of response) {
                 $("#inference_method").append("<option value=\"" + method + "\">" + method + "</option>");
+            }
+        }),
+
+
+        $.ajax("/models").then(function(response) {
+            for(let model of response) {
+                $("#model").append("<option value=\"" + model + "\">" + model + "</option>");
             }
         }) ]).then(function() { update_items(true) });
 
@@ -545,6 +554,18 @@
 <h1>Inference</h1>
 
 <div class="settings_container">
+
+<!-- we dont need this one right now since there's only one model and one baseline model -->
+<div class="settings_row" style="display: none">
+<div class="settings_cell">
+<label for="inference_method">Model type</label>
+</div>
+
+<div class="settings_cell">
+<select id="model" name="model">
+</select>
+</div>
+</div>
 
 <div class="settings_row">
 <div class="settings_cell">
@@ -626,7 +647,7 @@
 
 <div id="result">
 
-<h1>Graph representation</h1>
+<h1>Graph</h1>
 <button class="centered_button" onclick="$('#legend').toggle()">Show/hide legend</button>
 <img id="legend" style="display: none;" src="../query_legend"></img>
 

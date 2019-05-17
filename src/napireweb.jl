@@ -163,14 +163,20 @@ module web
         inference_method = string(get(query_dict, "inference_method", napire.default_inference_method))
         query = Set(Symbol(q) for q in get(query_dict, "query", []))
         evidence = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
+        model = Symbol(get(query_dict, "model", napire.default_model))
+
+        query_dict["inference_method"] = inference_method
+        query_dict["query"] = query
+        query_dict["evidence"] = evidence
+        query_dict["model"] = model
 
         if length(query) == 0
             throw(WebApplicationException(400, "No query defined"))
         end
 
         function infer_task(progress_array)
-            bn = napire.bayesian_train(data)
-            results = napire.predict(bn, query, evidence, inference_method)
+            md = napire.train(data, Val(model))
+            results = napire.predict(md, query, evidence, inference_method)
             return napire.plot_prediction(data, query, evidence, results, napire.graphviz.png)
         end
 
@@ -204,22 +210,27 @@ module web
         subsample_size = parse(Int, query_dict["subsample_size"])
         iterations = parse(Int, query_dict["iterations"])
         query = Set{Symbol}(Symbol(ov) for ov in get(query_dict, "query", []))
+        model = Symbol(get(query_dict, "model", napire.default_model))
+        baseline_model = Symbol(get(query_dict, "baseline_model", napire.default_baseline_model))
 
         query_dict["inference_method"] = inference_method
         query_dict["subsample_size"] = subsample_size
         query_dict["iterations"] = iterations
         query_dict["query"] = query
+        query_dict["model"] = model
+        query_dict["baseline_model"] = baseline_model
 
         if length(query) == 0
             throw(WebApplicationException(400, "No query defined"))
         end
 
-        return __run_task(:TASK_VALIDATION, pa -> napire.validate(data, query, subsample_size, iterations, inference_method, pa), query_dict, (iterations, subsample_size))
+        return __run_task(:TASK_VALIDATION, pa -> napire.validate(data, query, subsample_size, iterations, inference_method, model, baseline_model, pa), query_dict, (iterations, subsample_size))
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(
         (path = "/inference", method = "GET") => (fn = options(napire.inference_methods, napire.default_inference_method), content = "application/json"),
         (path = "/datasets", method = "GET") => (fn = options(napire.datasets, napire.default_dataset), content = "application/json"),
+        (path = "/models", method = "GET")  => (fn = options(napire.models, napire.default_model), content = "application/json"),
         (path = "/descriptions", method = "POST") => (fn = descriptions, content = "application/json"),
         (path = "/items", method = "POST")  => (fn = items, content = "application/json"),
         (path = "/plot", method = "POST") => (fn = plot, content = "image/png"),
