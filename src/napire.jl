@@ -176,12 +176,12 @@ module napire
     end
     export plot_legend
 
-    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, inference_method::String,
+    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, zero_is_unknown::Bool, inference_method::String,
                 model::Symbol = default_model, baseline_model = default_baseline_model, progress_array = nothing)
-        return validate(data, output_variables, subsample_size, iterations, inference_methods[inference_method], model, baseline_model, progress_array)
+        return validate(data, output_variables, subsample_size, iterations, zero_is_unknown, inference_methods[inference_method], model, baseline_model, progress_array)
     end
 
-    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int,
+    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, zero_is_unknown::Bool,
             inference_method::Type = default_inference_method, model::Symbol = default_model, baseline_model::Symbol = default_baseline_model, progress_array = nothing)
 
         evidence_variables = setdiff(Set{Symbol}(names(data.data)), output_variables)
@@ -215,7 +215,9 @@ module napire
                     println(string(si) * " of " * string(subsample_size))
                     evidence = Dict{Symbol, Bool}()
                     for ev in evidence_variables
-                        evidence[ev] = data.data[s, ev]
+                        if !zero_is_unknown || data.data[s, ev] > 0
+                            evidence[ev] = data.data[s, ev]
+                        end
                     end
 
                     expected = Dict{Symbol, Bool}()

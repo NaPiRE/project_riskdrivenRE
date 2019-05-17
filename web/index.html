@@ -70,6 +70,7 @@
     }
 
     function post(url, overwrites) {
+        console.log(overwrites);
         if(!overwrites) overwrites = {};
         let query_dict = $.extend({}, params, overwrites);
 
@@ -430,8 +431,9 @@
         $("#run_validation").prop("disabled", true);
         post("/validate", {
             "inference_method": $("#inference_method").val(),
-            "subsample_size": $("#validation_subsample_size").val(),
-            "iterations": $("#validation_iterations").val(),
+            "subsample_size": parseInt($("#validation_subsample_size").val()),
+            "iterations": parseInt($("#validation_iterations").val()),
+            "zero_is_unknown": $("#zero_is_unknown")[0].checked,
             "model": $("#model").val()
         }).then( function(response) {
             update_tasks().then(function(response) {
@@ -595,6 +597,16 @@
 
 <div class="settings_cell">
 <input id="validation_iterations" name="validation_iterations" type="number" min="1" value="1"/>
+</div>
+</div>
+
+<div class="settings_row">
+<div class="settings_cell">
+<label for="validation_iterations">Absent is unknown</label>
+</div>
+
+<div class="settings_cell">
+<input id="zero_is_unknown" name="zero_is_unknown" type="checkbox" checked/>
 </div>
 </div>
 

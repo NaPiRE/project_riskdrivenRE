@@ -206,16 +206,16 @@ module web
     function validate(query_dict)
         data = __load_graph(query_dict, "false")
 
+        subsample_size   = query_dict["subsample_size"]
+        iterations       = query_dict["iterations"]
+        zero_is_unknown  = query_dict["zero_is_unknown"]
+
         inference_method = string(get(query_dict, "inference_method", napire.default_inference_method))
-        subsample_size = parse(Int, query_dict["subsample_size"])
-        iterations = parse(Int, query_dict["iterations"])
         query = Set{Symbol}(Symbol(ov) for ov in get(query_dict, "query", []))
         model = Symbol(get(query_dict, "model", napire.default_model))
         baseline_model = Symbol(get(query_dict, "baseline_model", napire.default_baseline_model))
 
         query_dict["inference_method"] = inference_method
-        query_dict["subsample_size"] = subsample_size
-        query_dict["iterations"] = iterations
         query_dict["query"] = query
         query_dict["model"] = model
         query_dict["baseline_model"] = baseline_model
@@ -224,7 +224,8 @@ module web
             throw(WebApplicationException(400, "No query defined"))
         end
 
-        return __run_task(:TASK_VALIDATION, pa -> napire.validate(data, query, subsample_size, iterations, inference_method, model, baseline_model, pa), query_dict, (iterations, subsample_size))
+        return __run_task(:TASK_VALIDATION, pa -> napire.validate(data, query, subsample_size, iterations, zero_is_unknown,
+                            inference_method, model, baseline_model, pa), query_dict, (iterations, subsample_size))
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(

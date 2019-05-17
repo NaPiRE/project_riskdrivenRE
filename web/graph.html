@@ -79,6 +79,7 @@
                 plotQuery();
                 $("#task").append("<tr><td>Subjects per subsample</td><td class=\"filter\">" + query.subsample_size + "</td></tr>");
                 $("#task").append("<tr><td>Iterations</td><td class=\"filter\">" + query.iterations + "</td></tr>");
+                $("#task").append("<tr><td>Absent is unknown</td><td class=\"filter\">" + query.zero_is_unknown + "</td></tr>");
 
                 if(response.state == "DONE") {
                     $("#metrics").show();
