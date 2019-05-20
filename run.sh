@@ -75,50 +75,43 @@ export JULIA_REVISE_INCLUDE="1"
 loadcode="
 using Revise
 
-files = []
+files = [];
 for (root, _, dirfiles) in walkdir(\"$DIR/src\")
     for file in dirfiles
-        push!(files, joinpath(root, file))
+        push!(files, joinpath(root, file));
     end
 end
 
-@async Revise.entr(files, [ ] ) do
+@async Revise.entr(files, [ ]) do
     println(\"-- reload --\")
     println()
 end
 import napire
+println(\"napire module loaded\")
 "
 
+tmp=$(mktemp)
+trap "{ rm -f '$tmp'; }" EXIT
+
 if [ $shell = "n" ]; then
-    cmd=""
     if [ $nodep = "n" ]; then
-        cmd="$cmd import Pkg; Pkg.instantiate();"
+        deps="import Pkg; Pkg.instantiate();"
     fi
+    echo "$deps $loadcode; import napire; napire.web.start(\"$DIR/web\", joinpath(\"$DIR\", \"results\"));" > "$tmp"
 
-    cmd="$cmd $loadcode; import napire; napire.web.start(\"$DIR/web\", joinpath(\"$DIR\", \"results\"))"
-
-    if [ $procs -eq 0 ]; then
-        echo "$cmd" | julia
-    else
-        echo "$cmd" | julia -p "$procs"
-    fi
+    jargs=""
 else
-    tmp=$(mktemp)
     echo "atreplinit() do repl
     @eval begin
         $loadcode
     end
 end"> "$tmp"
 
-    echo "####"
-    cat "$tmp"
-    echo "####"
+    jargs="-L"
+fi
 
-    if [ $procs -eq 0 ]; then
-        julia -L "$tmp"
-    else
-        julia -L "$tmp" -p "$procs"
-    fi
-
-    rm "$tmp"
+if [ $procs -eq 0 ]; then
+    julia $jargs "$tmp"
+else
+    julia -p "$procs" $jargs "$tmp"
 fi
