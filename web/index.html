@@ -66,9 +66,14 @@
         return false;
     }
 
-    function post(url, overwrites) {
+    function post(url, overwrites, noload_params) {
         if(!overwrites) overwrites = {};
-        let query_dict = $.extend({}, params, overwrites);
+
+        let query_dict = {};
+        if(!noload_params) {
+            query_dict = $.extend(query_dict, params);
+        }
+        query_dict = $.extend(query_dict, overwrites);
 
         return $.ajax(url, {
                 "method": "POST",
@@ -420,9 +425,9 @@
                             task_description += "(" + (task.steps_done / task.steps_total * 100).toFixed(2) + "%). ";
                             task_description += "<a href=\"javascript:$.ajax('/tasks?id=" + task.id + "', { 'method': 'POST' }); update_tasks(); void(0)\">cancel</a>";
                         } else {
-                            task_description += "<a href=\"javascript:$.ajax('/tasks?id=" + task.id + "', { 'method': 'DELETE' }); update_tasks(); void(0)\">delete</a>";
+                            task_description += "<a href=\"javascript:$.ajax('/tasks?id=" + task.id + "', { 'method': 'DELETE' }); update_tasks(); void(0)\">delete</a> ";
+                            task_description += "<a href=\"javascript:run_type('" + task.type + "', " + JSON.stringify(task.query).replace(/\\n/g, '').replace(/"/g, "'") + "); void(0)\">re-run</a>";
                         }
-
 
                         $("#output_tasks").append("<li value=\"" + task.id + "\">" + task_description + "</li>");
                     }
@@ -430,12 +435,29 @@
             });
     }
 
-    function run_inference() {
+    function run_type(type, query) {
+        if(type == "TASK_VALIDATION") {
+            run_validation(query);
+        } else if(type == "TASK_INFERENCE") {
+            run_inference(query);
+        } else {
+            throw "Unknown task type";
+        }
+    }
+
+    function run_inference(query) {
+        let overwrites;
+        if(!query) {
+            overwrites = {
+                "inference_method": $("#inference_method").val(),
+                "model": $("#model").val()
+            };
+        } else {
+            overwrites = query;
+        }
+
         $("#run_inference").prop("disabled", true);
-        post("/infer", {
-            "inference_method": $("#inference_method").val(),
-            "model": $("#model").val()
-        }).then( function(response) {
+        post("/infer", overwrites, query).then( function(response) {
             update_tasks().then(function(response) {
                     $("#run_inference").prop("disabled", false);
                 }).fail(function(response) {
@@ -446,15 +468,22 @@
         });
     }
 
-    function run_validation() {
+    function run_validation(query) {
+        let overwrites;
+        if(!query) {
+            overwrites = {
+                "inference_method": $("#inference_method").val(),
+                "subsample_size": parseInt($("#validation_subsample_size").val()),
+                "iterations": parseInt($("#validation_iterations").val()),
+                "zero_is_unknown": $("#zero_is_unknown")[0].checked,
+                "model": $("#model").val()
+            };
+        } else {
+            overwrites = query;
+        }
+
         $("#run_validation").prop("disabled", true);
-        post("/validate", {
-            "inference_method": $("#inference_method").val(),
-            "subsample_size": parseInt($("#validation_subsample_size").val()),
-            "iterations": parseInt($("#validation_iterations").val()),
-            "zero_is_unknown": $("#zero_is_unknown")[0].checked,
-            "model": $("#model").val()
-        }).then( function(response) {
+        post("/validate", overwrites, query).then( function(response) {
             update_tasks().then(function(response) {
                     $("#run_validation").prop("disabled", false);
                 }).fail(function(response) {
