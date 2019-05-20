@@ -133,7 +133,7 @@ module napire
 
     function plot_prediction(data, query, evidence, results, output_type = graphviz.default_output_type; half_cell_width = 40, shorten = true, kwargs...)
         function label(node)
-            plot_label(n) = shorten ? string(n)[1:1] * string(n)[end - 2:end] : n
+            plot_label(n) = shorten ? join([ sn[1] for sn in split(string(n), "_")[1:end-1] if sn != "CODE" ]) * string(n)[end - 2:end] : n
 
             if !in(node, query) && !haskey(evidence, node) && !haskey(results, node)
                 return plot_label(node)
