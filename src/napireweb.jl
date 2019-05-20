@@ -196,7 +196,10 @@ module web
     end
 
     function items(query_dict; all_items = "false")
-        return __load_graph(query_dict, all_items).items
+        data = __load_graph(query_dict, all_items)
+        return Dict(
+                :items => data.items,
+                :edges => data.edges)
     end
 
     function descriptions(query_dict; all_items = "false")

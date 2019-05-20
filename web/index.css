@@ -46,30 +46,38 @@ body {
  * Architecture
  */
 
-#connectivity_edgesweight, #connectivity_nodesweight, #connectivity_nodesnumber {
+#connectivity_edgesweight, #connectivity_nodesweight {
     width: 100px;
+}
+
+#connectivity_nodesnumber, #connectivity_edgesnumber {
+    min-width: 40px;
+    white-space: nowrap;
+}
 }
 
 #legend {
     margin-bottom: 20px;
 }
 
-.min_weight[type="number"] {
+.min_weight {
     display: block;
-    margin-top: 5px;
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    color: black;
+}
+
+.min_weight[type="number"] {
+    margin-top: 5px;
 }
 
 .min_weight[type="checkbox"] {
-    display: block;
-    margin-top: 8px;
-    width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    color: black;
+    margin-top: 8px
+}
+
+div.min_weight {
+    height: 28px;
+    text-align: right;
 }
 
 .evidence_drop li, .connectivity_drop li {
