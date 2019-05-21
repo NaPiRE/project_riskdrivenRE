@@ -66,6 +66,9 @@ function nap_2014(args...)
         (:v_560, :DEVELOPMENT, :DEVELOPMENT_CODE_03, "Extreme Programming",x -> x == "quoted"),
         (:v_561, :DEVELOPMENT, :DEVELOPMENT_CODE_04, "Rational Unified Process", x -> x == "quoted") ]
 
+    rename!(data, Dict(:IDENTIFIERS_RANK_00 => :RANK, :IDENTIFIERS_SUBJECT_00 => :ID))
+    rename!(contextdata, Dict(:SubjectUniqueID => :ID))
+
     data = __join_contextdata!(data, items, descriptions, contextdata, contextdata_columns)
-    return __filter(data, items, descriptions, :IDENTIFIERS_RANK_00, :IDENTIFIERS_SUBJECT_00, args...)
+    return __filter(data, items, descriptions, args...)
 end

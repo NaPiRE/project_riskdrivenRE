@@ -42,6 +42,8 @@ function nap_2018(args...)
          __dummy!(data, :CAUSES_CODE, node_ids[:CAUSES_CODE])
          __dummy!(data, :PROBLEMS_CODE, node_ids[:PROBLEMS_CODE])
          __dummy!(data, :EFFECTS_CODE, node_ids[:EFFECTS_CODE])
-         return __filter(data, items, descriptions, :Rank, :lfdn, args...)
+
+         rename!(data, Dict(:Rank => :RANK, :lfdn => :ID))
+         return __filter(data, items, descriptions, args...)
 end
 
