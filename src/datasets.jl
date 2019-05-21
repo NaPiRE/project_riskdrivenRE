@@ -18,16 +18,14 @@ module DataSets
         # subjects are identifiable
         #
         sort!(data, (subjectcol, rankcol) )
-        subjects = unique(data[subjectcol])
-        sort!(subjects)
 
         #
         # node-wise filtering
         #
         for (node_type, weighted, min_weight) in nodes
             for node in items[node_type]
-                if ((weighted && sum(data[node] .* parse.(UInt, data[rankcol])) < min_weight)
-                        || (!weighted && sum(data[node]) < min_weight))
+                if ((weighted && sum( (data[node] .> 0) .* parse.(UInt, data[rankcol])) < min_weight)
+                        || (!weighted && sum(data[node] .> 0) < min_weight))
                     deletecols!(data, node)
                     delete!(items[node_type], node)
                     delete!(descriptions, node)
@@ -85,7 +83,24 @@ module DataSets
         end
 
         return (data = new_data, items = items, descriptions = descriptions,
-            edges = all_edges, nodes = all_nodes, subjects = subjects)
+            edges = all_edges, nodes = all_nodes)
+    end
+
+    function __join_contextdata!(data, items, descriptions, contextdata, contextdata_columns)
+        contextdata = contextdata[:, [ :SubjectUniqueID, unique(c[1] for c in contextdata_columns)...]]
+
+        for (orig, gr, name, desc, trafo) in values(contextdata_columns)
+            if !haskey(items, gr); items[gr] = Set{Symbol}(); end
+
+            contextdata[name] = trafo.(contextdata[orig])
+
+            push!(items[gr], name)
+            descriptions[name] = desc
+        end
+
+        deletecols!(contextdata, unique(c[1] for c in contextdata_columns))
+
+        return join(data, contextdata, on = :IDENTIFIERS_SUBJECT_00 => :SubjectUniqueID)
     end
 
     function __dummy!(data, column, node_id)
@@ -104,7 +119,7 @@ module DataSets
                 edges[(from_node => to_node)] = 0
 
                 for i in 1:size(data)[1]
-                    if data[i, from_node] && data[i, to_node]
+                    if data[i, from_node] .> 0 && data[i, to_node] .> 0
                         edges[(from_node => to_node)] += weighted ? (MAX_RANK - parse(UInt, data[i, rankcol])) : 1;
                     end
                 end

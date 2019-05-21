@@ -1,5 +1,6 @@
 function nap_2014(args...)
     FILENAME = joinpath(dirname(@__FILE__), "../data/2014/napire.csv")
+    CONTEXT_FILENAME = joinpath(dirname(@__FILE__), "../data/2014/napire-subjects.csv")
 
     #
     # CSV parsing
@@ -9,7 +10,7 @@ function nap_2014(args...)
         return Symbol("$(String(secname))_$(@sprintf("%02d", number))")
     end
 
-    data = CSV.read(FILENAME; datarow = 1, delim = ';', quotechar = '"');
+    data = CSV.read(FILENAME; datarow = 1, delim = ';', quotechar = '"')
     data_meta = data[1:4, :]
     data = data[4:end, :]
 
@@ -47,8 +48,24 @@ function nap_2014(args...)
         end
     end
 
-    rankcol = :IDENTIFIERS_RANK_00
-    subjectcol = :IDENTIFIERS_SUBJECT_00
+    contextdata = CSV.read(CONTEXT_FILENAME; datarow = 2, delim = ';', quotechar = '"')
+    contextdata_columns = [
+        (:v_1,   :CONTEXT_SIZE, :CONTEXT_SIZE_00, "Company size undetermined", x -> x == "0"),
+        (:v_1,   :CONTEXT_SIZE, :CONTEXT_SIZE_01, "Company size 1-10", x -> x == "1-10"),
+        (:v_1,   :CONTEXT_SIZE, :CONTEXT_SIZE_02, "Company size 11-50", x -> x == "11-50"),
+        (:v_1,   :CONTEXT_SIZE, :CONTEXT_SIZE_03, "Company size 51-250", x -> x == "51-250"),
+        (:v_1,   :CONTEXT_SIZE, :CONTEXT_SIZE_04, "Company size 251-500", x -> x == "251-500"),
+        (:v_1,   :CONTEXT_SIZE, :CONTEXT_SIZE_05, "Company size 501-1000", x -> x == "501-1000"),
+        (:v_1,   :CONTEXT_SIZE, :CONTEXT_SIZE_06, "Company size 1001-2000", x -> x == "1001-2000"),
+        (:v_1,   :CONTEXT_SIZE, :CONTEXT_SIZE_07, "Company size 2000+", x -> x == "2000+"),
 
-    return __filter(data, items, descriptions, rankcol, subjectcol, args...)
+        (:V_10,  :CONTEXT_GLOBAL, :CONTEXT_GLOBAL_00, "Globally distributed projects", x -> x == "Yes"),
+        (:v_557, :DEVELOPMENT, :DEVELOPMENT_CODE_00, "Waterfall", x -> x == "quoted"),
+        (:v_558, :DEVELOPMENT, :DEVELOPMENT_CODE_01, "V-Model XT", x -> x == "quoted"),
+        (:v_559, :DEVELOPMENT, :DEVELOPMENT_CODE_02, "Scrum", x -> x == "quoted"),
+        (:v_560, :DEVELOPMENT, :DEVELOPMENT_CODE_03, "Extreme Programming",x -> x == "quoted"),
+        (:v_561, :DEVELOPMENT, :DEVELOPMENT_CODE_04, "Rational Unified Process", x -> x == "quoted") ]
+
+    data = __join_contextdata!(data, items, descriptions, contextdata, contextdata_columns)
+    return __filter(data, items, descriptions, :IDENTIFIERS_RANK_00, :IDENTIFIERS_SUBJECT_00, args...)
 end

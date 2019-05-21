@@ -189,7 +189,7 @@ module napire
         for i in 1:iterations
             it_task = @async begin
                 println("Validation run " * string(i))
-                samples = Random.randperm(length(data.subjects))
+                samples = Random.randperm(size(data.data, 1))
 
                 validation_samples = samples[1:subsample_size]
                 training_samples   = samples[subsample_size + 1:end]
