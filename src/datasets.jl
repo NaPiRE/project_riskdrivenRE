@@ -97,7 +97,6 @@ module DataSets
         end
 
         contextdata = contextdata[:, [ :ID,  (c[3] for c in contextdata_columns)... ]]
-        println(contextdata)
         return join(data, contextdata, on = :ID)
     end
 
