@@ -87,7 +87,6 @@ end
     println()
 end
 import napire
-println(\"napire module loaded\")
 "
 
 tmp=$(mktemp)
