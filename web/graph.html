@@ -100,7 +100,10 @@
                             repr = "no result";
                         } else if(result.length == 1) {
                             annotation = result[0]["config"];
-                            repr = JSON.stringify(result[0]["value"]);
+                            repr = "<table style=\"display: block; width: 200px; margin-left: auto; margin-right: auto;\"><tbody>";
+                            repr += "<tr><td>Value</td><td>" + result[0]["value"].toFixed(4) + "</td></tr>";
+                            repr += "<tr><td>Baseline</td><td>" + result[0]["baseline"].toFixed(4) + "</td></tr>";
+                            repr += "</tbody></table>"
                         } else {
                             repr = "<div id=\"plot_" + k + "\"></div>";
                             let traces = Object.keys(result[0])

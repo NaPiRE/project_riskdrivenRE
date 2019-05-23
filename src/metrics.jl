@@ -21,16 +21,18 @@ module Metrics
 
     function brier_score(data)
         bs = __foreach(data, [ nothing ], ( e, p, c ) -> sum([ (convert(Int, e[s]) - p[s])^2 for s in keys(e) ]))
-        return (limits = [ 0, 1 ], data = [ bs[1] ])
+        return (limits = [ 0, 1 ], data = bs)
     end
 
     function ranking(data, config = [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ])
         data = __foreach(data, config,
             function(expected, predicted, c)
+                if c > length(predicted); return missing; end
+
                 predicted_highest = sort(collect(predicted), by = ex -> -ex[2])
-                return c <= length(predicted_highest) ? (sum(convert(Int64, expected[k]) for (k, _) in predicted_highest[1:c]) / c)  : missing
+                return sum(expected[k] for (k, _) in predicted_highest[1:c])
             end,
-            (e, p, t) -> 1)
+            (expected, p, t) -> sum(ex[2] for ex in expected))
 
         return (limits = [ 0, 1 ], data_xlabel = "Considered elements at the top of the list", data = data)
     end
