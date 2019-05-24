@@ -275,6 +275,8 @@ module napire
             kills = [ worker.config.process  for worker in Distributed.PGRP.workers if in(worker.id, acquired_workers) ]
             for process in kills; kill(process, Base.SIGKILL); end
 
+            acquired_workers = Distributed.addprocs(length(acquired_workers), exename = joinpath(dirname(@__DIR__), "run_worker.sh"))
+
             rethrow(e)
         finally
             lock(__workers_lock)
