@@ -29,7 +29,7 @@ module web
         files = sort([ f for f in readdir(result_directory) if occursin(r"^[0-9]+\.ser$", f) ])
         files = [ Serialization.deserialize(joinpath(result_directory, f)) for f in files ]
 
-        STARTED_TASKS = Dict{Int64, Tuple{Symbol, Int64, Dict{String, Any}, AbstractArray, Int64, Any}}(f[2] => f for f in files)
+        STARTED_TASKS = Dict{Int64, Any}(f[2] => f for f in files)
     end
 
     struct SerTask
@@ -67,31 +67,26 @@ module web
         return t.result
     end
 
-    function task_serialize(t::Tuple, printresult = true, action = x -> nothing)
-        task_type, task_id, query, steps_done, steps_total, task = t
+    function task_serialize(t::NamedTuple, printresult = true, action = (t) -> nothing)
 
-        state = task_state(task)
-        result = printresult ? task_fetch(task) : nothing
+        state = task_state(t.task)
+        result = printresult ? task_fetch(t.task) : nothing
 
         if result != nothing && state == :DONE
-            if task_type == :TASK_VALIDATION
+            if t.type == :TASK_VALIDATION
                 result = napire.calc_metrics(result)
-            elseif task_type == :TASK_INFERENCE
+            elseif t.type == :TASK_INFERENCE
                 result = "data:image/png;base64," * Base64.base64encode(result)
             end
         end
 
         action(t)
 
-        task_data = Dict(
-                "type" => task_type,
-                "id" => task_id,
-                "query" => query,
-                "steps_done" => sum(steps_done),
-                "steps_total" => steps_total,
-                "state" => state,
-                "result" => result
-            )
+        task_data = Dict( k => v for (k, v) in zip(keys(t), t) if k != :task)
+        task_data[:steps_done] = sum(t.steps_done)
+        task_data[:state] = state
+        task_data[:result] = result
+
         return task_data
     end
 
@@ -109,10 +104,11 @@ module web
 
     function tasks_cancel(; id = nothing, printresult = "false")
         function cancel(t)
-            if task_state(t[6]) != :RUNNING
+            if task_state(t.task) != :RUNNING
                 return
             end
-            Base.throwto(t[6], InterruptException())
+
+            push!(t.interruptor, :USER_INTERRUPT)
         end
 
         return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult), cancel)
@@ -120,12 +116,12 @@ module web
 
     function tasks_delete(; id = nothing, printresult = "false")
         function delete(t)
-            if task_state(t[6]) == :RUNNING
+            if task_state(t.task) == :RUNNING
                 return
             end
 
-            delete!(STARTED_TASKS, t[2])
-            storage_file = joinpath(RESULT_DIRECTORY,  string(t[2]) * ".ser")
+            delete!(STARTED_TASKS, t.id)
+            storage_file = joinpath(RESULT_DIRECTORY,  string(t.id) * ".ser")
             rm(storage_file)
         end
 
@@ -134,16 +130,26 @@ module web
 
     function __run_task(task_type, fun, query_dict, progress_array_shape)
         task_id = isempty(STARTED_TASKS) ? 1 : maximum(keys(STARTED_TASKS)) + 1
+        interruptor = []
 
         progress_array = SharedArrays.SharedArray{Int}(progress_array_shape)
-        task = @async fun(progress_array)
+        task = @async fun(progress_array, interruptor)
 
-        STARTED_TASKS[task_id] = (task_type, task_id, query_dict, progress_array, prod(progress_array_shape), task)
+        STARTED_TASKS[task_id] = (
+            type = task_type, id = task_id, query = query_dict,
+            steps_done = progress_array, steps_total = prod(progress_array_shape),
+            interruptor = interruptor, task = task)
+
         storage_file = joinpath(RESULT_DIRECTORY,  string(task_id) * ".ser")
 
         @async begin
             result = task_fetch(task, true)
-            Serialization.serialize(storage_file, (task_type, task_id, query_dict, [ prod(progress_array_shape) ], prod(progress_array_shape), SerTask(task_state(task), result)))
+            task_data = (
+                type = task_type, id = task_id, query = query_dict,
+                steps_done = [ sum(progress_array) ], steps_total = prod(progress_array_shape),
+                interruptor = interruptor, task = SerTask(task_state(task), result))
+
+            Serialization.serialize(storage_file, task_data)
         end
 
         return task_id
@@ -174,7 +180,7 @@ module web
             throw(WebApplicationException(400, "No query defined"))
         end
 
-        function infer_task(progress_array)
+        function infer_task(progress_array, interruptor)
             md = napire.train(data, Val(model))
             results = napire.predict(md, query, evidence, inference_method)
             return napire.plot_prediction(data, query, evidence, results, napire.graphviz.png)
@@ -227,8 +233,8 @@ module web
             throw(WebApplicationException(400, "No query defined"))
         end
 
-        return __run_task(:TASK_VALIDATION, pa -> napire.validate(data, query, subsample_size, iterations, zero_is_unknown,
-                            inference_method, model, baseline_model, pa), query_dict, (iterations, subsample_size))
+        return __run_task(:TASK_VALIDATION, (pa, itr) -> napire.validate(data, query, subsample_size, iterations, zero_is_unknown,
+                            inference_method, model, baseline_model, pa, itr), query_dict, (iterations, subsample_size))
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(

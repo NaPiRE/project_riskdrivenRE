@@ -176,11 +176,6 @@ module napire
     end
     export plot_legend
 
-    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, zero_is_unknown::Bool, inference_method::String,
-                model::Symbol = default_model, baseline_model = default_baseline_model, progress_array = nothing)
-        return validate(data, output_variables, subsample_size, iterations, zero_is_unknown, inference_methods[inference_method], model, baseline_model, progress_array)
-    end
-
     __available_workers = nothing
     __workers_per_task = 3
     __workers_lock = ReentrantLock()
@@ -209,8 +204,13 @@ module napire
         [ (expected, prediction, baseline_prediction) ]
     end
 
+    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, zero_is_unknown::Bool, inference_method::String,
+                model::Symbol = default_model, baseline_model = default_baseline_model, progress_array = nothing, interruptor = [ ])
+        return validate(data, output_variables, subsample_size, iterations, zero_is_unknown, inference_methods[inference_method], model, baseline_model, progress_array, interruptor)
+    end
+
     function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, zero_is_unknown::Bool,
-            inference_method::Type = default_inference_method, model::Symbol = default_model, baseline_model::Symbol = default_baseline_model, progress_array = nothing)
+            inference_method::Type = default_inference_method, model::Symbol = default_model, baseline_model::Symbol = default_baseline_model, progress_array = nothing, interruptor = [ ])
         global __available_workers
 
         acquired_workers = []
@@ -235,6 +235,7 @@ module napire
 
         pmap_tasks = []
         try
+            println(acquired_workers)
             evidence_variables = setdiff(Set{Symbol}(names(data.data)), output_variables)
             for i in 1:iterations
                 println("Validation run " * string(i))
@@ -255,27 +256,24 @@ module napire
                 mod = train(data, Val(model), training_samples)
                 blmod = train(data, Val(baseline_model), training_samples)
 
-                println("start pmap")
                 pt = @async Distributed.pmap(__validate_data, pool,
                     [ (i, si, validation_samples[si], data.data, output_variables, subsample_size, evidence_variables, zero_is_unknown, inference_method, mod, blmod, progress_array)
                         for si in (1:length(validation_samples)) ])
                 push!(pmap_tasks, pt)
             end
 
-            println("loading data")
-            function __merge_arrays(a1, a2)
-                append!(a1, a2); a1
+            while any([ !istaskdone(pt) for pt in pmap_tasks ]) && length(interruptor) == 0
+                sleep(1)
             end
-            return [ reduce(__merge_arrays, fetch(pt)) for pt in pmap_tasks ]
+
+            if length(interruptor) > 0
+                throw(InterruptException())
+            end
+
+            return [ reduce(vcat, fetch(pt)) for pt in pmap_tasks ]
         catch e
             kills = [ worker.config.process  for worker in Distributed.PGRP.workers if in(worker.id, acquired_workers) ]
-
             for process in kills; kill(process, Base.SIGKILL); end
-            sleep(2)
-            acquired_workers = Distributed.addprocs(length(acquired_workers); exeflags = ["--project", __@DIR__ ])
-            for nw in acquired_workers
-                Distributed.@spawnat nw eval(Expr(:import, :napire))
-            end
 
             rethrow(e)
         finally
