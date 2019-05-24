@@ -3,7 +3,6 @@ module web
     import HTTP
     import JSON
     import Serialization
-    import SharedArrays
     import Sockets
 
     import napire
@@ -108,7 +107,7 @@ module web
                 return
             end
 
-            push!(t.interruptor, :USER_INTERRUPT)
+            t.interruptor .+= 1
         end
 
         return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult), cancel)
@@ -128,16 +127,13 @@ module web
         return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult), delete)
     end
 
-    function __run_task(task_type, fun, query_dict, progress_array_shape)
+    function __run_task(task_type, query_dict, task, progress_array, interruptor)
         task_id = isempty(STARTED_TASKS) ? 1 : maximum(keys(STARTED_TASKS)) + 1
-        interruptor = []
-
-        progress_array = SharedArrays.SharedArray{Int}(progress_array_shape)
-        task = @async fun(progress_array, interruptor)
+        steps_total = prod(size(progress_array))
 
         STARTED_TASKS[task_id] = (
             type = task_type, id = task_id, query = query_dict,
-            steps_done = progress_array, steps_total = prod(progress_array_shape),
+            steps_done = progress_array, steps_total = steps_total,
             interruptor = interruptor, task = task)
 
         storage_file = joinpath(RESULT_DIRECTORY,  string(task_id) * ".ser")
@@ -146,9 +142,10 @@ module web
             result = task_fetch(task, true)
             task_data = (
                 type = task_type, id = task_id, query = query_dict,
-                steps_done = [ sum(progress_array) ], steps_total = prod(progress_array_shape),
-                interruptor = interruptor, task = SerTask(task_state(task), result))
+                steps_done = [ sum(progress_array) ], steps_total = prod(steps_total),
+                interruptor = collect(interruptor), task = SerTask(task_state(task), result))
 
+            STARTED_TASKS[task_id] = task_data
             Serialization.serialize(storage_file, task_data)
         end
 
@@ -180,13 +177,16 @@ module web
             throw(WebApplicationException(400, "No query defined"))
         end
 
-        function infer_task(progress_array, interruptor)
+        task = @async begin
             md = napire.train(data, Val(model))
             results = napire.predict(md, query, evidence, inference_method)
             return napire.plot_prediction(data, query, evidence, results, napire.graphviz.png)
         end
 
-        return __run_task(:TASK_INFERENCE, infer_task, query_dict, (1, ))
+        progress_array = [ 1 ]
+        interruptor = []
+
+        return __run_task(:TASK_INFERENCE, query_dict, task, progress_array, interruptor)
     end
 
     function __load_graph(query_dict, all_items)
@@ -233,8 +233,8 @@ module web
             throw(WebApplicationException(400, "No query defined"))
         end
 
-        return __run_task(:TASK_VALIDATION, (pa, itr) -> napire.validate(data, query, subsample_size, iterations, zero_is_unknown,
-                            inference_method, model, baseline_model, pa, itr), query_dict, (iterations, subsample_size))
+        return __run_task(:TASK_VALIDATION, query_dict, napire.validate_async(inference_method, iterations, subsample_size,
+                    data, query, zero_is_unknown, model, baseline_model)...)
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(

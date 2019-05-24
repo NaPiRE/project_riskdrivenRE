@@ -9,7 +9,7 @@ tmp=$(mktemp)
 function exit {
     rm -f '$tmp';
     for i in `ps --ppid $$ -o pid=`; do
-        kill -9 $i
+        kill -9 $i 1>/dev/null 2>/dev/null
     done
 }
 trap exit EXIT
@@ -35,4 +35,4 @@ import Distributed
 Distributed.start_worker()
 " > "$tmp"
 
-julia -J/usr/lib/julia/sys.so --bind-to 127.0.0.1 "$tmp"
+julia --bind-to 127.0.0.1 "$tmp"

@@ -6,6 +6,7 @@ module napire
     import BayesNets
     import Distributed
     import Random
+    import SharedArrays
 
     include("graphviz.jl")
     export graphviz
@@ -176,119 +177,103 @@ module napire
     end
     export plot_legend
 
-    __available_workers = nothing
-    __workers_per_task = 3
-    __workers_lock = ReentrantLock()
+    function validate(inference_method::String, args...)
+        return validate(inference_methods[inference_method], args...)
+    end
 
-    function __validate_data(data)
-        i, si, s, data, output_variables, subsample_size, evidence_variables, zero_is_unknown, inference_method, mod, blmod, progress_array = data
+    function validate(args...)
+        return fetch(__validate_async(args...)[1])
+    end
+    export validate
 
-        println(string(si) * " of " * string(subsample_size))
+    function validate_async(inference_method::String, args...)
+        return validate_async(inference_methods[inference_method], args...)
+    end
+
+    function validate_async(inference_method::Type, iterations, subsample_size, args...)
+        pool = Distributed.WorkerPool(Distributed.addprocs(4, exename = joinpath(dirname(@__DIR__), "run_worker.sh")))
+        progress_array = SharedArrays.SharedArray{Int}( (iterations, subsample_size) )
+        interruptor    = SharedArrays.SharedArray{Int}( (1, ) )
+
+        task = @async begin
+            try
+                __validate_async(inference_method, iterations, subsample_size, args..., pool, progress_array, interruptor)
+            finally
+                kills = [ worker.config.process  for worker in Distributed.PGRP.workers if in(worker.id, pool.workers) ]
+                for process in kills;
+                    println("Killing " * string(getpid(process)))
+                    kill(process);
+                end
+            end
+        end
+        return task, progress_array, interruptor
+    end
+    export validate_async
+
+    function __validate_async(inference_method::Type, iterations::Int, subsample_size::Int, data, output_variables::Set{Symbol},
+                zero_is_unknown::Bool, model::Symbol , baseline_model::Symbol, pool, progress_array, interruptor)
+
+        evidence_variables = setdiff(Set{Symbol}(names(data.data)), output_variables)
+        tasks = []
+        for iteration in 1:iterations
+            samples = Random.randperm(size(data.data, 1))
+
+            validation_samples = samples[1:subsample_size]
+            training_samples   = samples[subsample_size + 1:end]
+
+            @assert length(validation_samples) == subsample_size
+            @assert length(validation_samples) + length(training_samples) == nrow(data.data)
+            @assert length(intersect(validation_samples, training_samples)) == 0
+
+            @assert min(validation_samples...) > 0
+            @assert min(training_samples...)   > 0
+            @assert max(validation_samples...) <= nrow(data.data)
+            @assert max(training_samples...)   <= nrow(data.data)
+
+            mod   = Distributed.remotecall(train, pool, data, Val(model), training_samples)
+            blmod = Distributed.remotecall(train, pool, data, Val(baseline_model), training_samples)
+
+            for (sample_number, sample_index) in enumerate(validation_samples)
+                pt = Distributed.remotecall(__validate_model, pool, mod, blmod, iteration, sample_number, sample_index, data.data, output_variables, evidence_variables, zero_is_unknown, inference_method,  progress_array)
+                push!(tasks, pt)
+            end
+        end
+
+        while any([ !isready(t) for t in tasks ]) && sum(interruptor) == 0
+            sleep(1)
+        end
+
+        if sum(interruptor) > 0
+            throw(InterruptException())
+        end
+
+        return [ fetch(t) for t in tasks ]
+    end
+
+    function __validate_model(mod, blmod, iteration, sample_number, sample_index, data, output_variables, evidence_variables, zero_is_unknown, inference_method, progress_array)
+        mod = fetch(mod)
+        blmod = fetch(blmod)
+
+        println("Subsample " * string(iteration) * "." * string(sample_number))
+
         evidence = Dict{Symbol, Bool}()
         for ev in evidence_variables
-            if !zero_is_unknown || data[s, ev] > 0
-                evidence[ev] = data[s, ev]
+            if !zero_is_unknown || data[sample_index, ev] > 0
+                evidence[ev] = data[sample_index, ev]
             end
         end
 
         expected = Dict{Symbol, Bool}()
         for ov in output_variables
-            expected[ov] = data[s, ov]
+            expected[ov] = data[sample_index, ov]
         end
 
         prediction = predict(mod, output_variables, evidence, inference_method)
         baseline_prediction = predict(blmod, output_variables, evidence, inference_method)
         if progress_array != nothing
-            progress_array[i, si] += 1
+            progress_array[iteration, sample_number] += 1
         end
         [ (expected, prediction, baseline_prediction) ]
-    end
-
-    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, zero_is_unknown::Bool, inference_method::String,
-                model::Symbol = default_model, baseline_model = default_baseline_model, progress_array = nothing, interruptor = [ ])
-        return validate(data, output_variables, subsample_size, iterations, zero_is_unknown, inference_methods[inference_method], model, baseline_model, progress_array, interruptor)
-    end
-
-    function validate(data, output_variables::Set{Symbol}, subsample_size::Int, iterations::Int, zero_is_unknown::Bool,
-            inference_method::Type = default_inference_method, model::Symbol = default_model, baseline_model::Symbol = default_baseline_model, progress_array = nothing, interruptor = [ ])
-        global __available_workers
-
-        acquired_workers = []
-        while length(acquired_workers) == 0
-            sleep(0.1)
-            lock(__workers_lock)
-            try
-                if __available_workers == nothing
-                    __available_workers = Distributed.workers()
-                end
-
-                if length(__available_workers) >= __workers_per_task
-                    acquired_workers = __available_workers[1:__workers_per_task]
-                    __available_workers = __available_workers[__workers_per_task + 1:end]
-                end
-            finally
-                unlock(__workers_lock)
-            end
-        end
-
-        pool = Distributed.WorkerPool(acquired_workers)
-
-        pmap_tasks = []
-        try
-            println(acquired_workers)
-            evidence_variables = setdiff(Set{Symbol}(names(data.data)), output_variables)
-            for i in 1:iterations
-                println("Validation run " * string(i))
-                samples = Random.randperm(size(data.data, 1))
-
-                validation_samples = samples[1:subsample_size]
-                training_samples   = samples[subsample_size + 1:end]
-
-                @assert length(validation_samples) == subsample_size
-                @assert length(validation_samples) + length(training_samples) == nrow(data.data)
-                @assert length(intersect(validation_samples, training_samples)) == 0
-
-                @assert min(validation_samples...) > 0
-                @assert min(training_samples...)   > 0
-                @assert max(validation_samples...) <= nrow(data.data)
-                @assert max(training_samples...)   <= nrow(data.data)
-
-                mod = train(data, Val(model), training_samples)
-                blmod = train(data, Val(baseline_model), training_samples)
-
-                pt = @async Distributed.pmap(__validate_data, pool,
-                    [ (i, si, validation_samples[si], data.data, output_variables, subsample_size, evidence_variables, zero_is_unknown, inference_method, mod, blmod, progress_array)
-                        for si in (1:length(validation_samples)) ])
-                push!(pmap_tasks, pt)
-            end
-
-            while any([ !istaskdone(pt) for pt in pmap_tasks ]) && length(interruptor) == 0
-                sleep(1)
-            end
-
-            if length(interruptor) > 0
-                throw(InterruptException())
-            end
-
-            return [ reduce(vcat, fetch(pt)) for pt in pmap_tasks ]
-        catch e
-            kills = [ worker.config.process  for worker in Distributed.PGRP.workers if in(worker.id, acquired_workers) ]
-            for process in kills;
-                println("Killing " * string(getpid(process)))
-                kill(process);
-            end
-
-            acquired_workers = Distributed.addprocs(length(acquired_workers), exename = joinpath(dirname(@__DIR__), "run_worker.sh"))
-
-            rethrow(e)
-        finally
-            lock(__workers_lock)
-            try
-                __available_workers = [__available_workers..., acquired_workers...]
-            finally
-                unlock(__workers_lock)
-            end
-        end
     end
 
     function calc_metrics(data = nothing)
