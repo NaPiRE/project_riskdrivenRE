@@ -219,7 +219,7 @@ module napire
             lock(__workers_lock)
             try
                 if __available_workers == nothing
-                __available_workers = Distributed.workers()
+                    __available_workers = Distributed.workers()
                 end
 
                 if length(__available_workers) >= __workers_per_task
@@ -273,7 +273,10 @@ module napire
             return [ reduce(vcat, fetch(pt)) for pt in pmap_tasks ]
         catch e
             kills = [ worker.config.process  for worker in Distributed.PGRP.workers if in(worker.id, acquired_workers) ]
-            for process in kills; kill(process, Base.SIGKILL); end
+            for process in kills;
+                println("Killing " * string(getpid(process)))
+                kill(process);
+            end
 
             acquired_workers = Distributed.addprocs(length(acquired_workers), exename = joinpath(dirname(@__DIR__), "run_worker.sh"))
 

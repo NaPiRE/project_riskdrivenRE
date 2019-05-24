@@ -6,7 +6,13 @@ export JULIA_PROJECT="$DIR"
 export JULIA_REVISE_INCLUDE="1"
 
 tmp=$(mktemp)
-trap "{ rm -f '$tmp'; }" EXIT
+function exit {
+    rm -f '$tmp';
+    for i in `ps --ppid $$ -o pid=`; do
+        kill -9 $i
+    done
+}
+trap exit EXIT
 
 echo "
 using Revise
@@ -29,4 +35,4 @@ import Distributed
 Distributed.start_worker()
 " > "$tmp"
 
-julia "$tmp"
+julia -J/usr/lib/julia/sys.so --bind-to 127.0.0.1 "$tmp"
