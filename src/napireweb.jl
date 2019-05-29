@@ -84,7 +84,8 @@ module web
         action(t)
 
         task_data = Dict( k => v for (k, v) in zip(keys(t), t) if k != :task)
-        task_data[:steps_done] = sum(t.steps_done)
+        task_data[:steps_done]  = task_state(t.steps_done) == :DONE  ? sum(task_fetch(t.steps_done)) : 0
+        task_data[:interruptor] = task_state(t.interruptor) == :DONE ? sum(task_fetch(t.interruptor)) : 0
         task_data[:state] = state
         task_data[:result] = result
 
@@ -109,7 +110,8 @@ module web
                 return
             end
 
-            t.interruptor .+= 1
+            interruptor = fetch(t.interruptor)
+            interruptor .+= 1
         end
 
         return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult), cancel)
@@ -130,15 +132,32 @@ module web
     end
 
     function __run_task(task_type, task_workers, fun,  progress_array_shape, query_dict)
-        pool = Distributed.WorkerPool(Distributed.addprocs(task_workers, exename = joinpath(dirname(@__DIR__), "run_worker.sh")))
-        progress_array = SharedArrays.SharedArray{Int}( progress_array_shape )
-        interruptor    = SharedArrays.SharedArray{Int}( (1, ) )
+        setup_task = @async begin
+            return (
+                pool = Distributed.WorkerPool(Distributed.addprocs(task_workers, exename = joinpath(dirname(@__DIR__), "run_worker.sh"))),
+                progress_array = SharedArrays.SharedArray{Int}( progress_array_shape ),
+                interruptor    = SharedArrays.SharedArray{Int}( (1, ) )
+            )
+        end
+
+        progress_array_task = @async fetch(setup_task).progress_array
+        interruptor_task = @async fetch(setup_task).interruptor
 
         task = @async begin
+            setup = fetch(setup_task)
             try
-                return fetch(Distributed.remotecall(fun, pool, query_dict; pool = pool, progress_array = progress_array, interruptor = interruptor))
+                remotetask = Distributed.remotecall(fun, setup.pool, query_dict; setup...)
+                while !isready(remotetask) && sum(setup.interruptor) == 0
+                    sleep(1)
+                end
+
+                if sum(setup.interruptor) > 0
+                    throw(InterruptException())
+                end
+
+                return fetch(remotetask)
             finally
-                kills = [ worker.config.process  for worker in Distributed.PGRP.workers if in(worker.id, pool.workers) ]
+                kills = [ worker.config.process  for worker in Distributed.PGRP.workers if in(worker.id, setup.pool.workers) ]
                 for process in kills;
                     println("Killing " * string(getpid(process)))
                     kill(process);
@@ -151,17 +170,20 @@ module web
 
         STARTED_TASKS[task_id] = (
             type = task_type, id = task_id, query = query_dict,
-            steps_done = progress_array, steps_total = steps_total,
-            interruptor = interruptor, task = task)
+            steps_done = progress_array_task, steps_total = steps_total,
+            interruptor = interruptor_task, task = task)
 
         storage_file = joinpath(RESULT_DIRECTORY,  string(task_id) * ".ser")
 
         @async begin
             result = task_fetch(task, true)
+            interruptor = SerTask(:DONE, collect(fetch(interruptor_task)))
+            steps_done = SerTask(:DONE, [ sum(fetch(progress_array_task)) ])
+
             task_data = (
                 type = task_type, id = task_id, query = query_dict,
-                steps_done = [ sum(progress_array) ], steps_total = steps_total,
-                interruptor = collect(interruptor), task = SerTask(task_state(task), result))
+                steps_done = steps_done, steps_total = steps_total,
+                interruptor = interruptor, task = SerTask(task_state(task), result))
 
             STARTED_TASKS[task_id] = task_data
             Serialization.serialize(storage_file, task_data)

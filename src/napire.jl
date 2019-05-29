@@ -183,14 +183,22 @@ module napire
 
     function validate(data, iterations::Int64, subsample_size::Int64, inference_method::Type,
                 query::Set{Symbol}, zero_is_unknown::Bool, model::Symbol , baseline_model::Symbol;
-                pool = Distributed.default_worker_pool(), progress_array::AbstractArray{Int64, 2} = nothing, interruptor = [ 0 ])
+                pool = nothing, progress_array = nothing)
 
-        if progress_array == nothing
+        if progress_array != nothing
+            progress_array_shape = size(progress_array)
+            @assert progress_array_shape == (iterations, subsample_size)
+        else
             progress_array = Array{Int64, 2}(undef, iterations, subsample_size)
         end
 
-        progress_array_shape = size(progress_array)
-        @assert progress_array_shape == (iterations, subsample_size)
+        function __remotecall(fun, args...)
+            if pool != nothing
+                Distributed.remotecall(fun, pool, args...)
+            else
+                return @async fun(args...)
+            end
+        end
 
         evidence_variables = setdiff(Set{Symbol}(names(data.data)), query)
         tasks = []
@@ -209,22 +217,14 @@ module napire
             @assert max(validation_samples...) <= nrow(data.data)
             @assert max(training_samples...)   <= nrow(data.data)
 
-            mod   = Distributed.remotecall(train, pool, data, Val(model), training_samples)
-            blmod = Distributed.remotecall(train, pool, data, Val(baseline_model), training_samples)
+            mod   = __remotecall(train, data, Val(model), training_samples)
+            blmod = __remotecall(train, data, Val(baseline_model), training_samples)
 
             for (sample_number, sample_index) in enumerate(validation_samples)
-                pt = Distributed.remotecall(__validate_model, pool, mod, blmod, iteration, sample_number, sample_index,
+                pt = __remotecall(__validate_model, mod, blmod, iteration, sample_number, sample_index,
                         data.data, query, evidence_variables, zero_is_unknown, inference_method,  progress_array)
                 push!(tasks, pt)
             end
-        end
-
-        while any([ !isready(t) for t in tasks ]) && sum(interruptor) == 0
-            sleep(1)
-        end
-
-        if sum(interruptor) > 0
-            throw(InterruptException())
         end
 
         return [ fetch(t) for t in tasks ]
