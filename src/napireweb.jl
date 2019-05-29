@@ -131,10 +131,38 @@ module web
         return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult), delete)
     end
 
+    available_workers = [ ]
+    uncreated_workers = length(Sys.cpu_info())
+
     function __run_task(task_type, task_workers, fun,  progress_array_shape, query_dict)
+        global available_workers, uncreated_workers
+
+        if uncreated_workers + length(available_workers) < task_workers
+            throw(WebApplicationException(507, "Too many workers demanded"))
+        end
+
+        new_workers = max(0, task_workers - length(available_workers))
+        existing_workers = task_workers - new_workers
+
+        reused_workers = []
+        if existing_workers > 0
+            reused_workers = available_workers[1:(task_workers - new_workers)]
+            available_workers = available_workers[(task_workers - new_workers + 1):end]
+
+        end
+        uncreated_workers -= new_workers
+
+        println(string(length(available_workers)) * " unused workers remaining")
+        println(string(uncreated_workers) * " workers can still be created")
+        println("Creating " * string(new_workers) * " new workers")
+        println("Re-using " * string(existing_workers) * " old workers")
+
         setup_task = @async begin
             return (
-                pool = Distributed.WorkerPool(Distributed.addprocs(task_workers, exename = joinpath(dirname(@__DIR__), "run_worker.sh"))),
+                pool = Distributed.WorkerPool( [
+                    reused_workers...,
+                    Distributed.addprocs(new_workers, exename = joinpath(dirname(@__DIR__), "run_worker.sh"))...
+                    ]),
                 progress_array = SharedArrays.SharedArray{Int}( progress_array_shape ),
                 interruptor    = SharedArrays.SharedArray{Int}( (1, ) )
             )
@@ -146,7 +174,7 @@ module web
         task = @async begin
             setup = fetch(setup_task)
             try
-                remotetask = Distributed.remotecall(fun, setup.pool, query_dict; setup...)
+                remotetask = Distributed.remotecall(fun, setup.pool, query_dict; pool = setup.pool, progress_array = setup.progress_array)
                 while !isready(remotetask) && sum(setup.interruptor) == 0
                     sleep(1)
                 end
@@ -156,12 +184,13 @@ module web
                 end
 
                 return fetch(remotetask)
-            finally
+            catch e
                 kills = [ worker.config.process  for worker in Distributed.PGRP.workers if in(worker.id, setup.pool.workers) ]
                 for process in kills;
                     println("Killing " * string(getpid(process)))
                     kill(process);
                 end
+                rethrow(e)
             end
         end
 
@@ -177,8 +206,16 @@ module web
 
         @async begin
             result = task_fetch(task, true)
-            interruptor = SerTask(:DONE, collect(fetch(interruptor_task)))
-            steps_done = SerTask(:DONE, [ sum(fetch(progress_array_task)) ])
+            pool, progress_array, interruptor = fetch(setup_task)
+
+            if task_state(task) == :DONE
+                append!(available_workers, collect(pool.workers))
+            else
+                uncreated_workers += length(pool.workers)
+            end
+
+            interruptor = SerTask(:DONE, collect(interruptor))
+            steps_done = SerTask(:DONE, [ sum(progress_array) ])
 
             task_data = (
                 type = task_type, id = task_id, query = query_dict,
