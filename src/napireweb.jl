@@ -1,8 +1,10 @@
 module web
     import Base64
+    import Distributed
     import HTTP
     import JSON
     import Serialization
+    import SharedArrays
     import Sockets
 
     import napire
@@ -127,9 +129,25 @@ module web
         return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult), delete)
     end
 
-    function __run_task(task_type, query_dict, task, progress_array, interruptor)
+    function __run_task(task_type, task_workers, fun,  progress_array_shape, query_dict)
+        pool = Distributed.WorkerPool(Distributed.addprocs(task_workers, exename = joinpath(dirname(@__DIR__), "run_worker.sh")))
+        progress_array = SharedArrays.SharedArray{Int}( progress_array_shape )
+        interruptor    = SharedArrays.SharedArray{Int}( (1, ) )
+
+        task = @async begin
+            try
+                return fetch(Distributed.remotecall(fun, pool, query_dict; pool = pool, progress_array = progress_array, interruptor = interruptor))
+            finally
+                kills = [ worker.config.process  for worker in Distributed.PGRP.workers if in(worker.id, pool.workers) ]
+                for process in kills;
+                    println("Killing " * string(getpid(process)))
+                    kill(process);
+                end
+            end
+        end
+
         task_id = isempty(STARTED_TASKS) ? 1 : maximum(keys(STARTED_TASKS)) + 1
-        steps_total = prod(size(progress_array))
+        steps_total = prod(progress_array_shape)
 
         STARTED_TASKS[task_id] = (
             type = task_type, id = task_id, query = query_dict,
@@ -142,7 +160,7 @@ module web
             result = task_fetch(task, true)
             task_data = (
                 type = task_type, id = task_id, query = query_dict,
-                steps_done = [ sum(progress_array) ], steps_total = prod(steps_total),
+                steps_done = [ sum(progress_array) ], steps_total = steps_total,
                 interruptor = collect(interruptor), task = SerTask(task_state(task), result))
 
             STARTED_TASKS[task_id] = task_data
@@ -161,32 +179,24 @@ module web
     end
 
     function infer(query_dict = nothing)
-        data = __load_graph(query_dict, "false")
+        query_dict["inference_method"] = string(get(query_dict, "inference_method", napire.default_inference_method))
+        query_dict["query"] = Set(Symbol(q) for q in get(query_dict, "query", []))
+        query_dict["evidence"] = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
+        query_dict["model"] = Symbol(get(query_dict, "model", napire.default_model))
 
-        inference_method = string(get(query_dict, "inference_method", napire.default_inference_method))
-        query = Set(Symbol(q) for q in get(query_dict, "query", []))
-        evidence = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
-        model = Symbol(get(query_dict, "model", napire.default_model))
-
-        query_dict["inference_method"] = inference_method
-        query_dict["query"] = query
-        query_dict["evidence"] = evidence
-        query_dict["model"] = model
-
-        if length(query) == 0
+        if length(query_dict["query"]) == 0
             throw(WebApplicationException(400, "No query defined"))
         end
 
-        task = @async begin
-            md = napire.train(data, Val(model))
-            results = napire.predict(md, query, evidence, inference_method)
-            return napire.plot_prediction(data, query, evidence, results, napire.graphviz.png)
-        end
+        return __run_task(:TASK_INFERENCE, 1, __infer, (1, ), query_dict)
+    end
 
-        progress_array = [ 1 ]
-        interruptor = []
+    function __infer(query_dict; kwargs...)
+        data = __load_graph(query_dict, "false")
 
-        return __run_task(:TASK_INFERENCE, query_dict, task, progress_array, interruptor)
+        md = napire.train(data, Val(query_dict["model"]))
+        results = napire.predict(md, query_dict["inference_method"], query_dict["query"], query_dict["evidence"])
+        return napire.plot_prediction(data, query_dict["query"], query_dict["evidence"], results, napire.graphviz.png)
     end
 
     function __load_graph(query_dict, all_items)
@@ -213,28 +223,24 @@ module web
     end
 
     function validate(query_dict)
-        data = __load_graph(query_dict, "false")
+        query_dict["inference_method"] = string(get(query_dict, "inference_method", napire.default_inference_method))
+        query_dict["query"] = Set{Symbol}(Symbol(ov) for ov in get(query_dict, "query", []))
+        query_dict["model"] = Symbol(get(query_dict, "model", napire.default_model))
+        query_dict["baseline_model"] = Symbol(get(query_dict, "baseline_model", napire.default_baseline_model))
 
-        subsample_size   = query_dict["subsample_size"]
-        iterations       = query_dict["iterations"]
-        zero_is_unknown  = query_dict["zero_is_unknown"]
-
-        inference_method = string(get(query_dict, "inference_method", napire.default_inference_method))
-        query = Set{Symbol}(Symbol(ov) for ov in get(query_dict, "query", []))
-        model = Symbol(get(query_dict, "model", napire.default_model))
-        baseline_model = Symbol(get(query_dict, "baseline_model", napire.default_baseline_model))
-
-        query_dict["inference_method"] = inference_method
-        query_dict["query"] = query
-        query_dict["model"] = model
-        query_dict["baseline_model"] = baseline_model
-
-        if length(query) == 0
+        if length(query_dict["query"]) == 0
             throw(WebApplicationException(400, "No query defined"))
         end
 
-        return __run_task(:TASK_VALIDATION, query_dict, napire.validate_async(inference_method, iterations, subsample_size,
-                    data, query, zero_is_unknown, model, baseline_model)...)
+        return __run_task(:TASK_VALIDATION, pop!(query_dict, "workers", 4), __validate, (query_dict["iterations"], query_dict["subsample_size"]), query_dict)
+    end
+
+    function __validate(query_dict; kwargs...)
+        data = __load_graph(query_dict, "false")
+
+        return napire.validate(data, query_dict["iterations"], query_dict["subsample_size"], query_dict["inference_method"],
+                                query_dict["query"], query_dict["zero_is_unknown"], query_dict["model"],
+                                query_dict["baseline_model"]; kwargs...)
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(

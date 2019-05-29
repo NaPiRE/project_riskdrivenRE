@@ -6,7 +6,6 @@ module napire
     import BayesNets
     import Distributed
     import Random
-    import SharedArrays
 
     include("graphviz.jl")
     export graphviz
@@ -111,15 +110,15 @@ module napire
     end
     export independent_train
 
-    function predict(model, query::Set{Symbol}, evidence::Dict{Symbol, Bool}, inference_method::String)
-        return predict(model, query, evidence, inference_methods[inference_method])
+    function predict(model, inference_method::String, query, evidence)
+        return predict(model, inference_methods[inference_method], query, evidence)
     end
 
-    function predict(independent_model::AbstractDict{Symbol,Float64}, query::Set{Symbol}, evidence::Dict{Symbol, Bool}, inference_method::Type = default_inference_method)
+    function predict(independent_model::AbstractDict{Symbol,Float64}, inference_method::Type, query::Set{Symbol}, evidence::Dict{Symbol, Bool})
         return Dict(symbol => independent_model[symbol] for symbol in query)
     end
 
-    function predict(bn::BayesNets.DiscreteBayesNet, query::Set{Symbol}, evidence::Dict{Symbol, Bool}, inference_method::Type = default_inference_method)
+    function predict(bn::BayesNets.DiscreteBayesNet, inference_method::Type, query::Set{Symbol}, evidence::Dict{Symbol, Bool})
         evidence = Dict{Symbol, Any}( kv.first => convert(Int8, kv.second) + 1 for kv in evidence)
 
         f = BayesNets.infer(inference_method(), bn, collect(query), evidence = evidence)
@@ -177,43 +176,23 @@ module napire
     end
     export plot_legend
 
-    function validate(inference_method::String, args...)
-        return validate(inference_methods[inference_method], args...)
-    end
-
-    function validate(args...)
-        return fetch(__validate_async(args...)[1])
+    function validate(data, iterations::Int64, subsample_size::Int64, inference_method::String, args...; kwargs...)
+        return validate(data, iterations, subsample_size, inference_methods[inference_method], args...; kwargs...)
     end
     export validate
 
-    function validate_async(inference_method::String, args...)
-        return validate_async(inference_methods[inference_method], args...)
-    end
+    function validate(data, iterations::Int64, subsample_size::Int64, inference_method::Type,
+                query::Set{Symbol}, zero_is_unknown::Bool, model::Symbol , baseline_model::Symbol;
+                pool = Distributed.default_worker_pool(), progress_array::AbstractArray{Int64, 2} = nothing, interruptor = [ 0 ])
 
-    function validate_async(inference_method::Type, iterations, subsample_size, args...)
-        pool = Distributed.WorkerPool(Distributed.addprocs(4, exename = joinpath(dirname(@__DIR__), "run_worker.sh")))
-        progress_array = SharedArrays.SharedArray{Int}( (iterations, subsample_size) )
-        interruptor    = SharedArrays.SharedArray{Int}( (1, ) )
-
-        task = @async begin
-            try
-                __validate_async(inference_method, iterations, subsample_size, args..., pool, progress_array, interruptor)
-            finally
-                kills = [ worker.config.process  for worker in Distributed.PGRP.workers if in(worker.id, pool.workers) ]
-                for process in kills;
-                    println("Killing " * string(getpid(process)))
-                    kill(process);
-                end
-            end
+        if progress_array == nothing
+            progress_array = Array{Int64, 2}(undef, iterations, subsample_size)
         end
-        return task, progress_array, interruptor
-    end
-    export validate_async
 
-    function __validate_async(inference_method::Type, iterations::Int, subsample_size::Int, data, output_variables::Set{Symbol},
-                zero_is_unknown::Bool, model::Symbol , baseline_model::Symbol, pool, progress_array, interruptor)
+        progress_array_shape = size(progress_array)
+        @assert progress_array_shape == (iterations, subsample_size)
 
-        evidence_variables = setdiff(Set{Symbol}(names(data.data)), output_variables)
+        evidence_variables = setdiff(Set{Symbol}(names(data.data)), query)
         tasks = []
         for iteration in 1:iterations
             samples = Random.randperm(size(data.data, 1))
@@ -234,7 +213,8 @@ module napire
             blmod = Distributed.remotecall(train, pool, data, Val(baseline_model), training_samples)
 
             for (sample_number, sample_index) in enumerate(validation_samples)
-                pt = Distributed.remotecall(__validate_model, pool, mod, blmod, iteration, sample_number, sample_index, data.data, output_variables, evidence_variables, zero_is_unknown, inference_method,  progress_array)
+                pt = Distributed.remotecall(__validate_model, pool, mod, blmod, iteration, sample_number, sample_index,
+                        data.data, query, evidence_variables, zero_is_unknown, inference_method,  progress_array)
                 push!(tasks, pt)
             end
         end
@@ -250,7 +230,7 @@ module napire
         return [ fetch(t) for t in tasks ]
     end
 
-    function __validate_model(mod, blmod, iteration, sample_number, sample_index, data, output_variables, evidence_variables, zero_is_unknown, inference_method, progress_array)
+    function __validate_model(mod, blmod, iteration, sample_number, sample_index, data, query, evidence_variables, zero_is_unknown, inference_method, progress_array)
         mod = fetch(mod)
         blmod = fetch(blmod)
 
@@ -264,19 +244,19 @@ module napire
         end
 
         expected = Dict{Symbol, Bool}()
-        for ov in output_variables
-            expected[ov] = data[sample_index, ov]
+        for qv in query
+            expected[qv] = data[sample_index, qv]
         end
 
-        prediction = predict(mod, output_variables, evidence, inference_method)
-        baseline_prediction = predict(blmod, output_variables, evidence, inference_method)
-        if progress_array != nothing
-            progress_array[iteration, sample_number] += 1
-        end
-        [ (expected, prediction, baseline_prediction) ]
+        prediction = predict(mod, inference_method, query, evidence)
+        baseline_prediction = predict(blmod, inference_method, query, evidence)
+
+        progress_array[iteration, sample_number] += 1
+        return [ (expected, prediction, baseline_prediction) ]
     end
 
     function calc_metrics(data = nothing)
         return Dict{String, Any}(n => f(data) for (n, f) in metrics)
     end
+    export calc_metrics
 end
