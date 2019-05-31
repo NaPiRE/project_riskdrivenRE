@@ -9,6 +9,8 @@ module web
 
     import napire
 
+    struct TimeoutException <: Exception end
+
     function query_legend()
         return napire.plot_legend(napire.graphviz.png)
     end
@@ -173,14 +175,23 @@ module web
 
         task = @async begin
             setup = fetch(setup_task)
+
+            timeout = get(query_dict, "timeout", -1)
+            start = time()
             try
                 remotetask = Distributed.remotecall(fun, setup.pool, query_dict; pool = setup.pool, progress_array = setup.progress_array)
-                while !isready(remotetask) && sum(setup.interruptor) == 0
+                while !isready(remotetask) && sum(setup.interruptor) == 0 && (timeout <= 0 || timeout > (time() - start) / 60 / 60)
                     sleep(1)
                 end
 
                 if sum(setup.interruptor) > 0
                     throw(InterruptException())
+                end
+                println("timeout: " * string(timeout))
+                println("elapsed: " * string((time() - start) / 60 / 60))
+
+                if timeout <= (time() - start) / 60 / 60
+                    throw(TimeoutException())
                 end
 
                 return fetch(remotetask)

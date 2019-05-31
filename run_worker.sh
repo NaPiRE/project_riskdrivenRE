@@ -26,7 +26,6 @@ end
 
 @async Revise.entr(files, [ ]) do
     println(\"-- reload --\")
-    println()
 end
 using napire
 import napire

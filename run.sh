@@ -73,7 +73,6 @@ end
 
 @async Revise.entr(files, [ ]) do
     println(\"-- reload --\")
-    println()
 end
 import napire
 "

@@ -450,7 +450,8 @@
         if(!query) {
             overwrites = {
                 "inference_method": $("#inference_method").val(),
-                "model": $("#model").val()
+                "model": $("#model").val(),
+                "timeout": parseFloat($("#timeout").val()),
             };
         } else {
             overwrites = query;
@@ -476,6 +477,7 @@
                 "inference_method": $("#inference_method").val(),
                 "subsample_size": parseInt($("#validation_subsample_size").val()),
                 "iterations": parseInt($("#validation_iterations").val()),
+                "timeout": parseFloat($("#timeout").val()),
                 "workers": parseInt($("#validation_workers").val()),
                 "zero_is_unknown": $("#zero_is_unknown")[0].checked,
                 "model": $("#model").val()
@@ -662,6 +664,16 @@
 
 <div class="settings_cell">
 <input id="validation_workers" name="validation_workers" type="number" min="1" value="4"/>
+</div>
+</div>
+
+<div class="settings_row">
+<div class="settings_cell">
+<label for="timeout">Timeout (h)</label>
+</div>
+
+<div class="settings_cell">
+<input id="timeout" name="timeout" type="number" min="0" value="1" step="0.01"/>
 </div>
 </div>
 
