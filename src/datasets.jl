@@ -9,7 +9,7 @@ module DataSets
 
     function __filter(data, items, descriptions,
 
-            nodes::Array{Tuple{Symbol, Bool, UInt}, 1} = Array{Tuple{Symbol, Bool, UInt}, 1}(),
+            nodes::Array{Tuple{Symbol, Bool, UInt, Bool}, 1} = Array{Tuple{Symbol, Bool, UInt, Bool}, 1}(),
             connect::Array{Tuple{Symbol, Symbol, Bool, UInt}, 1} = Array{Tuple{Symbol, Symbol, Bool, UInt}, 1}(),
             all_items = false)
 
@@ -22,13 +22,16 @@ module DataSets
         #
         # node-wise filtering
         #
-        for (node_type, weighted, min_weight) in nodes
+        absent_is_unknown_nodes = Set{Symbol}()
+        for (node_type, weighted, min_weight, absent_is_unknown) in nodes
             for node in items[node_type]
                 if ((weighted && sum( (data[node] .> 0) .* parse.(UInt, data[:RANK])) < min_weight)
                         || (!weighted && sum(data[node] .> 0) < min_weight))
                     deletecols!(data, node)
                     delete!(items[node_type], node)
                     delete!(descriptions, node)
+                elseif absent_is_unknown
+                    push!(absent_is_unknown_nodes, node)
                 end
             end
         end
@@ -82,8 +85,9 @@ module DataSets
             if !lastline; current_subject = data[i, :ID]; end
         end
 
+        absent_is_unknown_nodes = intersect(all_nodes, absent_is_unknown_nodes)
         return (data = new_data, items = items, descriptions = descriptions,
-            edges = all_edges, nodes = all_nodes)
+            edges = all_edges, nodes = all_nodes, absent_is_unknown = absent_is_unknown_nodes)
     end
 
     function __join_contextdata!(data, items, descriptions, contextdata, contextdata_columns)

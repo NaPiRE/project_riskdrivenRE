@@ -104,40 +104,45 @@
             $("#connectivity_available").append("<li>" + i + "</li>");
         }
 
-        let num_nodesweight = connectivity.length;
-        let num_nodesweight_found = 0;
-        for(let ch of $("#connectivity_nodesweight").children()) {
-            ch = $(ch);
-            if(num_nodesweight_found >= num_nodesweight) {
-                ch.remove();
-            }
+        function removeSuperfluousChildren(id, maxcount) {
+            let counter = 0;
+            for(let ch of $(id).children()) {
+                ch = $(ch);
+                if(counter >= maxcount) {
+                    ch.remove();
+                }
 
-            num_nodesweight_found++;
+                counter++;
+            }
+            return counter;
         }
 
-        num_nodesweight_found = 0;
-        for(let ch of $("#connectivity_nodesweightedfilter").children()) {
-            ch = $(ch);
-            if(num_nodesweight_found >= num_nodesweight) {
-                ch.remove();
-            }
+        let num_nodesweight = 0;
+        num_nodesweight = removeSuperfluousChildren("#connectivity_nodesweight", connectivity.length);
+        num_nodesweight = removeSuperfluousChildren("#connectivity_nodesweightedfilter", connectivity.length);
+        num_nodesweight = removeSuperfluousChildren("#connectivity_nodesunknown", connectivity.length);
 
-            num_nodesweight_found++;
-        }
-
-        for(; num_nodesweight_found < num_nodesweight; num_nodesweight_found++) {
-            let mw_id = "nodes_min_weight_" + connectivity[num_nodesweight_found];
+        for(; num_nodesweight < connectivity.length; num_nodesweight++) {
+            let mw_id = "nodes_min_weight_" + connectivity[num_nodesweight];
             $("#connectivity_nodesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
                 " type=\"number\" min=\"0\" value=\"5\" name=\"" + mw_id + "\"/>");
             $("#" + mw_id).change( (function(type, mw) { return function(event) {
-                params["nodes"][type][2] = parseInt($("#" + mw).val());
-            }}) (num_nodesweight_found, mw_id));
+                params["nodes"][type]["filter"] = parseInt($("#" + mw).val());
+            }}) (num_nodesweight, mw_id));
 
-            mw_id = "nodes_min_weight_weighted_" + connectivity[num_nodesweight_found];
+            mw_id = "nodes_min_weight_weighted_" + connectivity[num_nodesweight];
             $("#connectivity_nodesweightedfilter").append("<input id=\""+ mw_id + "\" type=\"checkbox\" class=\"min_weight\"/>");
             $("#" + mw_id).change( (function(type, mw) { return function(event) {
-                params["nodes"][type][1] = $("#" + mw)[0].checked;
-            }})(num_nodesweight_found, mw_id)) ;
+                params["nodes"][type]["weighted_filter"] = $("#" + mw)[0].checked;
+            }})(num_nodesweight, mw_id));
+
+            mw_id = "nodes_unknown_" + connectivity[num_nodesweight];
+            $("#connectivity_nodesunknown").append("<input id=\""+ mw_id + "\" type=\"checkbox\" class=\"min_weight\"/>");
+            $("#" + mw_id).change( (function(type, mw) { return function(event) {
+                params["nodes"][type]["absent_is_unknown"] = $("#" + mw)[0].checked;
+            }})(num_nodesweight, mw_id)) ;
+
+
 
         }
 
@@ -149,9 +154,12 @@
         // load data from form
         let nodes = [];
         for(let i of connectivity) {
-            nodes.push( [i,
-                $("#nodes_min_weight_weighted_" + i)[0].checked,
-                parseInt($("#nodes_min_weight_" + i).val())] );
+            nodes.push({
+                node_type: i,
+                filter: parseInt($("#nodes_min_weight_" + i).val()),
+                weighted_filter: $("#nodes_min_weight_weighted_" + i)[0].checked,
+                absent_is_unknown: $("#nodes_unknown_" + i)[0].checked
+            });
         }
         params["nodes"] = nodes;
 
@@ -178,44 +186,33 @@
             let mv_valweighted = $("#edges_min_weight_weighted_" + i)[0];
             mv_valweighted = mv_valweighted ? mv_valweighted.checked : false;
 
-            connect.push( [ from_keys[i], to_keys[i], mv_valweighted, isNaN(mw_val) ? 15 : mw_val ]);
+            connect.push({
+                from: from_keys[i],
+                to: to_keys[i],
+                filter: isNaN(mw_val) ? 15 : mw_val,
+                weighted_filter: mv_valweighted,
+            });
         }
         params["connect"] = connect;
 
         let num_edgesweight = Math.min(from_keys.length, to_keys.length);
         let num_edgesweight_found = 0;
-        for(let ch of $("#connectivity_edgesweight").children()) {
-            ch = $(ch);
-            if(num_edgesweight_found >= num_edgesweight) {
-                ch.remove();
-            }
-
-            num_edgesweight_found++;
-        }
-
-        num_edgesweight_found = 0
-        for(let ch of $("#connectivity_edgesweight_weighted").children()) {
-            ch = $(ch);
-            if(num_edgesweight_found >= num_edgesweight) {
-                ch.remove();
-            }
-
-            num_edgesweight_found++;
-        }
+        num_edgesweight_found = removeSuperfluousChildren("#connectivity_edgesweight", num_edgesweight);
+        num_edgesweight_found = removeSuperfluousChildren("#connectivity_edgesweight_weighted", num_edgesweight);
 
         for(; num_edgesweight_found < num_edgesweight; num_edgesweight_found++) {
             let mw_id = "edges_min_weight_" + num_edgesweight_found;
             $("#connectivity_edgesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
                 " type=\"number\" min=\"0\" value=\"15\" name=\"" + mw_id + "\"/>");
             $("#" + mw_id).change( (function(type, mw) { return function(event) {
-                params["connect"][type][3] = parseInt($("#" + mw).val());
+                params["connect"][type]["filter"] = parseInt($("#" + mw).val());
             }})(num_edgesweight_found, mw_id));
 
             mw_id = "edges_min_weight_weighted_" + num_edgesweight_found;
             $("#connectivity_edgesweight_weighted").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
                 " type=\"checkbox\" name=\"" + mw_id + "\"/>");
             $("#" + mw_id).change( (function(type, mw) { return function(event) {
-                params["connect"][type][2] = $("#" + mw)[0].checked;
+                params["connect"][type]["weighted_filter"] = $("#" + mw)[0].checked;
             }})(num_edgesweight_found, mw_id));
         }
 
@@ -479,7 +476,6 @@
                 "iterations": parseInt($("#validation_iterations").val()),
                 "timeout": parseFloat($("#timeout").val()),
                 "workers": parseInt($("#validation_workers").val()),
-                "zero_is_unknown": $("#zero_is_unknown")[0].checked,
                 "model": $("#model").val()
             };
         } else {
@@ -562,13 +558,16 @@
 
 <table>
 <thead>
-<th>Available node types</th><th colspan="2">Filter</th><th style="text-align: right">#</th>
+<th>Available node types</th><th>0 = ?</th><th colspan="2">Filter</th><th style="text-align: right">#</th>
 </thead>
 <tbody>
 
 <td>
 <ul id="connectivity_available" class="connectivity_drop">
 </ul>
+</td>
+
+<td id ="connectivity_nodesunknown">
 </td>
 
 <td id="connectivity_nodesweightedfilter">
@@ -673,17 +672,7 @@
 </div>
 
 <div class="settings_cell">
-<input id="timeout" name="timeout" type="number" min="0" value="1" step="0.01"/>
-</div>
-</div>
-
-<div class="settings_row">
-<div class="settings_cell">
-<label for="zero_is_unknown">Absent is unknown</label>
-</div>
-
-<div class="settings_cell">
-<input id="zero_is_unknown" name="zero_is_unknown" type="checkbox" checked/>
+<input id="timeout" name="timeout" type="number" min="0" value="1" step="0.001"/>
 </div>
 </div>
 

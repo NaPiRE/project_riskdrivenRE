@@ -269,18 +269,6 @@ module web
         return napire.plot_prediction(data, query_dict["query"], query_dict["evidence"], results, napire.graphviz.png)
     end
 
-    function __load_graph(query_dict, all_items)
-        dataset = string(get(query_dict, "dataset", napire.default_dataset))
-
-        nodes_raw = get(query_dict, "nodes", [])
-        nodes::Array{Tuple{Symbol,Bool,UInt64}} = [ ( Symbol(n[1]), convert(Bool, n[2]), convert(UInt, n[3]) ) for n in nodes_raw ]
-
-        connect_raw = get(query_dict, "connect", [])
-        connect::Array{Tuple{Symbol,Symbol,Bool,UInt64}} = [ ( Symbol(c[1]),  Symbol(c[2]), convert(Bool, c[3]), convert(UInt, c[4]) ) for c in connect_raw ]
-
-        return napire.load(dataset, nodes, connect, parse(Bool, all_items))
-    end
-
     function items(query_dict; all_items = "false")
         data = __load_graph(query_dict, all_items)
         return Dict(
@@ -309,8 +297,19 @@ module web
         data = __load_graph(query_dict, "false")
 
         return napire.validate(data, query_dict["iterations"], query_dict["subsample_size"], query_dict["inference_method"],
-                                query_dict["query"], query_dict["zero_is_unknown"], query_dict["model"],
-                                query_dict["baseline_model"]; kwargs...)
+                                query_dict["query"], query_dict["model"], query_dict["baseline_model"]; kwargs...)
+    end
+
+    function __load_graph(query_dict, all_items)
+        dataset = string(get(query_dict, "dataset", napire.default_dataset))
+
+        nodes_raw = get(query_dict, "nodes", [])
+        nodes::Array{Tuple{Symbol,Bool,UInt64, Bool}} = [ ( Symbol(n["node_type"]), convert(Bool, n["weighted_filter"]), convert(UInt, n["filter"]), convert(Bool, n["absent_is_unknown"]) ) for n in nodes_raw ]
+
+        connect_raw = get(query_dict, "connect", [])
+        connect::Array{Tuple{Symbol,Symbol,Bool,UInt64}} = [ ( Symbol(c["from"]),  Symbol(c["to"]), convert(Bool, c["weighted_filter"]), convert(UInt, c["filter"]) ) for c in connect_raw ]
+
+        return napire.load(dataset, nodes, connect, parse(Bool, all_items))
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(

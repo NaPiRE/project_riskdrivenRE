@@ -47,11 +47,11 @@
             query["inference_method"] = "";
 
             for(let node of query.nodes) {
-                $("#node_types").append("<tr><td>" + node[0] + "</td><td class=\"filter\">" + node[1] + "</td><td class=\"filter\">" + node[2] + "</td></tr>");
+                $("#node_types").append("<tr><td>" + node["node_type"] + "</td><td class=\"filter\">" + node["absent_is_unknown"] + "</td><td class=\"filter\">" + (node["weighted_filter"] ? "W " : "") + node["filter"] + "</td></tr>");
             }
 
             for(let conn of query.connect) {
-                $("#connections").append("<tr><td>" + conn[0] + "</td><td>" + conn[1] + "</td><td class=\"filter\">" + conn[2] + "</td><td class=\"filter\">" + conn[3] + "</td></tr>");
+                $("#connections").append("<tr><td>" + conn["from"] + "</td><td>" + conn["to"] + "</td><td class=\"filter\">" + (conn["weighted_filter"] ? "W " : "") + conn["filter"] + "</td></tr>");
             }
 
             function plotQuery() {
@@ -79,7 +79,6 @@
                 plotQuery();
                 $("#task").append("<tr><td>Subjects per subsample</td><td class=\"filter\">" + query.subsample_size + "</td></tr>");
                 $("#task").append("<tr><td>Iterations</td><td class=\"filter\">" + query.iterations + "</td></tr>");
-                $("#task").append("<tr><td>Absent is unknown</td><td class=\"filter\">" + query.zero_is_unknown + "</td></tr>");
 
                 if(response.state == "DONE") {
                     $("#metrics").show();
@@ -179,7 +178,7 @@
 
 <table style="margin-top: 40px">
 <thead>
-    <th style="width: 319px">Node types</th><th class="filter" style="width: 106px">Weight filter</th><th class="filter" style="width: 106px">Filter</th>
+    <th style="width: 319px">Node types</th><th>0 = ?</th><th class="filter" style="width: 106px">Filter</th>
 </thead>
 <tbody id="node_types">
 </tbody>
@@ -187,7 +186,7 @@
 
 <table style="margin-top: 40px">
 <thead>
-    <th style="width: 154px">From</th><th style="width: 154px">To</th><th style="width: 106xp">Weight filter</th><th class="filter" style="width: 106px">Filter</th>
+    <th style="width: 154px">From</th><th style="width: 154px">To</th><th class="filter" style="width: 106px">Filter</th>
 </thead>
 <tbody id="connections">
 </tbody>

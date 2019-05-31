@@ -182,7 +182,7 @@ module napire
     export validate
 
     function validate(data, iterations::Int64, subsample_size::Int64, inference_method::Type,
-                query::Set{Symbol}, zero_is_unknown::Bool, model::Symbol , baseline_model::Symbol;
+                query::Set{Symbol}, model::Symbol , baseline_model::Symbol;
                 pool = nothing, progress_array = nothing)
 
         if progress_array != nothing
@@ -222,7 +222,7 @@ module napire
 
             for (sample_number, sample_index) in enumerate(validation_samples)
                 pt = __remotecall(__validate_model, mod, blmod, iteration, sample_number, sample_index,
-                        data.data, query, evidence_variables, zero_is_unknown, inference_method,  progress_array)
+                        data.data, data.absent_is_unknown, query, evidence_variables, inference_method,  progress_array)
                 push!(tasks, pt)
             end
         end
@@ -230,7 +230,7 @@ module napire
         return [ fetch(t) for t in tasks ]
     end
 
-    function __validate_model(mod, blmod, iteration, sample_number, sample_index, data, query, evidence_variables, zero_is_unknown, inference_method, progress_array)
+    function __validate_model(mod, blmod, iteration, sample_number, sample_index, data, absent_is_unknown, query, evidence_variables, inference_method, progress_array)
         mod = fetch(mod)
         blmod = fetch(blmod)
 
@@ -238,7 +238,7 @@ module napire
 
         evidence = Dict{Symbol, Bool}()
         for ev in evidence_variables
-            if !zero_is_unknown || data[sample_index, ev] > 0
+            if !(ev in absent_is_unknown) || data[sample_index, ev] > 0
                 evidence[ev] = data[sample_index, ev]
             end
         end
