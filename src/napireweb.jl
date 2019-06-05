@@ -108,8 +108,10 @@ module web
                 return
             end
 
-            interruptor = task_fetch(t.interruptor)
-            interruptor .+= 1
+            @async begin
+                interruptor = task_fetch(t.interruptor, true)
+                interruptor .+= 1
+            end
         end
 
         return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult), cancel)
@@ -132,31 +134,32 @@ module web
     function __run_task(task_type, task_workers, fun,  progress_array_shape, query_dict)
         global __available_workers, __uncreated_workers
 
-        if task_workers > MAXIMUM_TASKS
-            task_workers = MAXIMUM_TASKS
-        end
-
-        while length(__available_workers) + __uncreated_workers < task_workers
-            sleep(1)
-        end
-
-        new_workers = max(0, task_workers - length(__available_workers))
-        existing_workers = task_workers - new_workers
-
-        reused_workers = []
-        if existing_workers > 0
-            reused_workers = __available_workers[1:(task_workers - new_workers)]
-            __available_workers = __available_workers[(task_workers - new_workers + 1):end]
-
-        end
-        __uncreated_workers -= new_workers
-
-        println(string(length(__available_workers)) * " unused workers remaining")
-        println(string(__uncreated_workers) * " workers can still be created")
-        println("Creating " * string(new_workers) * " new workers")
-        println("Re-using " * string(existing_workers) * " old workers")
-
         setup_task = @async begin
+
+            if task_workers > MAXIMUM_TASKS
+                task_workers = MAXIMUM_TASKS
+            end
+
+            while length(__available_workers) + __uncreated_workers < task_workers
+                sleep(1)
+            end
+
+            new_workers = max(0, task_workers - length(__available_workers))
+            existing_workers = task_workers - new_workers
+
+            reused_workers = []
+            if existing_workers > 0
+                reused_workers = __available_workers[1:(task_workers - new_workers)]
+                __available_workers = __available_workers[(task_workers - new_workers + 1):end]
+
+            end
+            __uncreated_workers -= new_workers
+
+            println(string(length(__available_workers)) * " unused workers remaining")
+            println(string(__uncreated_workers) * " workers can still be created")
+            println("Creating " * string(new_workers) * " new workers")
+            println("Re-using " * string(existing_workers) * " old workers")
+
             return (
                 pool = Distributed.WorkerPool( [
                     reused_workers...,
