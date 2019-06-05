@@ -7,8 +7,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
     exit 1
 fi
 
-OPTIONS=hsn
-LONGOPTS=help,shell,nodep
+OPTIONS=hsnp:
+LONGOPTS=help,shell,nodep,procs:
 
 # -use ! and PIPESTATUS to get exit code with errexit set
 # -temporarily store output to be able to check for errors
@@ -24,6 +24,7 @@ fi
 eval set -- "$PARSED"
 
 shell=n nodep=n
+procs=$(grep -c \^processor /proc/cpuinfo)
 
 # now enjoy the options in order and nicely split until we see --
 while true; do
@@ -35,6 +36,10 @@ while true; do
         -n|--nodep)
             nodep=y
             shift
+            ;;
+        -p|--procs)
+            procs="$2"
+            shift 2
             ;;
         -h|--help)
             echo "Usage: $0 [--shell|--nodep|--help]"
@@ -84,7 +89,7 @@ if [ $shell = "n" ]; then
     if [ $nodep = "n" ]; then
         deps="import Pkg; Pkg.instantiate();"
     fi
-    echo "$deps $loadcode; import napire; napire.web.start(\"$DIR/web\", joinpath(\"$DIR\", \"results\"));" > "$tmp"
+    echo "$deps $loadcode; import napire; napire.web.start(\"$DIR/web\", joinpath(\"$DIR\", \"results\"), $procs);" > "$tmp"
 
     julia "$tmp"
 else
