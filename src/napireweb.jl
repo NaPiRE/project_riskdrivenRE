@@ -112,6 +112,7 @@ module web
                 interruptor = task_fetch(t.interruptor, true)
                 interruptor .+= 1
             end
+            t = merge(t, ( :task => SerTask(:FAILED, "Interrupted"), ))
         end
 
         return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult), cancel)
