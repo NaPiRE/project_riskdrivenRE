@@ -11,6 +11,12 @@ module web
 
     struct TimeoutException <: Exception end
 
+    __available_workers = [ ]
+    __uncreated_workers = nothing
+    __started_tasks = nothing
+    RESULT_DIRECTORY = nothing
+    MAXIMUM_TASKS = nothing
+
     function query_legend()
         return napire.plot_legend(napire.graphviz.png)
     end
@@ -22,17 +28,6 @@ module web
 
             return opts
         end
-    end
-
-    STARTED_TASKS = nothing
-    RESULT_DIRECTORY = nothing
-    function load_started_tasks(result_directory::String)
-        global RESULT_DIRECTORY, STARTED_TASKS
-        RESULT_DIRECTORY = result_directory
-        files = sort([ f for f in readdir(result_directory) if occursin(r"^[0-9]+\.ser$", f) ])
-        files = [ Serialization.deserialize(joinpath(result_directory, f)) for f in files ]
-
-        STARTED_TASKS = Dict{Int64, Any}(f[2] => f for f in files)
     end
 
     struct SerTask
@@ -60,7 +55,7 @@ module web
         end
 
         try
-            return Base.fetch(t)
+            return fetch(t)
         catch e
             return sprint(showerror, e, t.backtrace)
         end
@@ -88,6 +83,7 @@ module web
         task_data = Dict( k => v for (k, v) in zip(keys(t), t) if k != :task)
         task_data[:steps_done]  = task_state(t.steps_done) == :DONE  ? sum(task_fetch(t.steps_done)) : 0
         task_data[:interruptor] = task_state(t.interruptor) == :DONE ? sum(task_fetch(t.interruptor)) : 0
+        task_data[:elapsed_minutes] = task_state(t.elapsed_minutes) == :DONE ? sum(task_fetch(t.elapsed_minutes)) : 0
         task_data[:state] = state
         task_data[:result] = result
 
@@ -96,9 +92,9 @@ module web
 
     function task_serialize(tid::Union{Nothing, Int64}, args...)
         if tid == nothing
-            return [ task_serialize(STARTED_TASKS[tid], args...) for tid in sort(collect(keys(STARTED_TASKS))) ]
+            return [ task_serialize(__started_tasks[tid], args...) for tid in sort(collect(keys(__started_tasks))) ]
         else
-            return task_serialize(STARTED_TASKS[tid], args...)
+            return task_serialize(__started_tasks[tid], args...)
         end
     end
 
@@ -112,7 +108,7 @@ module web
                 return
             end
 
-            interruptor = fetch(t.interruptor)
+            interruptor = task_fetch(t.interruptor)
             interruptor .+= 1
         end
 
@@ -125,7 +121,7 @@ module web
                 return
             end
 
-            delete!(STARTED_TASKS, t.id)
+            delete!(__started_tasks, t.id)
             storage_file = joinpath(RESULT_DIRECTORY,  string(t.id) * ".ser")
             rm(storage_file)
         end
@@ -133,29 +129,30 @@ module web
         return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult), delete)
     end
 
-    available_workers = [ ]
-    uncreated_workers = length(Sys.cpu_info())
-
     function __run_task(task_type, task_workers, fun,  progress_array_shape, query_dict)
-        global available_workers, uncreated_workers
+        global __available_workers, __uncreated_workers
 
-        if uncreated_workers + length(available_workers) < task_workers
-            throw(WebApplicationException(507, "Too many workers demanded"))
+        if task_workers > MAXIMUM_TASKS
+            task_workers = MAXIMUM_TASKS
         end
 
-        new_workers = max(0, task_workers - length(available_workers))
+        while length(__available_workers) + __uncreated_workers < task_workers
+            sleep(1)
+        end
+
+        new_workers = max(0, task_workers - length(__available_workers))
         existing_workers = task_workers - new_workers
 
         reused_workers = []
         if existing_workers > 0
-            reused_workers = available_workers[1:(task_workers - new_workers)]
-            available_workers = available_workers[(task_workers - new_workers + 1):end]
+            reused_workers = __available_workers[1:(task_workers - new_workers)]
+            __available_workers = __available_workers[(task_workers - new_workers + 1):end]
 
         end
-        uncreated_workers -= new_workers
+        __uncreated_workers -= new_workers
 
-        println(string(length(available_workers)) * " unused workers remaining")
-        println(string(uncreated_workers) * " workers can still be created")
+        println(string(length(__available_workers)) * " unused workers remaining")
+        println(string(__uncreated_workers) * " workers can still be created")
         println("Creating " * string(new_workers) * " new workers")
         println("Re-using " * string(existing_workers) * " old workers")
 
@@ -165,13 +162,15 @@ module web
                     reused_workers...,
                     Distributed.addprocs(new_workers, exename = joinpath(dirname(@__DIR__), "run_worker.sh"))...
                     ]),
-                progress_array = SharedArrays.SharedArray{Int}( progress_array_shape ),
-                interruptor    = SharedArrays.SharedArray{Int}( (1, ) )
+                progress_array  = SharedArrays.SharedArray{Int64}( progress_array_shape ),
+                interruptor     = SharedArrays.SharedArray{Int64}( (1, ) ),
+                elapsed_minutes = SharedArrays.SharedArray{Float64}( (1, ) )
             )
         end
 
         progress_array_task = @async fetch(setup_task).progress_array
         interruptor_task = @async fetch(setup_task).interruptor
+        elapsed_minutes_task = @async fetch(setup_task).elapsed_minutes
 
         task = @async begin
             setup = fetch(setup_task)
@@ -180,17 +179,16 @@ module web
             start = time()
             try
                 remotetask = Distributed.remotecall(fun, setup.pool, query_dict; pool = setup.pool, progress_array = setup.progress_array)
-                while !isready(remotetask) && sum(setup.interruptor) == 0 && (timeout <= 0 || timeout > (time() - start) / 60 / 60)
+                while !isready(remotetask) && sum(setup.interruptor) == 0 && (timeout <= 0 || timeout > sum(setup.elapsed_minutes))
                     sleep(1)
+                    setup.elapsed_minutes[1] = (time() - start) / 60 / 60
                 end
 
                 if sum(setup.interruptor) > 0
                     throw(InterruptException())
                 end
-                println("timeout: " * string(timeout))
-                println("elapsed: " * string((time() - start) / 60 / 60))
 
-                if timeout <= (time() - start) / 60 / 60
+                if timeout <= sum(setup.elapsed_minutes)
                     throw(TimeoutException())
                 end
 
@@ -199,17 +197,17 @@ module web
                 kills = [ worker.config.process  for worker in Distributed.PGRP.workers if in(worker.id, setup.pool.workers) ]
                 for process in kills;
                     println("Killing " * string(getpid(process)))
-                    kill(process);
+                    kill(process)
                 end
                 rethrow(e)
             end
         end
 
-        task_id = isempty(STARTED_TASKS) ? 1 : maximum(keys(STARTED_TASKS)) + 1
+        task_id = isempty(__started_tasks) ? 1 : maximum(keys(__started_tasks)) + 1
         steps_total = prod(progress_array_shape)
 
-        STARTED_TASKS[task_id] = (
-            type = task_type, id = task_id, query = query_dict,
+        __started_tasks[task_id] = (
+            type = task_type, id = task_id, query = query_dict, elapsed_minutes = elapsed_minutes_task,
             steps_done = progress_array_task, steps_total = steps_total,
             interruptor = interruptor_task, task = task)
 
@@ -217,23 +215,24 @@ module web
 
         @async begin
             result = task_fetch(task, true)
-            pool, progress_array, interruptor = fetch(setup_task)
+            pool, progress_array, interruptor, elapsed_minutes = fetch(setup_task)
 
             if task_state(task) == :DONE
-                append!(available_workers, collect(pool.workers))
+                append!(__available_workers, collect(pool.workers))
             else
-                uncreated_workers += length(pool.workers)
+                __uncreated_workers += length(pool.workers)
             end
 
             interruptor = SerTask(:DONE, collect(interruptor))
             steps_done = SerTask(:DONE, [ sum(progress_array) ])
+            elapsed_minutes = SerTask(:DONE, sum(elapsed_minutes))
 
             task_data = (
-                type = task_type, id = task_id, query = query_dict,
+                type = task_type, id = task_id, query = query_dict, elapsed_minutes = elapsed_minutes,
                 steps_done = steps_done, steps_total = steps_total,
                 interruptor = interruptor, task = SerTask(task_state(task), result))
 
-            STARTED_TASKS[task_id] = task_data
+            __started_tasks[task_id] = task_data
             Serialization.serialize(storage_file, task_data)
         end
 
@@ -444,9 +443,16 @@ module web
             fn = (; ) -> HTTP.Response(301, [ ("Location", destination) ]), content = nothing)
     end
 
-    function start(webdir::String, resultdir::String)
-        mkpath(resultdir)
-        load_started_tasks(resultdir)
+    function start(webdir::String, resultdir::String, maximum_tasks::Int = length(Sys.cpu_info()))
+        global RESULT_DIRECTORY, MAXIMUM_TASKS, __started_tasks, __uncreated_workers
+        RESULT_DIRECTORY = resultdir
+        MAXIMUM_TASKS = maximum_tasks
+
+        mkpath(RESULT_DIRECTORY)
+        files = sort([ f for f in readdir(RESULT_DIRECTORY) if occursin(r"^[0-9]+\.ser$", f) ])
+        files = [ Serialization.deserialize(joinpath(RESULT_DIRECTORY, f)) for f in files ]
+        __started_tasks = Dict{Int64, Any}(f[2] => f for f in files)
+        __uncreated_workers = MAXIMUM_TASKS
 
         for (rootpath, dirs, files) in walkdir(webdir; follow_symlinks = false)
             for file in files
