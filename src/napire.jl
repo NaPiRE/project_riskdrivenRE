@@ -201,7 +201,8 @@ module napire
         end
 
         evidence_variables = setdiff(Set{Symbol}(names(data.data)), query)
-        tasks = []
+        model_tasks = []
+
         for iteration in 1:iterations
             samples = Random.randperm(size(data.data, 1))
 
@@ -217,24 +218,43 @@ module napire
             @assert max(validation_samples...) <= nrow(data.data)
             @assert max(training_samples...)   <= nrow(data.data)
 
-            mod   = __remotecall(train, data, Val(model), training_samples)
-            blmod = __remotecall(train, data, Val(baseline_model), training_samples)
-
-            for (sample_number, sample_index) in enumerate(validation_samples)
-                pt = __remotecall(__validate_model, mod, blmod, iteration, sample_number, sample_index,
-                        data.data, data.absent_is_unknown, query, evidence_variables, inference_method,  progress_array)
-                push!(tasks, pt)
-            end
+            push!(model_tasks, (
+                __remotecall(train, data, Val(model), training_samples),
+                __remotecall(train, data, Val(baseline_model), training_samples),
+                validation_samples))
         end
 
-        return [ fetch(t) for t in tasks ]
+        tasks = Dict()
+        # only ever run the inference task when the model has been trained. Otherwise some workers will starve
+        while length(tasks) < length(model_tasks)
+            for (iteration, (mod, blmod, validation_samples)) in enumerate(model_tasks)
+                if isready(mod) && isready(blmod) && !haskey(tasks, iteration)
+                    tasks[iteration] = []
+
+                    for (sample_number, sample_index) in enumerate(validation_samples)
+                        st = __remotecall(__validate_model, mod, blmod, iteration, sample_number, sample_index,
+                            data.data, data.absent_is_unknown, query, evidence_variables, inference_method,  progress_array)
+                        push!(tasks[iteration], st)
+                    end
+                end
+            end
+            sleep(0.1)
+        end
+
+        # make sure we return data in the right order
+        iteration_tasks = [ tasks[i] for i in 1:iterations ]
+        return [ fetch(t) for t in vcat(iteration_tasks...)  ]
     end
 
     function __validate_model(mod, blmod, iteration, sample_number, sample_index, data, absent_is_unknown, query, evidence_variables, inference_method, progress_array)
+        println("Subsample** " * string(iteration) * "." * string(sample_number))
+
         mod = fetch(mod)
+        println("Subsample*  " * string(iteration) * "." * string(sample_number))
+
         blmod = fetch(blmod)
 
-        println("Subsample " * string(iteration) * "." * string(sample_number))
+        println("Subsample   " * string(iteration) * "." * string(sample_number))
 
         evidence = Dict{Symbol, Bool}()
         for ev in evidence_variables

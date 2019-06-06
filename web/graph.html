@@ -40,9 +40,10 @@
             if(response.state == "RUNNING") {
                 $("#task").append("<tr><td>Task completion</td><td class=\"filter\">" + (response.steps_done / response.steps_total * 100).toFixed(2) + "%" +"</td></tr>");
             }
-            $("#task").append("<tr><td>Data Set</td><td class=\"filter\">" + response.query.dataset + "</td></tr>");
+            $("#task").append("<tr><td>Data Set</td><td class=\"filter\">" + query.dataset + "</td></tr>");
             $("#task").append("<tr><td>Model type</td><td class=\"filter\">" + query.model + "</td></tr>");
             $("#task").append("<tr><td>Inference</td><td class=\"filter\">" + query.inference_method + "</td></tr>");
+            $("#task").append("<tr><td>Duration (h)</td><td class=\"filter\">" + (response.elapsed_hours).toFixed(2) + "</td></tr>");
 
             query["inference_method"] = "";
 

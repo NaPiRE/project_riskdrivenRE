@@ -83,7 +83,7 @@ module web
         task_data = Dict( k => v for (k, v) in zip(keys(t), t) if k != :task)
         task_data[:steps_done]  = task_state(t.steps_done) == :DONE  ? sum(task_fetch(t.steps_done)) : 0
         task_data[:interruptor] = task_state(t.interruptor) == :DONE ? sum(task_fetch(t.interruptor)) : 0
-        task_data[:elapsed_minutes] = task_state(t.elapsed_minutes) == :DONE ? sum(task_fetch(t.elapsed_minutes)) : 0
+        task_data[:elapsed_hours] = task_state(t.elapsed_hours) == :DONE ? sum(task_fetch(t.elapsed_hours)) : 0
         task_data[:state] = state
         task_data[:result] = result
 
@@ -168,13 +168,13 @@ module web
                     ]),
                 progress_array  = SharedArrays.SharedArray{Int64}( progress_array_shape ),
                 interruptor     = SharedArrays.SharedArray{Int64}( (1, ) ),
-                elapsed_minutes = SharedArrays.SharedArray{Float64}( (1, ) )
+                elapsed_hours = SharedArrays.SharedArray{Float64}( (1, ) )
             )
         end
 
         progress_array_task = @async fetch(setup_task).progress_array
         interruptor_task = @async fetch(setup_task).interruptor
-        elapsed_minutes_task = @async fetch(setup_task).elapsed_minutes
+        elapsed_hours_task = @async fetch(setup_task).elapsed_hours
 
         task = @async begin
             setup = fetch(setup_task)
@@ -183,16 +183,16 @@ module web
             start = time()
             try
                 remotetask = Distributed.remotecall(fun, setup.pool, query_dict; pool = setup.pool, progress_array = setup.progress_array)
-                while !isready(remotetask) && sum(setup.interruptor) == 0 && (timeout <= 0 || timeout > sum(setup.elapsed_minutes))
+                while !isready(remotetask) && sum(setup.interruptor) == 0 && (timeout <= 0 || timeout > sum(setup.elapsed_hours))
                     sleep(1)
-                    setup.elapsed_minutes[1] = (time() - start) / 60 / 60
+                    setup.elapsed_hours[1] = (time() - start) / 60 / 60
                 end
 
                 if sum(setup.interruptor) > 0
                     throw(InterruptException())
                 end
 
-                if timeout <= sum(setup.elapsed_minutes)
+                if timeout <= sum(setup.elapsed_hours)
                     throw(TimeoutException())
                 end
 
@@ -211,7 +211,7 @@ module web
         steps_total = prod(progress_array_shape)
 
         __started_tasks[task_id] = (
-            type = task_type, id = task_id, query = query_dict, elapsed_minutes = elapsed_minutes_task,
+            type = task_type, id = task_id, query = query_dict, elapsed_hours = elapsed_hours_task,
             steps_done = progress_array_task, steps_total = steps_total,
             interruptor = interruptor_task, task = task)
 
@@ -219,7 +219,7 @@ module web
 
         @async begin
             result = task_fetch(task, true)
-            pool, progress_array, interruptor, elapsed_minutes = fetch(setup_task)
+            pool, progress_array, interruptor, elapsed_hours = fetch(setup_task)
 
             if task_state(task) == :DONE
                 append!(__available_workers, collect(pool.workers))
@@ -229,10 +229,10 @@ module web
 
             interruptor = SerTask(:DONE, collect(interruptor))
             steps_done = SerTask(:DONE, [ sum(progress_array) ])
-            elapsed_minutes = SerTask(:DONE, sum(elapsed_minutes))
+            elapsed_hours = SerTask(:DONE, sum(elapsed_hours))
 
             task_data = (
-                type = task_type, id = task_id, query = query_dict, elapsed_minutes = elapsed_minutes,
+                type = task_type, id = task_id, query = query_dict, elapsed_hours = elapsed_hours,
                 steps_done = steps_done, steps_total = steps_total,
                 interruptor = interruptor, task = SerTask(task_state(task), result))
 
