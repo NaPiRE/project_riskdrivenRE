@@ -218,8 +218,8 @@
 
         $("#connectivity_edgesnumber").empty();
         for(let edge_type of params['connect']) {
-            let from_type = edge_type[0];
-            let to_type = edge_type[1];
+            let from_type = edge_type["from"];
+            let to_type = edge_type["to"];
 
             let edge_num = 0;
             for(let fr of ( items[from_type] || [] )) {
