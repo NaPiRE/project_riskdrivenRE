@@ -232,7 +232,7 @@ module napire
                     tasks[iteration] = []
 
                     for (sample_number, sample_index) in enumerate(validation_samples)
-                        st = __remotecall(__validate_model, mod, blmod, iteration, sample_number, sample_index,
+                        st = __remotecall(__validate_model, fetch(mod), fetch(blmod), iteration, sample_number, sample_index,
                             data.data, data.absent_is_unknown, query, evidence_variables, inference_method,  progress_array)
                         push!(tasks[iteration], st)
                     end
@@ -247,14 +247,7 @@ module napire
     end
 
     function __validate_model(mod, blmod, iteration, sample_number, sample_index, data, absent_is_unknown, query, evidence_variables, inference_method, progress_array)
-        println("Subsample** " * string(iteration) * "." * string(sample_number))
-
-        mod = fetch(mod)
-        println("Subsample*  " * string(iteration) * "." * string(sample_number))
-
-        blmod = fetch(blmod)
-
-        println("Subsample   " * string(iteration) * "." * string(sample_number))
+        println("Subsample " * string(iteration) * "." * string(sample_number))
 
         evidence = Dict{Symbol, Bool}()
         for ev in evidence_variables
