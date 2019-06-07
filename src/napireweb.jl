@@ -316,6 +316,7 @@ module web
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(
+        (path = "/", method = "GET") => (fn = (; ) -> HTTP.Response(301, [ ("Location", "/web") ]), content = nothing),
         (path = "/inference", method = "GET") => (fn = options(napire.inference_methods, napire.default_inference_method), content = "application/json"),
         (path = "/datasets", method = "GET") => (fn = options(napire.datasets, napire.default_dataset), content = "application/json"),
         (path = "/models", method = "GET")  => (fn = options(napire.models, napire.default_model), content = "application/json"),
@@ -442,12 +443,7 @@ module web
         end
     end
 
-    function redirect(path, destination)
-        APISPEC[(path = path, method = "GET")] = (
-            fn = (; ) -> HTTP.Response(301, [ ("Location", destination) ]), content = nothing)
-    end
-
-    function start(webdir::String, resultdir::String, maximum_tasks::Int = length(Sys.cpu_info()))
+    function start(webdir::String, resultdir::String; host::Union{Sockets.IPv4, Sockets.IPv6} = Sockets.localhost, port::Int = 8888, maximum_tasks::Int = length(Sys.cpu_info()))
         global RESULT_DIRECTORY, MAXIMUM_TASKS, __started_tasks, __uncreated_workers
         RESULT_DIRECTORY = resultdir
         MAXIMUM_TASKS = maximum_tasks
@@ -464,14 +460,9 @@ module web
                 serve_file(relpath(fullpath, webdir), fullpath)
             end
         end
-        redirect("/", "/web")
 
-        start()
-    end
-
-    function start()
-        println("Starting napire analysis REST service")
-        HTTP.serve(respond, Sockets.localhost, 8888)
+        println("Starting napire analysis REST service on http://" * string(host) * ":" * string(port))
+        HTTP.serve(respond, host, port)
     end
     export start
 end

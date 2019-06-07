@@ -89,7 +89,7 @@ if [ $shell = "n" ]; then
     if [ $nodep = "n" ]; then
         deps="import Pkg; Pkg.instantiate();"
     fi
-    echo "$deps $loadcode; import napire; napire.web.start(\"$DIR/web\", joinpath(\"$DIR\", \"results\"), $procs);" > "$tmp"
+    echo "$deps $loadcode; import napire; napire.web.start(\"$DIR/web\", joinpath(\"$DIR\", \"results\"); maximum_tasks = $procs);" > "$tmp"
 
     julia "$tmp"
 else
