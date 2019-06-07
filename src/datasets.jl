@@ -139,4 +139,5 @@ module DataSets
 
     include("datasets_nap_2014.jl")
     include("datasets_nap_2018.jl")
+    include("datasets_nap_2018_he.jl")
 end
