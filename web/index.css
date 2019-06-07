@@ -51,20 +51,23 @@ body {
 }
 
 #connectivity_nodesnumber, #connectivity_edgesnumber {
-    min-width: 40px;
-    white-space: nowrap;
-}
+    width: 80px;
 }
 
 #legend {
     margin-bottom: 20px;
 }
 
+#connectivity_nodesnumber>.min_weight, #connectivity_edgesnumber>.min_weight {
+    width: 100%;
+    margin-right: 0px;
+    margin-left: auto;
+    text-align: center;
+}
+
 .min_weight {
     display: block;
     width: 100%;
-    margin-left: auto;
-    margin-right: auto;
 }
 
 .min_weight[type="number"] {

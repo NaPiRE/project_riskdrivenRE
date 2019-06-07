@@ -140,15 +140,12 @@
             $("#connectivity_nodesunknown").append("<input id=\""+ mw_id + "\" type=\"checkbox\" class=\"min_weight\"/>");
             $("#" + mw_id).change( (function(type, mw) { return function(event) {
                 params["nodes"][type]["absent_is_unknown"] = $("#" + mw)[0].checked;
-            }})(num_nodesweight, mw_id)) ;
-
-
-
+            }})(num_nodesweight, mw_id));
         }
 
         $("#connectivity_nodesnumber").empty();
         for(let i of connectivity) {
-            $("#connectivity_nodesnumber").append("<div class=\"min_weight\">" + items[i].length + "\</div>");
+            $("#connectivity_nodesnumber").append("<input type=\"number\" readonly class=\"min_weight\" value=\"" + items[i].length + "\"/>");
         }
 
         // load data from form
@@ -228,7 +225,7 @@
                 }
             }
 
-            $("#connectivity_edgesnumber").append("<div class=\"min_weight\">" + edge_num + "</div>");
+            $("#connectivity_edgesnumber").append("<input type=\"number\" readonly class=\"min_weight\" value=\"" + edge_num + "\"/>");
         }
     }
 
@@ -558,7 +555,7 @@
 
 <table>
 <thead>
-<th>Available node types</th><th>0 = ?</th><th>W</th><th>Filter</th><th style="text-align: right">#</th>
+<th>Available node types</th><th>0 = ?</th><th>W</th><th>Filter</th><th>#</th>
 </thead>
 <tbody>
 
@@ -584,7 +581,7 @@
 
 <table>
 <thead>
-    <th>From</th><th>To</th><th>W</th><th>Filter</th><th style="text-align: right">#</th>
+    <th>From</th><th>To</th><th>W</th><th>Filter</th><th>#</th>
 </thead>
 <tbody>
 <tr>
