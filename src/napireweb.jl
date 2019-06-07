@@ -178,6 +178,7 @@ module web
 
         task = @async begin
             setup = fetch(setup_task)
+            println("Workers setup finished")
 
             timeout = get(query_dict, "timeout", -1)
             start = time()

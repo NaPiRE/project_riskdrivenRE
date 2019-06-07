@@ -223,6 +223,7 @@ module napire
                 __remotecall(train, data, Val(baseline_model), training_samples),
                 validation_samples))
         end
+        println("Started " * string(iterations) * " model trainings")
 
         tasks = Dict()
         # only ever run the inference task when the model has been trained. Otherwise some workers will starve
@@ -236,6 +237,7 @@ module napire
                             data.data, data.absent_is_unknown, query, evidence_variables, inference_method,  progress_array)
                         push!(tasks[iteration], st)
                     end
+                    println("Started " * string(length(tasks) * subsample_size) * " predictions")
                 end
             end
             sleep(0.1)
