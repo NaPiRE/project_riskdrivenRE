@@ -69,6 +69,8 @@ function nap_2014(args...)
     rename!(data, Dict(:IDENTIFIERS_RANK_00 => :RANK, :IDENTIFIERS_SUBJECT_00 => :ID))
     rename!(contextdata, Dict(:SubjectUniqueID => :ID))
 
+    data[:RANK] = parse.(UInt, data[:RANK])
+
     data = __join_contextdata!(data, items, descriptions, contextdata, contextdata_columns)
     return __filter(data, items, descriptions, args...)
 end

@@ -25,7 +25,7 @@ module DataSets
         absent_is_unknown_nodes = Set{Symbol}()
         for (node_type, weighted, min_weight, absent_is_unknown) in nodes
             for node in items[node_type]
-                if ((weighted && sum( (data[node] .> 0) .* parse.(UInt, data[:RANK])) < min_weight)
+                if ((weighted && sum( (data[node] .> 0) .* data[:RANK]) < min_weight)
                         || (!weighted && sum(data[node] .> 0) < min_weight))
                     deletecols!(data, node)
                     delete!(items[node_type], node)
@@ -121,7 +121,7 @@ module DataSets
 
                 for i in 1:size(data)[1]
                     if data[i, from_node] .> 0 && data[i, to_node] .> 0
-                        edges[(from_node => to_node)] += weighted ? (MAX_RANK - parse(UInt, data[i, :RANK])) : 1;
+                        edges[(from_node => to_node)] += weighted ? (MAX_RANK - data[i, :RANK]) : 1;
                     end
                 end
             end
