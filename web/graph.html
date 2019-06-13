@@ -89,13 +89,43 @@
                     metrics = metrics.filter(v => response.result[v])
                     other_metrics = Object.getOwnPropertyNames(response.result).filter(v => metrics.indexOf(v) == -1).sort();
 
+                    trace_templates = {
+                        'value': {
+                            mode: 'lines+markers',
+                            line: {
+                                color: '#1f77b4',
+                                dash: 'solid'
+                            }
+                        },
+                        'value_average': {
+                            mode: 'lines',
+                            line: {
+                                color: '#7f7f7f',
+                                dash: 'longdash'
+                            }
+                        },
+                        'baseline': {
+                            mode: 'lines+markers',
+                            line: {
+                                color: '#2cabff',
+                                dash: 'solid'
+                            }
+                        },
+                        'baseline_average': {
+                            mode: 'lines',
+                            line: {
+                                color: '#cbcbcb',
+                                dash: 'longdash'
+                            }
+                        }
+                    };
+
                     for(let k of metrics.concat(other_metrics)) {
                         let meta = response.result[k];
                         let result = meta.data;
                         let annotation = null;
                         let repr = null;
-                        console.log(k);
-                        console.log(result);
+
                         if(result.length == 0) {
                             repr = "no result";
                         } else if(result.length == 1) {
@@ -109,17 +139,13 @@
                             let traces = Object.keys(result[0])
                                     .filter(dk => dk != "config")
                                     .map(dk => {
-                                let tr = {
+
+                                return $.extend({}, trace_templates[dk] ? trace_templates[dk]: {}, {
                                     "type": "scatter",
                                     "name": dk,
                                     "x": result.map( xy => xy["config"]),
                                     "y": result.map( xy => xy[dk] )
-                                };
-
-                                if(dk != "value" && dk != "baseline") {
-                                    tr["yaxis"] = "y2";
-                                }
-                                return tr;
+                                });
                             });
                             setTimeout( () => {
                                 let layout = {

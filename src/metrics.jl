@@ -1,22 +1,40 @@
 module Metrics
     function __foreach(data, count_fun_configs, count_fun_numerator, count_fun_denominator = (e, p, c) -> length(e))
         values = []
+
+        value_total             = 0.0
+        baseline_total          = 0.0
+        value_config_counter    = 0
+        baseline_config_counter = 0
+
+
         for config in count_fun_configs
             total = 0
-            main_counter = 0.0
+            value_counter = 0.0
             baseline_counter = 0.0
             for iteration_data in data
                 for (expected, predicted, baseline_predicted) in iteration_data
                     total += count_fun_denominator(expected, predicted, config)
 
-                    main_counter       += count_fun_numerator(expected, predicted, config)
+                    value_counter      += count_fun_numerator(expected, predicted, config)
                     baseline_counter   += count_fun_numerator(expected, baseline_predicted, config)
                 end
             end
-            push!(values, (config = config, value = main_counter / total, baseline = baseline_counter / total))
+
+            value = value_counter / total
+            baseline = baseline_counter / total
+            push!(values, (config = config, value = value, baseline = baseline))
+
+            value_total    += isfinite(value)    ? value : 0
+            baseline_total += isfinite(baseline) ? baseline : 0
+            value_config_counter    += isfinite(value)    ? 1 : 0
+            baseline_config_counter += isfinite(baseline) ? 1 : 0
         end
 
-        return values
+        return [(   config = config, value = value, baseline = baseline,
+                    value_average    = value_total    / value_config_counter,
+                    baseline_average = baseline_total / baseline_config_counter)
+                        for (config, value, baseline) in values ]
     end
 
     function brier_score(data)
