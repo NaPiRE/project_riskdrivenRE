@@ -60,11 +60,11 @@ function nap_2014(args...)
         (:v_1,   :CONTEXT_SIZE, :CONTEXT_SIZE_07, "Company size 2000+", x -> x == "2000+"),
 
         (:V_10,  :CONTEXT_GLOBAL, :CONTEXT_GLOBAL_00, "Globally distributed projects", x -> x == "Yes"),
-        (:v_557, :DEVELOPMENT, :DEVELOPMENT_CODE_00, "Waterfall", x -> x == "quoted"),
-        (:v_558, :DEVELOPMENT, :DEVELOPMENT_CODE_01, "V-Model XT", x -> x == "quoted"),
-        (:v_559, :DEVELOPMENT, :DEVELOPMENT_CODE_02, "Scrum", x -> x == "quoted"),
-        (:v_560, :DEVELOPMENT, :DEVELOPMENT_CODE_03, "Extreme Programming",x -> x == "quoted"),
-        (:v_561, :DEVELOPMENT, :DEVELOPMENT_CODE_04, "Rational Unified Process", x -> x == "quoted") ]
+        (:v_557, :CONTEXT_DEV, :CONTEXT_DEV_CODE_00, "Waterfall", x -> x == "quoted"),
+        (:v_558, :CONTEXT_DEV, :CONTEXT_DEV_CODE_01, "V-Model XT", x -> x == "quoted"),
+        (:v_559, :CONTEXT_DEV, :CONTEXT_DEV_CODE_02, "Scrum", x -> x == "quoted"),
+        (:v_560, :CONTEXT_DEV, :CONTEXT_DEV_CODE_03, "Extreme Programming",x -> x == "quoted"),
+        (:v_561, :CONTEXT_DEV, :CONTEXT_DEV_CODE_04, "Rational Unified Process", x -> x == "quoted") ]
 
     rename!(data, Dict(:IDENTIFIERS_RANK_00 => :RANK, :IDENTIFIERS_SUBJECT_00 => :ID))
     rename!(contextdata, Dict(:SubjectUniqueID => :ID))
