@@ -43,10 +43,10 @@ module Metrics
             baseline = baseline_counter / total
             push!(values, (config = config, value = value, baseline = baseline))
 
-            value_total    += isfinite(value)    ? value : 0
-            baseline_total += isfinite(baseline) ? baseline : 0
-            value_config_counter    += isfinite(value)    ? 1 : 0
-            baseline_config_counter += isfinite(baseline) ? 1 : 0
+            value_total    += !ismissing(value) && isfinite(value)    ? value : 0
+            baseline_total += !ismissing(value) && isfinite(baseline) ? baseline : 0
+            value_config_counter    += !ismissing(value) && isfinite(value)    ? 1 : 0
+            baseline_config_counter += !ismissing(value) && isfinite(baseline) ? 1 : 0
         end
 
         return [(   config = config, value = value, baseline = baseline,
