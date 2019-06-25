@@ -468,9 +468,10 @@ module web
         MAXIMUM_TASKS = maximum_tasks
 
         mkpath(RESULT_DIRECTORY)
-        files = sort([ f for f in readdir(RESULT_DIRECTORY) if occursin(r"^[0-9]+\.ser$", f) ])
-        files = [ Serialization.deserialize(joinpath(RESULT_DIRECTORY, f)) for f in files ]
-        __started_tasks = Dict{Int64, Any}(f[2] => f for f in files)
+        files = [ f for f in readdir(RESULT_DIRECTORY) if occursin(r"^[0-9]+\.ser$", f) ]
+        files = [ (parse(Int, f[1:end-4]), f) for f in files ]
+        files = [ (f[1], Serialization.deserialize(joinpath(RESULT_DIRECTORY, f[2]))) for f in files ]
+        __started_tasks = Dict{Int64, Any}(f[1] => f[2] for f in files)
         __uncreated_workers = MAXIMUM_TASKS
 
         for (rootpath, dirs, files) in walkdir(webdir; follow_symlinks = false)
