@@ -95,15 +95,18 @@ def main():
         task_id = int(ws.cell(row_idx, 1).value)
         url = 'http://localhost:8888/tasks?printresult=true&id=' + str(task_id)
 
-        with urllib.request.urlopen(url) as f:
-            data = json.load(f)
-            for col_idx, col in enumerate(cols):
-                if col:
-                    try:
-                        val = get_value(data, col)
-                        ws.cell(row_idx, col_idx + 1).value = val
-                    except:
-                        logging.exception('Failed parsing column ' + str(col))
+        try:
+            with urllib.request.urlopen(url) as f:
+                data = json.load(f)
+                for col_idx, col in enumerate(cols):
+                    if col:
+                        try:
+                            val = get_value(data, col)
+                            ws.cell(row_idx, col_idx + 1).value = val
+                        except:
+                            logging.exception('Failed parsing column ' + str(col))
+        except:
+            logging.exception('Failed loading task ' + str(task_id))
 
     outfile = sys.argv[1]
     #directory, filename = os.path.split(sys.argv[1])
