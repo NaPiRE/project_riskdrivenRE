@@ -458,17 +458,20 @@ module web
             end
         end
 
+        println("serving " * file * " at " * path)
         ep = (fn = (; kwargs...) -> read(file), content = final_mime)
-        APISPEC[(path = "/web" * path, method = "GET")] = ep
+        APISPEC[(path = path, method = "GET")] = ep
 
         newpath = replace(path, r"/index.html$" => "/")
         if newpath != path
-            APISPEC[(path = "/web" * newpath, method = "GET")] = ep # with /
-            APISPEC[(path = "/web" * newpath[2:end], method = "GET")] = ep # without /
+            println("serving " * file * " at " * newpath)
+            println("serving " * file * " at " * newpath[1:end-1])
+            APISPEC[(path = newpath, method = "GET")] = ep # with /
+            APISPEC[(path = newpath[1:end-1], method = "GET")] = ep # without /
         end
     end
 
-    function start(webdir::String, resultdir::String; host::Union{Sockets.IPv4, Sockets.IPv6} = Sockets.localhost, port::Int = 8888, maximum_tasks::Int = length(Sys.cpu_info()))
+    function start(webdir::Dict{String, String}, resultdir::String; host::Union{Sockets.IPv4, Sockets.IPv6} = Sockets.localhost, port::Int = 8888, maximum_tasks::Int = length(Sys.cpu_info()))
         global RESULT_DIRECTORY, MAXIMUM_TASKS, __started_tasks, __uncreated_workers
         RESULT_DIRECTORY = resultdir
         MAXIMUM_TASKS = maximum_tasks
@@ -480,10 +483,12 @@ module web
         __started_tasks = Dict{Int64, Any}(f[1] => f[2] for f in files)
         __uncreated_workers = MAXIMUM_TASKS
 
-        for (rootpath, dirs, files) in walkdir(webdir; follow_symlinks = false)
-            for file in files
-                fullpath = joinpath(rootpath, file)
-                serve_file(relpath(fullpath, webdir), fullpath)
+        for (path, wd) in webdir
+            for (rootpath, dirs, files) in walkdir(wd; follow_symlinks = false)
+                for file in files
+                    fullpath = joinpath(rootpath, file)
+                    serve_file(path * relpath(fullpath, wd), fullpath)
+                end
             end
         end
 
