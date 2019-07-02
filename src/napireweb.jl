@@ -92,7 +92,6 @@ module web
             if t.type == :TASK_VALIDATION
                 result = napire.calc_metrics(result)
             elseif t.type == :TASK_INFERENCE
-                result = "data:image/png;base64," * Base64.base64encode(result)
             end
         end
 
@@ -275,6 +274,7 @@ module web
         query_dict["query"] = Set(Symbol(q) for q in get(query_dict, "query", []))
         query_dict["evidence"] = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
         query_dict["model"] = Symbol(get(query_dict, "model", napire.default_model))
+        query_dict["plot"] = convert(Bool, get(query_dict, "plot", "false"))
 
         if length(query_dict["query"]) == 0
             throw(WebApplicationException(400, "No query defined"))
@@ -287,8 +287,14 @@ module web
         data = __load_graph(query_dict, "false")
 
         md = napire.train(data, Val(query_dict["model"]))
-        results = napire.predict(md, query_dict["inference_method"], query_dict["query"], query_dict["evidence"])
-        return napire.plot_prediction(data, query_dict["query"], query_dict["evidence"], results, napire.graphviz.png)
+        result = napire.predict(md, query_dict["inference_method"], query_dict["query"], query_dict["evidence"])
+
+        plot = nothing
+        if query_dict["plot"]
+            plot = "data:image/png;base64," * Base64.base64encode(napire.plot_prediction(data, query_dict["query"], query_dict["evidence"], result, napire.graphviz.png))
+        end
+
+        return (data = result, plot = plot)
     end
 
     function items(query_dict; all_items = "false")

@@ -182,7 +182,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
                 if(response.state == "DONE") {
                     update_loading(-1);
                     img = new Image();
-                    img.src = response.result;
+                    img.src = response.result.plot;
                     $("#output_graph").html(img);
                 } else {
                     plotQuery();

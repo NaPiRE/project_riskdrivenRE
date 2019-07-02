@@ -468,6 +468,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         } else {
             overwrites = query;
         }
+        overwrites["plot"] = true;
 
         $("#run_inference").prop("disabled", true);
         post("/infer", overwrites, query).then( function(response) {
