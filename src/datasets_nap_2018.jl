@@ -74,6 +74,12 @@ end
 function __nap_2018_contextdata(filename)
     contextdata = CSV.read(filename; datarow = 2, delim = ';', quotechar = '"')
     contextdata_columns = [
+        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_00, "1-5", x -> !ismissing(x) && x > 0 && x <= 5),
+        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_01, "6-14", x -> !ismissing(x) && x >= 6 && x <= 14),
+        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_02, "15-30", x -> !ismissing(x) && x >= 15 && x <= 30),
+        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_03, "31-70", x -> !ismissing(x) && x >= 31 && x <= 70),
+        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_04, "71-140", x -> !ismissing(x) && x >= 71 && x <= 140),
+        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_05, "141-", x -> !ismissing(x) && x >= 141),
         (:v_4,   :CONTEXT_SYSTEM, :CONTEXT_SYSTEM_00, "Software-intensive embedded systems", x -> x == "Software-intensive embedded systems"),
         (:v_4,   :CONTEXT_SYSTEM, :CONTEXT_SYSTEM_01, "Business information systems", x -> x == "Business information systems"),
         (:v_4,   :CONTEXT_SYSTEM, :CONTEXT_SYSTEM_02, "Hybrid of both software-intensive embedded systems and business information systems", x -> x == "Hybrid of both software-intensive embedded systems and business information systems"),
