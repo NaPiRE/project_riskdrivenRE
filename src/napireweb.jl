@@ -387,7 +387,17 @@ module web
     function dispatch(request::HTTP.Message)
         uri = parse(HTTP.URI, request.target)
         key = (path = uri.path, method = request.method)
-        if !haskey(APISPEC, key)
+
+        checked_key = key
+        while checked_key.path != "" && !haskey(APISPEC, checked_key)
+            split = rsplit(checked_key.path, "/"; limit = 2)
+
+            checked_key = (path = split[1], method = request.method)
+        end
+
+        if key != checked_key && haskey(APISPEC, checked_key)
+            return HTTP.Response(301, [ ("Location", checked_key.path) ])
+        elseif !haskey(APISPEC, key)
             throw(WebApplicationException(404))
         end
         endpoint = APISPEC[key]
@@ -458,14 +468,11 @@ module web
             end
         end
 
-        println("serving " * file * " at " * path)
         ep = (fn = (; kwargs...) -> read(file), content = final_mime)
         APISPEC[(path = path, method = "GET")] = ep
 
         newpath = replace(path, r"/index.html$" => "/")
         if newpath != path
-            println("serving " * file * " at " * newpath)
-            println("serving " * file * " at " * newpath[1:end-1])
             APISPEC[(path = newpath, method = "GET")] = ep # with /
             APISPEC[(path = newpath[1:end-1], method = "GET")] = ep # without /
         end
