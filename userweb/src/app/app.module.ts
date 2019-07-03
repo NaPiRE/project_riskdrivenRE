@@ -10,7 +10,9 @@ import { RankingComponent } from './ranking/ranking.component';
 import {
   MatButtonModule, MatCheckboxModule, MatChipsModule,
   MatFormFieldModule, MatSelectModule, MatSliderModule,
-  MatSlideToggleModule, MatTabsModule, MatToolbarModule } from '@angular/material';
+  MatSlideToggleModule, MatTabsModule, MatToolbarModule,
+  MatTooltipModule
+} from '@angular/material';
 import { FlexLayoutModule } from "@angular/flex-layout";
 
 @NgModule({
@@ -34,7 +36,8 @@ import { FlexLayoutModule } from "@angular/flex-layout";
     MatSliderModule,
     MatSlideToggleModule,
     MatTabsModule,
-    MatToolbarModule
+    MatToolbarModule,
+    MatTooltipModule
   ],
   providers: [],
   bootstrap: [AppComponent]

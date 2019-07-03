@@ -14,21 +14,26 @@ export class RankingComponent {
       http.post("/descriptions", this.model).pipe(
         catchError(err => of(this.fallback_descriptions)),
         map(descriptions => {
-          for(let c in this.generic_categories) {
-            descriptions[c] = this.generic_categories[c];
-          }
-
           this.descriptions = descriptions;
+          for(let c in this.generic_categories) {
+            this.descriptions[c] = this.generic_categories[c];
+          }
         }),
         flatMap(descriptions => http.post("/items", this.model).pipe(
           catchError(err => of(this.fallback_items))
         )),
         map(items => {
+          this.items = items;
           for(let c in this.generic_categories) {
-            items.items[c].sort( (f1, f2) => f1.localeCompare(f2) );
+            this.items.items[c].sort( (f1, f2) => this.descriptions[f1].localeCompare(this.descriptions[f2]) );
           }
 
-          this.items = items;
+          for(let c in this.items.items) {
+            if(this.generic_categories[c]) {
+              continue;
+            }
+            this.items.items[c].sort( (f1, f2) => f1.localeCompare(f2) );
+          }
         })
     ).subscribe(data => {
       this.loaded = true;
@@ -41,10 +46,34 @@ export class RankingComponent {
   items:any = null;
   loaded:boolean = false;
 
-  evidence = new Set();
+  evidence = {};
 
-  sliderDisplayWith(label) {
-      return (size) => size < 0 ? '?' : this.descriptions[label + size.toString().padStart(2, '0')];
+  sliderDisplayWith() {
+      return (slider_val) => slider_val < 0 ? '?' : this.descriptions['CONTEXT_SIZE_' + slider_val.toString().padStart(2, '0')];
+  }
+
+  setEvidence(item, value) {
+    if(value) {
+      this.evidence[item] = true;
+    } else if(this.evidence[item]) {
+      delete this.evidence[item];
+    }
+  }
+
+  setExclusiveEvidence(category, exclusive_item, absent_value) {
+    for(let item of this.items.items[category]) {
+      this.evidence[item] = item == exclusive_item ? true : absent_value;
+    }
+  }
+
+  setSliderEvidence(slider_val) {
+    if(slider_val < 0) {
+      this.setExclusiveEvidence('CONTEXT_SIZE', '', undefined);
+      return;
+    }
+
+    let item = 'CONTEXT_SIZE_' + slider_val.toString().padStart(2, '0');
+    this.setExclusiveEvidence('CONTEXT_SIZE', item, false);
   }
 
   generic_categories = {

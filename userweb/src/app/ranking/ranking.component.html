@@ -2,18 +2,18 @@
 <div class="input-form" fxFlex="1 1 60%" fxFlex.lt-md="1 1 100%">
 
 <div class="table">
-  <div *ngIf="loaded && items.items['CONTEXT_SIZE']">
+  <div *ngIf="loaded && items.items['CONTEXT_DISTRIBUTED']">
     <div><mat-label>Distributed project</mat-label></div>
-    <div class="center"><mat-slide-toggle></mat-slide-toggle></div>
+    <div class="center"><mat-slide-toggle (change)="setEvidence('CONTEXT_DISTRIBUTED_00', $event.checked)"></mat-slide-toggle></div>
   </div>
-  <div>
+  <div *ngIf="loaded && items.items['CONTEXT_SIZE']">
     <div><mat-label>Project team size</mat-label></div>
-    <div><mat-slider *ngIf="descriptions != null" min="-1" max="5" step="1" value="1" thumbLabel tickInterval="1" [displayWith]="sliderDisplayWith('CONTEXT_SIZE_')"></mat-slider></div>
+    <div><mat-slider *ngIf="descriptions != null" min="-1" max="5" step="1" value="-1" thumbLabel tickInterval="1" [displayWith]="sliderDisplayWith()" (change)="setSliderEvidence($event.value)"></mat-slider></div>
   </div>
   <div *ngIf="loaded && items.items['CONTEXT_DEV']">
     <div><mat-label>Development paradigm</mat-label></div>
     <div>
-      <mat-select>
+      <mat-select (selectionChange)="setExclusiveEvidence('CONTEXT_DEV', $event.value, undefined)" value="">
         <mat-option value="">Unknown</mat-option>
         <mat-option *ngFor="let it of items.items['CONTEXT_DEV']" [value]="it">
           {{ descriptions[it] }}
@@ -24,7 +24,7 @@
   <div *ngIf="loaded && items.items['CONTEXT_SYSTEM']">
     <div><mat-label>System type</mat-label></div>
     <div>
-      <mat-select>
+      <mat-select (selectionChange)="setExclusiveEvidence('CONTEXT_SYSTEM', $event.value, undefined)" value="">
         <mat-option value="">Unknown</mat-option>
         <mat-option *ngFor="let it of items.items['CONTEXT_SYSTEM']" [value]="it">
           {{ descriptions[it] }}
@@ -38,7 +38,7 @@
   <ng-template ngFor let-its [ngForOf]="items.items | keyvalue">
     <mat-tab *ngIf="descriptions[its.key]" [label]="descriptions[its.key]">
       <div class="toggle-container" fxLayout="row wrap">
-        <mat-slide-toggle *ngFor="let it of its.value" fxFlex="0 1 300px">{{descriptions[it]}}</mat-slide-toggle>
+        <mat-slide-toggle *ngFor="let it of its.value" fxFlex="0 1 300px" [matTooltip]="descriptions[it]" [matTooltipShowDelay]="1000" (change)="setEvidence(it, $event.checked)">{{descriptions[it]}}</mat-slide-toggle>
       </div>
     </mat-tab>
   </ng-template>
@@ -46,7 +46,7 @@
 
 </div>
 
-<div class="ranking" fxFlex="1 1 40%" fxFlex.lt-md="1 1 100%">
-TBD
+<div class="ranking" fxFlex="1 1 40%" fxFlex.lt-md="1 1 100%" style="margin-top: 50px">
+<button mat-raised-button style="display: block; width: 250px; margin-left: auto; margin-right: auto" color="primary">Run your personal analysis</button>
 </div>
 </div>
