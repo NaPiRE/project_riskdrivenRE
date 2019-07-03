@@ -8,10 +8,10 @@ import { AppComponent } from './app.component';
 import { RankingComponent } from './ranking/ranking.component';
 
 import {
-  MatButtonModule, MatCheckboxModule, MatChipsModule,
-  MatFormFieldModule, MatProgressBarModule, MatSelectModule,
-  MatSliderModule, MatSlideToggleModule, MatTabsModule,
-  MatToolbarModule, MatTooltipModule
+  MatButtonModule, MatCardModule, MatCheckboxModule,
+  MatChipsModule, MatFormFieldModule, MatProgressBarModule,
+  MatSelectModule, MatSliderModule, MatSlideToggleModule,
+  MatTableModule, MatTabsModule, MatToolbarModule, MatTooltipModule
 } from '@angular/material';
 import { FlexLayoutModule } from "@angular/flex-layout";
 
@@ -29,6 +29,7 @@ import { FlexLayoutModule } from "@angular/flex-layout";
     HttpClientModule,
 
     MatButtonModule,
+    MatCardModule,
     MatCheckboxModule,
     MatChipsModule,
     MatFormFieldModule,
@@ -36,6 +37,7 @@ import { FlexLayoutModule } from "@angular/flex-layout";
     MatSelectModule,
     MatSliderModule,
     MatSlideToggleModule,
+    MatTableModule,
     MatTabsModule,
     MatToolbarModule,
     MatTooltipModule

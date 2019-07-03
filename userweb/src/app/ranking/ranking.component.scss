@@ -39,3 +39,13 @@ mat-tab-group {
 .toggle-container {
   overflow-y: hidden;
 }
+
+.mat-cell, mat-header-cell {
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+:host ::ng-deep .mat-card-header-text {
+  width: 100%;
+  text-align: center;
+}
