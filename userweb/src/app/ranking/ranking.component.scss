@@ -1,6 +1,6 @@
 .table {
   display: table;
-  width: 650px;
+  width: 100%;
   div {
     display: table-row;
     div {
@@ -22,5 +22,20 @@
 
 :host ::ng-deep .mat-slider-thumb-label {
   width: 40px;
-  height: 40px
+  height: 40px;
+  font-weight: bold;
+}
+
+:host ::ng-deep .mat-slider-thumb-label-text {
+  font-weight: bold;
+}
+
+mat-tab-group {
+  mat-slide-toggle {
+    margin: 6px;
+  }
+}
+
+.toggle-container {
+  overflow-y: hidden;
 }

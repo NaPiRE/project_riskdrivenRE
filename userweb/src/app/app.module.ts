@@ -10,7 +10,8 @@ import { RankingComponent } from './ranking/ranking.component';
 import {
   MatButtonModule, MatCheckboxModule, MatChipsModule,
   MatFormFieldModule, MatSelectModule, MatSliderModule,
-  MatSlideToggleModule, MatToolbarModule } from '@angular/material';
+  MatSlideToggleModule, MatTabsModule, MatToolbarModule } from '@angular/material';
+import { FlexLayoutModule } from "@angular/flex-layout";
 
 @NgModule({
   declarations: [
@@ -21,6 +22,7 @@ import {
     BrowserModule,
     AppRoutingModule,
     BrowserAnimationsModule,
+    FlexLayoutModule,
 
     HttpClientModule,
 
@@ -31,6 +33,7 @@ import {
     MatSelectModule,
     MatSliderModule,
     MatSlideToggleModule,
+    MatTabsModule,
     MatToolbarModule
   ],
   providers: [],
