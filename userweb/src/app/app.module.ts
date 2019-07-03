@@ -9,9 +9,9 @@ import { RankingComponent } from './ranking/ranking.component';
 
 import {
   MatButtonModule, MatCheckboxModule, MatChipsModule,
-  MatFormFieldModule, MatSelectModule, MatSliderModule,
-  MatSlideToggleModule, MatTabsModule, MatToolbarModule,
-  MatTooltipModule
+  MatFormFieldModule, MatProgressBarModule, MatSelectModule,
+  MatSliderModule, MatSlideToggleModule, MatTabsModule,
+  MatToolbarModule, MatTooltipModule
 } from '@angular/material';
 import { FlexLayoutModule } from "@angular/flex-layout";
 
@@ -32,6 +32,7 @@ import { FlexLayoutModule } from "@angular/flex-layout";
     MatCheckboxModule,
     MatChipsModule,
     MatFormFieldModule,
+    MatProgressBarModule,
     MatSelectModule,
     MatSliderModule,
     MatSlideToggleModule,

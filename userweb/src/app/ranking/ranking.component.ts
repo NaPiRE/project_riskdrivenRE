@@ -45,6 +45,7 @@ export class RankingComponent {
   descriptions:any = null;
   items:any = null;
   loaded:boolean = false;
+  running:boolean = false;
 
   evidence = {};
 
@@ -74,6 +75,11 @@ export class RankingComponent {
 
     let item = 'CONTEXT_SIZE_' + slider_val.toString().padStart(2, '0');
     this.setExclusiveEvidence('CONTEXT_SIZE', item, false);
+  }
+
+  run() {
+    this.running = true;
+    setTimeout( () => this.running = false, 2000);
   }
 
   generic_categories = {

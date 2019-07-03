@@ -47,6 +47,7 @@
 </div>
 
 <div class="ranking" fxFlex="1 1 40%" fxFlex.lt-md="1 1 100%" style="margin-top: 50px">
-<button mat-raised-button style="display: block; width: 250px; margin-left: auto; margin-right: auto" color="primary">Run your personal analysis</button>
+<button *ngIf="!running" mat-raised-button style="display: block; width: 250px; margin-left: auto; margin-right: auto" color="primary" (click)="run()">Run your personal analysis</button>
+<mat-progress-bar *ngIf="running" mode="indeterminate" style="margin-top: 200px; margin-left: 50px; margin-right: 50px; width: calc(100% - 100px)"></mat-progress-bar>
 </div>
 </div>
