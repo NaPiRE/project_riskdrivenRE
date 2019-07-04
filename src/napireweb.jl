@@ -284,9 +284,12 @@ module web
     end
 
     function __infer(query_dict; kwargs...)
+        println("Loading graph")
         data = __load_graph(query_dict, "false")
 
+        println("Training model")
         md = napire.train(data, Val(query_dict["model"]))
+        println("Running inference")
         result = napire.predict(md, query_dict["inference_method"], query_dict["query"], query_dict["evidence"])
 
         plot = nothing
