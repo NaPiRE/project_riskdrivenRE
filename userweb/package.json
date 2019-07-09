@@ -4,7 +4,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build --base-href /userweb/",
+    "build": "ng build --base-href /userweb/ --output-path build-debug",
+    "build-prod": "ng build --base-href /userweb/ --prod --delete-output-path --output-path build-prod",
     "test": "ng test",
     "lint": "ng lint",
     "e2e": "ng e2e"
