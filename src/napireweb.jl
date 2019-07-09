@@ -283,12 +283,23 @@ module web
         return __run_task(:TASK_INFERENCE, 1, __infer, (1, ), query_dict)
     end
 
+    __last_model = nothing
     function __infer(query_dict; kwargs...)
-        println("Loading graph")
-        data = __load_graph(query_dict, "false")
+        global __last_model
 
-        println("Training model")
-        md = napire.train(data, Val(query_dict["model"]))
+        key = JSON.json(query_dict)
+        if __last_model == nothing || __last_model[1] != key
+            println("Loading graph")
+            data = __load_graph(query_dict, "false")
+
+            println("Training model")
+            md = napire.train(data, Val(query_dict["model"]))
+
+            __last_model = (key, data, md)
+        end
+
+        key, data, md = __last_model
+
         println("Running inference")
         result = napire.predict(md, query_dict["inference_method"], query_dict["query"], query_dict["evidence"])
 
