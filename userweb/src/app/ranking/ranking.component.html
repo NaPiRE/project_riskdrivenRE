@@ -3,7 +3,7 @@
 </div>
 
 <div class="container" fxLayout="row wrap" *ngIf="loaded">
-<div class="input-form" fxFlex="1 1 60%" fxFlex.lt-md="1 1 100%">
+<div class="input-form" fxFlex="1 1 60%" fxFlex.lt-lg="1 1 100%">
 
 <div class="table">
   <div *ngIf="items.items['CONTEXT_DISTRIBUTED']">
@@ -42,7 +42,8 @@
   <ng-template ngFor let-its [ngForOf]="items.items | keyvalue">
     <mat-tab *ngIf="descriptions[its.key]" [label]="descriptions[its.key]">
       <div class="toggle-container" fxLayout="row wrap">
-        <mat-slide-toggle *ngFor="let it of its.value" fxFlex="0 1 300px" [matTooltip]="descriptions[it]" [matTooltipShowDelay]="1000" (change)="setEvidence(it, $event.checked)">{{descriptions[it]}}</mat-slide-toggle>
+        <mat-slide-toggle *ngFor="let it of its.value" fxFlex="0 1 300px" [matTooltip]="descriptions[it]"
+ [matTooltipShowDelay]="1000" (change)="setEvidence(it, $event.checked)">{{descriptions[it]}}</mat-slide-toggle>
       </div>
     </mat-tab>
   </ng-template>
@@ -50,7 +51,7 @@
 
 </div>
 
-<div class="ranking" fxFlex="1 1 40%" fxFlex.lt-md="1 1 100%" style="margin-top: 50px; padding-left: 50px; padding-right: 50px;">
+<div class="ranking" fxFlex="1 1 40%" fxFlex.lt-lg="1 1 100%" style="margin-top: 50px; padding-left: 50px; padding-right: 50px;">
 <button *ngIf="!running" mat-raised-button style="display: block; width: 250px; margin-left: auto; margin-right: auto" color="primary" (click)="run()">Run your personal analysis</button>
 <mat-progress-bar *ngIf="running" mode="indeterminate" style="margin-top: 200px; margin-left: 50px; margin-right: 50px; width: calc(100% - 100px)"></mat-progress-bar>
 
@@ -92,6 +93,16 @@
       <button mat-button *ngIf="!showall" (click)="showall = true">Show more</button>
       <button mat-button *ngIf="showall" (click)="showall = false">Show less</button>
     </div>
+  </mat-card-content>
+</mat-card>
+
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>Causal structure </mat-card-title>
+    <mat-card-subtitle>The following causal structure has been used to infer the above results. Click to zoom.</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <a (click)="showFullImage()" style="cursor: pointer;"><img style="width: 100%" [src]="plot"/></a>
   </mat-card-content>
 </mat-card>
 

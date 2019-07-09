@@ -5,20 +5,26 @@ import { HttpClientModule } from '@angular/common/http';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
+import { ImageComponent } from './image/image.component';
 import { RankingComponent } from './ranking/ranking.component';
 
 import {
   MatButtonModule, MatCardModule, MatCheckboxModule,
-  MatChipsModule, MatFormFieldModule, MatProgressBarModule,
-  MatSelectModule, MatSliderModule, MatSlideToggleModule,
-  MatTableModule, MatTabsModule, MatToolbarModule, MatTooltipModule
+  MatChipsModule, MatDialogModule,
+  MatFormFieldModule, MatProgressBarModule, MatSelectModule,
+  MatSliderModule, MatSlideToggleModule, MatTableModule,
+  MatTabsModule, MatToolbarModule, MatTooltipModule
 } from '@angular/material';
 import { FlexLayoutModule } from "@angular/flex-layout";
 
 @NgModule({
   declarations: [
     AppComponent,
-    RankingComponent
+    RankingComponent,
+    ImageComponent
+  ],
+  entryComponents: [
+    ImageComponent
   ],
   imports: [
     BrowserModule,
@@ -32,6 +38,7 @@ import { FlexLayoutModule } from "@angular/flex-layout";
     MatCardModule,
     MatCheckboxModule,
     MatChipsModule,
+    MatDialogModule,
     MatFormFieldModule,
     MatProgressBarModule,
     MatSelectModule,
