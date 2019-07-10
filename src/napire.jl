@@ -87,6 +87,7 @@ module napire
             graphviz.set(graph, node, graphviz.label, label(node))
             graphviz.set(graph, node, graphviz.margin, 0)
             graphviz.set(graph, node, graphviz.shape, shape(node))
+            graphviz.set(graph, node, graphviz.tooltip, data.descriptions[node])
         end
 
         graphviz.set(graph, graphviz.ranksep, ranksep)

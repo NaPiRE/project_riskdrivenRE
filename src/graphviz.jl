@@ -34,6 +34,7 @@ module graphviz
         label
         margin
         shape
+        tooltip
     end
 
     @enum DotEdgeProps begin
@@ -43,7 +44,6 @@ module graphviz
 
     @enum OutputType begin
         dot
-        png
         xdg_open
         display
     end
@@ -90,6 +90,21 @@ module graphviz
         plot(graph, Val(output_type))
     end
 
+    function plot(graph::Dot, output_type::String)
+        dotsrc = plot(graph, Val(dot))
+
+        dotfile = tempname()
+        outfile = tempname()
+        try
+            write(dotfile, dotsrc)
+            run(`dot -o$outfile -T$output_type $dotfile`)
+            return read(outfile)
+        finally
+            rm(dotfile, force = true)
+            rm(outfile, force = true)
+        end
+    end
+
     function plot(graph::Dot, output_type::Val{dot})
         dotsrc = "digraph out {\n"
         dotsrc *= "graph" * __to_dot_props(graph.graph_props)
@@ -106,28 +121,13 @@ module graphviz
         return dotsrc
     end
 
-    function plot(graph::Dot, output_type::Val{png})
-        dotsrc = plot(graph, Val(dot))
-
-        dotfile = tempname()
-        pngfile = tempname()
-        try
-            write(dotfile, dotsrc)
-            run(`dot -o$pngfile -Tpng $dotfile`)
-            return read(pngfile)
-        finally
-            rm(dotfile, force = true)
-            rm(pngfile, force = true)
-        end
-    end
-
     function plot(graph::Dot, output_type::Val{display})
-        pngdata = plot(graph, Val(png))
+        pngdata = plot(graph, "png")
         Base.display("image/png", pngdata)
     end
 
     function plot(graph::Dot, output_type::Val{xdg_open})
-        pngdata = plot(graph, Val(png))
+        pngdata = plot(graph, "png")
 
         pngfile = tempname()
         write(pngfile, pngdata)

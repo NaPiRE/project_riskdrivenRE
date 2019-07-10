@@ -36,7 +36,7 @@ module web
     MAXIMUM_TASKS = nothing
 
     function query_legend()
-        return napire.plot_legend(napire.graphviz.png)
+        return napire.plot_legend("svg")
     end
 
     function options(dict, default)
@@ -266,7 +266,7 @@ module web
 
         query = Set(Symbol(q) for q in get(query_dict, "query", []))
         evidence = Dict{Symbol, Bool}( Symbol(kv.first) => convert(Bool, kv.second) for kv in get(query_dict, "evidence", Dict()))
-        return "data:image/png;base64," * Base64.base64encode(napire.plot_prediction(data, query, evidence, Dict(), napire.graphviz.png))
+        return "data:image/svg+xml;base64," * Base64.base64encode(napire.plot_prediction(data, query, evidence, Dict(), "svg"))
     end
 
     function infer(query_dict = nothing)
@@ -305,7 +305,7 @@ module web
 
         plot = nothing
         if query_dict["plot"]
-            plot = "data:image/png;base64," * Base64.base64encode(napire.plot_prediction(data, query_dict["query"], query_dict["evidence"], result, napire.graphviz.png))
+            plot = "data:image/svg+xml;base64," * Base64.base64encode(napire.plot_prediction(data, query_dict["query"], query_dict["evidence"], result, "svg"))
         end
 
         return (data = result, plot = plot)
@@ -361,9 +361,9 @@ module web
         (path = "/models", method = "GET")  => (fn = options(napire.models, napire.default_model), content = "application/json"),
         (path = "/descriptions", method = "POST") => (fn = descriptions, content = "application/json"),
         (path = "/items", method = "POST")  => (fn = items, content = "application/json"),
-        (path = "/plot", method = "POST") => (fn = plot, content = "image/png"),
+        (path = "/plot", method = "POST") => (fn = plot, content = "text/plain"),
         (path = "/infer", method = "POST") => (fn = infer, content = "application/json"),
-        (path = "/query_legend", method = "GET") => (fn = query_legend, content = "image/png"),
+        (path = "/query_legend", method = "GET") => (fn = query_legend, content = "image/svg+xml"),
         (path = "/validate", method = "POST")  => (fn = validate, content = "application/json"),
         (path = "/tasks", method = "GET")  => (fn = tasks, content = "application/json"),
         (path = "/tasks", method = "POST")  => (fn = tasks_cancel, content = "application/json"),
