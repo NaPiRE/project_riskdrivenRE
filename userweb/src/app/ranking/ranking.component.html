@@ -6,15 +6,15 @@
 <div class="input-form" fxFlex="1 1 60%" fxFlex.lt-lg="1 1 100%">
 
 <div class="table">
-  <div *ngIf="items.items['CONTEXT_DISTRIBUTED']">
+  <div *ngIf="items.items['CONTEXT_DISTRIBUTED'].length > 0">
     <div><mat-label>Distributed project</mat-label></div>
     <div class="center"><mat-slide-toggle (change)="setEvidence('CONTEXT_DISTRIBUTED_00', $event.checked)"></mat-slide-toggle></div>
   </div>
-  <div *ngIf="items.items['CONTEXT_SIZE']">
+  <div *ngIf="items.items['CONTEXT_SIZE'].length > 0">
     <div><mat-label>Project team size</mat-label></div>
     <div><mat-slider *ngIf="descriptions != null" min="-1" max="5" step="1" value="-1" thumbLabel tickInterval="1" [displayWith]="sliderDisplayWith()" (change)="setSliderEvidence($event.value)"></mat-slider></div>
   </div>
-  <div *ngIf="items.items['CONTEXT_DEV']">
+  <div *ngIf="items.items['CONTEXT_DEV'].length > 0">
     <div><mat-label>Development paradigm</mat-label></div>
     <div>
       <mat-select (selectionChange)="setExclusiveEvidence('CONTEXT_DEV', $event.value, undefined)" value="">
@@ -25,7 +25,7 @@
       </mat-select>
     </div>
   </div>
-  <div *ngIf="items.items['CONTEXT_SYSTEM']">
+  <div *ngIf="items.items['CONTEXT_SYSTEM'].length > 0">
     <div><mat-label>System type</mat-label></div>
     <div>
       <mat-select (selectionChange)="setExclusiveEvidence('CONTEXT_SYSTEM', $event.value, undefined)" value="">
