@@ -116,7 +116,14 @@ module web
     end
 
     function tasks(; id = nothing, printresult = "false")
-        return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult))
+        try
+            return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult))
+        catch e
+            if isa(e, KeyError)
+                throw(WebApplicationException(404, "No such task"))
+            end
+            reraise
+        end
     end
 
     function tasks_cancel(; id = nothing, printresult = "false")
@@ -410,7 +417,8 @@ module web
         end
 
         if key != checked_key && haskey(APISPEC, checked_key)
-            return HTTP.Response(301, [ ("Location", checked_key.path) ])
+            # return HTTP.Response(301, [ ("Location", checked_key.path) ])
+            key = checked_key
         elseif !haskey(APISPEC, key)
             throw(WebApplicationException(404))
         end

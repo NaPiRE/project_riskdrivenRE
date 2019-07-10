@@ -1,11 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, isDevMode } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { DomSanitizer } from '@angular/platform-browser';
+import { ActivatedRoute, ActivationEnd, Router } from '@angular/router';
 
 import { ImageComponent } from '../image/image.component';
 import { MatDialog } from '@angular/material/dialog';
 
 import { Observable, of, timer, throwError, zip } from 'rxjs';
-import { catchError, map, flatMap, retry } from 'rxjs/operators';
+import { catchError, map, flatMap, filter, retry, tap } from 'rxjs/operators';
 @Component({
   selector: 'app-ranking',
   templateUrl: './ranking.component.html',
@@ -13,20 +15,19 @@ import { catchError, map, flatMap, retry } from 'rxjs/operators';
 })
 export class RankingComponent {
 
-  private TEST = true;
   private MAX_ITEMS = 5;
 
   private errorHandler = err => {
     let p = new URL(err.url).pathname
-    if(this.TEST && this.fallback_data[p]) {
-      return timer(0).pipe(map(t => this.fallback_data[p]));
+    if(isDevMode() && this.fallback_data[p]) {
+      return timer(1000).pipe(map(t => this.fallback_data[p]));
     } else {
       alert("Request to " + p + " failed: " + err.statusText + " (" + err.status + ")");
       return throwError(err);
     }
   };
 
-  constructor(private http: HttpClient, private dialog: MatDialog) {
+  constructor(private http: HttpClient, private dialog: MatDialog, private activatedRoute: ActivatedRoute, private router: Router, private sanitizer: DomSanitizer) {
     http.post("/descriptions", this.model).pipe(
       catchError(this.errorHandler),
       map(descriptions => {
@@ -59,6 +60,48 @@ export class RankingComponent {
     ).subscribe(data => {
       this.loaded = true;
     });
+
+    this.activatedRoute.queryParams.pipe(
+      map(params => params['id']),
+      tap(taskId => this.running = true),
+      flatMap(taskId => !taskId ? of({ 'state': 'NOTASK' }) : this.http.get('/tasks?printresult=true&id=' + taskId).pipe(
+            catchError(err => {
+              if(err.status == 404 && !isDevMode()) {
+                return of({ 'state': 'NOTASK' });
+              }
+
+              return this.errorHandler(err);
+            }),
+            flatMap(result => (result.state == 'RUNNING') ? timer(1000).pipe(flatMap(t => throwError('RUNNING'))) : of(result)),
+            retry())
+      ),
+      catchError(err => {
+        return of({ 'state': 'FAILED', 'result': err });
+      })
+    ).subscribe(result => {
+      this.running = false;
+
+      if(result.state == 'FAILED') {
+        this.result = null;
+        this.plot = null;
+      } else if(result.state == 'NOTASK') {
+        this.router.navigate( [ ], { relativeTo: this.activatedRoute, queryParams: {} });
+        return;
+      }
+
+      this.plot = this.sanitizer.bypassSecurityTrustUrl(result.result.plot);
+      result = Object.entries(result.result.data);
+      result.sort( (r1, r2) => r2[1] - r1[1] );
+      this.result = [];
+      this.shortresult = [];
+      for(let i = 0; i < result.length; i++) {
+        let val = [ i + 1, this.descriptions[result[i][0]], Math.round(result[i][1] * 100) ];
+        this.result.push(val);
+        if(i < this.MAX_ITEMS) {
+          this.shortresult.push(val);
+        }
+      }
+    });
   }
 
   model = {"dataset":"napire.DataSets.nap_2018","nodes":[{"node_type":"CAUSES_CODE","filter":45,"weighted_filter":true,"absent_is_unknown":false},{"node_type":"CONTEXT_DEV","filter":5,"weighted_filter":true,"absent_is_unknown":false},{"node_type":"CONTEXT_DISTRIBUTED","filter":5,"weighted_filter":true,"absent_is_unknown":false},{"node_type":"CONTEXT_SIZE","filter":5,"weighted_filter":true,"absent_is_unknown":false},{"node_type":"CONTEXT_SYSTEM","filter":5,"weighted_filter":true,"absent_is_unknown":false},{"node_type":"EFFECTS_CODE","filter":5,"weighted_filter":true,"absent_is_unknown":false},{"node_type":"PROBLEMS_CODE","filter":5,"weighted_filter":true,"absent_is_unknown":false},{"node_type":"RELATIONSHIP","filter":5,"weighted_filter":true,"absent_is_unknown":false}],"connect":[{"from":"RELATIONSHIP","to":"PROBLEMS_CODE","filter":10,"weighted_filter":true},{"from":"CONTEXT_SIZE","to":"PROBLEMS_CODE","filter":10,"weighted_filter":true},{"from":"CONTEXT_DISTRIBUTED","to":"PROBLEMS_CODE","filter":10,"weighted_filter":true},{"from":"CONTEXT_DEV","to":"PROBLEMS_CODE","filter":10,"weighted_filter":true},{"from":"EFFECTS_CODE","to":"CAUSES_CODE","filter":10,"weighted_filter":true},{"from":"PROBLEMS_CODE","to":"CAUSES_CODE","filter":10,"weighted_filter":true}],"query":["CAUSES_CODE_42","CAUSES_CODE_112","CAUSES_CODE_65","CAUSES_CODE_02","CAUSES_CODE_85","CAUSES_CODE_118","CAUSES_CODE_37","CAUSES_CODE_115","CAUSES_CODE_55","CAUSES_CODE_39","CAUSES_CODE_99","CAUSES_CODE_89","CAUSES_CODE_93","CAUSES_CODE_46","CAUSES_CODE_25","CAUSES_CODE_14","CAUSES_CODE_100","CAUSES_CODE_88","CAUSES_CODE_69","CAUSES_CODE_48","CAUSES_CODE_68"],"evidence":{},"inference_method":""}
@@ -70,7 +113,7 @@ export class RankingComponent {
 
   showall:boolean = false;
   result:any = null;
-  plot:string = null;
+  plot:any = null;
   shortresult:any = null;
 
   evidence = {};
@@ -104,47 +147,22 @@ export class RankingComponent {
   }
 
   run() {
-    this.running = true;
-
     let query_dict = Object.assign({}, this.model);
     query_dict['inference_method'] = 'BayesNets.GibbsSamplingFull';
     query_dict['plot'] = true;
     query_dict['timeout'] = 0.1;
+    this.running = true;
 
     this.http.post('/infer', query_dict).pipe(
-        catchError(this.errorHandler),
-        flatMap(taskId => this.http.get('/tasks?printresult=true&id=' + taskId).pipe(
-            catchError(this.errorHandler),
-            flatMap(result => {
-              return (result.state == 'RUNNING') ? timer(1000).pipe(flatMap(t => throwError('RUNNING'))) : of(result);
-            }),
-            retry()
-        ))
-    ).subscribe(
-      result => {
+        catchError(this.errorHandler)
+    ).subscribe(taskId => {
+      if(this.activatedRoute.snapshot.queryParams['id'] == taskId) {
         this.running = false;
-        if(result.state == 'FAILED') {
-          alert('Inference failed: ' + result.result);
-          return;
-        }
+        return;
+      }
 
-        this.plot = result.result.plot;
-        result = Object.entries(result.result.data);
-        result.sort( (r1, r2) => r2[1] - r1[1] );
-        this.result = [];
-        this.shortresult = [];
-        for(let i = 0; i < result.length; i++) {
-          let val = [ i + 1, this.descriptions[result[i][0]], Math.round(result[i][1] * 100) ];
-          this.result.push(val);
-          if(i < this.MAX_ITEMS) {
-            this.shortresult.push(val);
-          }
-        }
-
-      },
-      err => {
-        this.running = false;
-      });
+      this.router.navigate([ ], { relativeTo: this.activatedRoute, queryParams: { 'id': taskId } });
+    });
   }
 
   showFullImage() {
@@ -932,7 +950,7 @@ export class RankingComponent {
       }
   },
 
-  "/infer": 1,
+  "/infer": 6,
   "/tasks": {
       "result": {
         "data":{"CAUSES_CODE_06":0.068,"CAUSES_CODE_65":0.08600000000000001,"CAUSES_CODE_89":0.116,"CAUSES_CODE_118":0.076,"CAUSES_CODE_08":0.11,"CAUSES_CODE_48":0.15400000000000003,"CAUSES_CODE_99":0.066},
