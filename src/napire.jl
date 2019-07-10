@@ -84,13 +84,15 @@ module napire
         graph = graphviz.Dot(data.nodes, keys(graph_layout))
 
         for node in data.nodes
-            graphviz.set(graph, node, graphviz.label, label(node))
-            graphviz.set(graph, node, graphviz.margin, 0)
-            graphviz.set(graph, node, graphviz.shape, shape(node))
-            graphviz.set(graph, node, graphviz.tooltip, data.descriptions[node])
+            graphviz.set(graph, node, graphviz.NodeProps.label, label(node))
+            graphviz.set(graph, node, graphviz.NodeProps.margin, 0)
+            graphviz.set(graph, node, graphviz.NodeProps.fillcolor, "white")
+            graphviz.set(graph, node, graphviz.NodeProps.style, "filled")
+            graphviz.set(graph, node, graphviz.NodeProps.shape, shape(node))
+            graphviz.set(graph, node, graphviz.NodeProps.tooltip, data.descriptions[node])
         end
 
-        graphviz.set(graph, graphviz.ranksep, ranksep)
+        graphviz.set(graph, graphviz.GraphProps.ranksep, ranksep)
 
         max_edges = isempty(graph_layout) ? 0 : maximum(values(graph_layout))
 
@@ -98,8 +100,9 @@ module napire
             edge_weight = n_edges / max_edges
             alpha = @sprintf("%02x", round(edge_weight * 255))
 
-            graphviz.set(graph, (n1 => n2), graphviz.penwidth, edge_weight * penwidth_factor)
-            graphviz.set(graph, (n1 => n2), graphviz.color, "#000000$(alpha)")
+            graphviz.set(graph, (n1 => n2), graphviz.EdgeProps.color, "#000000$(alpha)")
+            graphviz.set(graph, (n1 => n2), graphviz.EdgeProps.penwidth, edge_weight * penwidth_factor)
+            graphviz.set(graph, (n1 => n2), graphviz.EdgeProps.tooltip, data.descriptions[n1] * "\n ---> \n" * data.descriptions[n2])
         end
 
         graphviz.plot(graph, output_type)
