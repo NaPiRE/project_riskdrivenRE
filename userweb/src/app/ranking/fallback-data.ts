@@ -1,6 +1,6 @@
-import { isDevMode } from '@angular/core';
+import { environment } from '../../environments/environment';
 
-export const fallback_data = !isDevMode() ? { '/tasks': { 'state': 'NOTASK' } } : {
+export const fallback_data = environment.production ? { '/tasks': { 'state': 'NOTASK' } } : {
 
   "/descriptions": {
       "CAUSES_CODE_42": "Lack of experience of RE team members",

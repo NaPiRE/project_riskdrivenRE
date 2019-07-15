@@ -6,6 +6,16 @@
 <div class="input-form" fxFlex="1 1 60%" fxFlex.lt-lg="1 1 100%">
 
 <div class="table">
+  <div>
+    <div><mat-label>Analysis type</mat-label></div>
+    <div>
+      <mat-select (selectionChange)="updateModel($event.value)" [value]="model_id">
+        <mat-option *ngFor="let it of MODEL_DEFINITIONS" [value]="it">
+          {{ it }}
+        </mat-option>
+      </mat-select>
+    </div>
+  </div>
   <div *ngIf="items.items['CONTEXT_DISTRIBUTED'].length > 0">
     <div><mat-label>Distributed project</mat-label></div>
     <div class="center"><mat-slide-toggle (change)="setEvidence('CONTEXT_DISTRIBUTED_00', $event.checked)"></mat-slide-toggle></div>
@@ -38,9 +48,9 @@
   </div>
 </div>
 
-<mat-tab-group>
+<mat-tab-group mat-stretch-tabs>
   <ng-template ngFor let-its [ngForOf]="items.items | keyvalue">
-    <mat-tab *ngIf="descriptions[its.key]" [label]="descriptions[its.key]">
+    <mat-tab *ngIf="generic_categories[its.key]" [label]="descriptions[its.key]">
       <div class="toggle-container" fxLayout="row wrap">
         <mat-slide-toggle *ngFor="let it of its.value" fxFlex="0 1 300px" [matTooltip]="descriptions[it]"
  [matTooltipShowDelay]="1000" (change)="setEvidence(it, $event.checked)">{{descriptions[it]}}</mat-slide-toggle>
@@ -62,7 +72,7 @@
 <mat-card>
   <mat-card-header>
     <mat-card-title>Analysis results</mat-card-title>
-    <mat-card-subtitle>We estimate the following issues to be the causes for your RE project's trouble.</mat-card-subtitle>
+    <mat-card-subtitle>{{ model_explanation }}</mat-card-subtitle>
   </mat-card-header>
   <mat-card-content>
     <table mat-table [dataSource]="showall ? task_result : task_shortresult" style="width: 100%">

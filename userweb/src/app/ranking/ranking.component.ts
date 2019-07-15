@@ -20,6 +20,7 @@ import { models } from './models';
 export class RankingComponent {
 
   private MAX_ITEMS = 5;
+  public MODEL_DEFINITIONS = Object.keys(models).sort();
 
   private errorHandler = err => {
     let p = new URL(err.url).pathname
@@ -34,10 +35,13 @@ export class RankingComponent {
   constructor(private http: HttpClient, private dialog: MatDialog, private activatedRoute: ActivatedRoute, private router: Router, private sanitizer: DomSanitizer) {
     this.activatedRoute.queryParams.pipe(
         flatMap(params => {
-          let model_id = params['model'] ? params['model'] : 'Cause analyzer';
+          let model_id = params['model'];
+          model_id = params['model'] ? model_id : this.MODEL_DEFINITIONS[0];
+          model_id = models[model_id] ? model_id : this.MODEL_DEFINITIONS[0];
 
           this.model = models[model_id]['model'];
           this.generic_categories = models[model_id]['generic_categories'];
+          this.model_explanation = models[model_id]['explanation'];
 
           let obs = (model_id == this.model_id) ? of({ 'params': params, 'descriptions': this.descriptions, 'task_data': undefined, 'items': this.items }) : http.post("/descriptions", this.model).pipe(
             catchError(this.errorHandler),
@@ -83,6 +87,7 @@ export class RankingComponent {
           } else if (taskId == this.task_id) {
             obs = of(this.task_data);
           } else {
+            this.running = true;
             obs = this.http.get('/tasks?printresult=true&id=' + taskId);
           }
           this.task_id = taskId;
@@ -106,8 +111,12 @@ export class RankingComponent {
           this.task_result = null;
           this.task_shortresult = null;
           this.plot = null;
+          return;
         } else if(task_data.state == 'NOTASK') {
-          this.router.navigate( [ ], { relativeTo: this.activatedRoute, queryParams: { 'model' : result.params['model'] } });
+          this.router.navigate( [ ], { relativeTo: this.activatedRoute, queryParams: { 'id': null, 'model' : this.model_id } });
+          this.task_result = null;
+          this.task_shortresult = null;
+          this.plot = null;
           return;
         }
 
@@ -132,6 +141,7 @@ export class RankingComponent {
 
   model:any = null;
   generic_categories:any = null;
+  model_explanation:any = null;
 
   descriptions:any = null;
   task_data:any = null;
@@ -148,6 +158,11 @@ export class RankingComponent {
   plot_svg:boolean = false;
 
   evidence = {};
+
+  updateModel(value) {
+    this.loaded = false;
+    this.router.navigate([ ], { relativeTo: this.activatedRoute, queryParams: { 'model': value, 'id': null } });
+  }
 
   sliderDisplayWith() {
       return (slider_val) => slider_val < 0 ? '?' : this.descriptions['CONTEXT_SIZE_' + slider_val.toString().padStart(2, '0')];
@@ -192,7 +207,7 @@ export class RankingComponent {
         return;
       }
 
-      this.router.navigate([ ], { relativeTo: this.activatedRoute, queryParams: { 'id': taskId } });
+      this.router.navigate([ ], { relativeTo: this.activatedRoute, queryParams: { 'id': taskId, 'model': this.model_id } });
     });
   }
 
