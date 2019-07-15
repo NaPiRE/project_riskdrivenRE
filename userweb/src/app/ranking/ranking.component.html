@@ -113,8 +113,25 @@
     <mat-card-subtitle>The following causal structure has been used to infer the above results. Click to zoom.</mat-card-subtitle>
   </mat-card-header>
   <mat-card-content style="text-align: center">
-    <a (click)="showFullImage()" style="cursor: pointer; display: block; width: 100%;"><img style="max-width: 100%; max-height: 250px" [src]="plot"/></a>
+    <a (click)="showFullImage()" style="cursor: pointer; display: block; width: 100%;"><img style="max-width: 100%; max-height: 150px" [src]="plot"/></a>
   </mat-card-content>
+</mat-card>
+
+
+<mat-card *ngIf="model_validation">
+  <mat-card-header>
+    <mat-card-title>Model accuracy</mat-card-title>
+    <mat-card-subtitle>To analyse the pre-computed performance characteristics of your analysis type, please choose at least one indicator</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content style="text-align: center">
+    <mat-button-toggle-group multiple (change)="visible_validations = $event.value">
+      <mat-button-toggle *ngFor="let metric of model_validation_keys" [value]="metric">{{metric.replace('napire.Metrics.', '').replace('_', ' ')}}</mat-button-toggle>
+    </mat-button-toggle-group>
+  </mat-card-content>
+
+  <div *ngFor="let metric of model_validation_keys">
+    <span *ngIf="visible_validations.indexOf(metric) >= 0">{{metric}}</span>
+  </div>
 </mat-card>
 
 </div>

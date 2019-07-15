@@ -49,3 +49,8 @@ mat-tab-group {
   width: 100%;
   text-align: center;
 }
+
+:host ::ng-deep .mat-button-toggle-appearance-standard .mat-button-toggle-label-content {
+  line-height: 36px;
+}
+

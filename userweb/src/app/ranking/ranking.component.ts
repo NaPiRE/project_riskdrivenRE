@@ -42,6 +42,8 @@ export class RankingComponent {
           this.model = models[model_id]['model'];
           this.generic_categories = models[model_id]['generic_categories'];
           this.model_explanation = models[model_id]['explanation'];
+          this.model_validation = models[model_id]['validation'];
+          this.model_validation_keys = Object.keys(this.model_validation).sort();
 
           let obs = (model_id == this.model_id) ? of({ 'params': params, 'descriptions': this.descriptions, 'task_data': undefined, 'items': this.items }) : http.post("/descriptions", this.model).pipe(
             catchError(this.errorHandler),
@@ -142,6 +144,8 @@ export class RankingComponent {
   model:any = null;
   generic_categories:any = null;
   model_explanation:any = null;
+  model_validation:any = null;
+  model_validation_keys:any = null;
 
   descriptions:any = null;
   task_data:any = null;
@@ -156,6 +160,8 @@ export class RankingComponent {
 
   plot:any = null;
   plot_svg:boolean = false;
+
+  visible_validations = [];
 
   evidence = {};
 

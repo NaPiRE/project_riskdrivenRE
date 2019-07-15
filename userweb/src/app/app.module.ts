@@ -9,10 +9,11 @@ import { ImageComponent } from './image/image.component';
 import { RankingComponent } from './ranking/ranking.component';
 
 import {
-  MatButtonModule, MatCardModule, MatCheckboxModule,
-  MatDialogModule, MatProgressBarModule, MatSelectModule,
-  MatSliderModule, MatSlideToggleModule, MatTableModule,
-  MatTabsModule, MatToolbarModule, MatTooltipModule
+  MatButtonModule, MatButtonToggleModule, MatCardModule,
+  MatCheckboxModule, MatDialogModule, MatProgressBarModule,
+  MatSelectModule, MatSliderModule, MatSlideToggleModule,
+  MatTableModule, MatTabsModule, MatToolbarModule,
+  MatTooltipModule
 } from '@angular/material';
 import { FlexLayoutModule } from "@angular/flex-layout";
 
@@ -34,6 +35,7 @@ import { FlexLayoutModule } from "@angular/flex-layout";
     HttpClientModule,
 
     MatButtonModule,
+    MatButtonToggleModule,
     MatCardModule,
     MatCheckboxModule,
     MatDialogModule,
