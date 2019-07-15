@@ -57,7 +57,7 @@
 <div *ngIf="running" style="margin-top: 50px; margin-left: auto; margin-right: auto; width: calc(100% - 100px); display: block; text-align: center">Please lean back and relax. The analysis will take a minute or two.</div>
 
 
-<div *ngIf="!running && result != null" style="margin-top: 50px">
+<div *ngIf="!running && task_result != null" style="margin-top: 50px">
 
 <mat-card>
   <mat-card-header>
@@ -65,7 +65,7 @@
     <mat-card-subtitle>We estimate the following issues to be the causes for your RE project's trouble.</mat-card-subtitle>
   </mat-card-header>
   <mat-card-content>
-    <table mat-table [dataSource]="showall ? result : shortresult" style="width: 100%">
+    <table mat-table [dataSource]="showall ? task_result : task_shortresult" style="width: 100%">
 
       <!--- Note that these columns can be defined in any order.
             The actual rendered columns are set as a property on the row definition" -->
@@ -103,7 +103,7 @@
     <mat-card-subtitle>The following causal structure has been used to infer the above results. Click to zoom.</mat-card-subtitle>
   </mat-card-header>
   <mat-card-content style="text-align: center">
-    <a (click)="showFullImage()" style="cursor: pointer;"><img style="max-width: 100%; max-height: 250px" [src]="plot"/></a>
+    <a (click)="showFullImage()" style="cursor: pointer; display: block; width: 100%;"><img style="max-width: 100%; max-height: 250px" [src]="plot"/></a>
   </mat-card-content>
 </mat-card>
 
