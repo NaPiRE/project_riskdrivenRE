@@ -159,6 +159,9 @@ module web
     function __run_task(task_type, task_workers, fun,  progress_array_shape, query_dict)
         global __available_workers, __uncreated_workers
 
+        task_id = isempty(__started_tasks) ? 1 : maximum(keys(__started_tasks)) + 1
+        steps_total = prod(progress_array_shape)
+
         setup_task = @async begin
 
             if task_workers > MAXIMUM_TASKS
@@ -166,7 +169,11 @@ module web
             end
 
             while length(__available_workers) + __uncreated_workers < task_workers
-                sleep(1)
+                println("Available workers: " * string(length(__available_workers)))
+                println("Uncreated: " * string(__uncreated_workers))
+                println("Required: " * string(task_workers))
+                println("Task " * string(task_id) * " waits for more free workers")
+                sleep(5)
             end
 
             new_workers = max(0, task_workers - length(__available_workers))
@@ -185,7 +192,7 @@ module web
             println("Creating " * string(new_workers) * " new workers")
             println("Re-using " * string(existing_workers) * " old workers")
 
-            return (
+            data = (
                 pool = Distributed.WorkerPool( [
                     reused_workers...,
                     Distributed.addprocs(new_workers, exename = joinpath(dirname(@__DIR__), "run_worker.sh"))...
@@ -195,6 +202,9 @@ module web
                 elapsed_hours   = SharedArrays.SharedArray{Float64}( (1, ) ),
                 ready           = SharedArrays.SharedArray{Int64}( (1, ) )
             )
+
+            println("Process creation done")
+            return data
         end
 
         progress_array_task = @async fetch(setup_task).progress_array
@@ -202,8 +212,9 @@ module web
         elapsed_hours_task = @async fetch(setup_task).elapsed_hours
 
         task = @async begin
+            println("Preparing task " * string(task_id))
             setup = fetch(setup_task)
-            println("Workers setup finished")
+            println("Preparation finished for task " * string(task_id))
 
             timeout = get(query_dict, "timeout", -1)
             start = time()
@@ -233,15 +244,10 @@ module web
             end
         end
 
-        task_id = isempty(__started_tasks) ? 1 : maximum(keys(__started_tasks)) + 1
-        steps_total = prod(progress_array_shape)
-
         __started_tasks[task_id] = (
             type = task_type, id = task_id, query = query_dict, elapsed_hours = elapsed_hours_task,
             steps_done = progress_array_task, steps_total = steps_total,
             interruptor = interruptor_task, task = task)
-
-        storage_file = joinpath(RESULT_DIRECTORY,  string(task_id) * ".ser")
 
         @async begin
             result = task_fetch(task, true)
@@ -263,6 +269,8 @@ module web
                 interruptor = interruptor, task = SerTask(task_state(task), result))
 
             __started_tasks[task_id] = task_data
+
+            storage_file = joinpath(RESULT_DIRECTORY,  string(task_id) * ".ser")
             Serialization.serialize(storage_file, task_data)
         end
 
@@ -295,29 +303,32 @@ module web
     function __infer(query_dict; ready, kwargs...)
         global __last_model
 
-        key = JSON.json(query_dict)
-        if __last_model == nothing || __last_model[1] != key
-            println("Loading graph")
-            data = __load_graph(query_dict, "false")
+        try
+            key = JSON.json(query_dict)
+            if __last_model == nothing || __last_model[1] != key
+                println("Loading graph")
+                data = __load_graph(query_dict, "false")
 
-            println("Training model")
-            md = napire.train(data, Val(query_dict["model"]))
+                println("Training model")
+                md = napire.train(data, Val(query_dict["model"]))
 
-            __last_model = (key, data, md)
+                __last_model = (key, data, md)
+            end
+
+            key, data, md = __last_model
+
+            println("Running inference")
+            result = napire.predict(md, query_dict["inference_method"], query_dict["query"], query_dict["evidence"])
+
+            plot = nothing
+            if query_dict["plot"]
+                plot = "data:image/svg+xml;base64," * Base64.base64encode(napire.plot_prediction(data, query_dict["query"], query_dict["evidence"], result, "svg"))
+            end
+
+            return (data = result, plot = plot)
+        finally
+            ready[1] = 1
         end
-
-        key, data, md = __last_model
-
-        println("Running inference")
-        result = napire.predict(md, query_dict["inference_method"], query_dict["query"], query_dict["evidence"])
-
-        plot = nothing
-        if query_dict["plot"]
-            plot = "data:image/svg+xml;base64," * Base64.base64encode(napire.plot_prediction(data, query_dict["query"], query_dict["evidence"], result, "svg"))
-        end
-
-        ready[0] = 1
-        return (data = result, plot = plot)
     end
 
     function items(query_dict; all_items = "false")
@@ -345,12 +356,15 @@ module web
     end
 
     function __validate(query_dict; ready, kwargs...)
-        data = __load_graph(query_dict, "false")
+        try
+            data = __load_graph(query_dict, "false")
 
-        result = napire.validate(data, query_dict["iterations"], query_dict["subsample_size"], query_dict["inference_method"],
-                                query_dict["query"], query_dict["model"], query_dict["baseline_model"]; kwargs...)
-        ready[0] = 1
-        return result
+            result = napire.validate(data, query_dict["iterations"], query_dict["subsample_size"], query_dict["inference_method"],
+                                    query_dict["query"], query_dict["model"], query_dict["baseline_model"]; kwargs...)
+            return result
+        finally
+            ready[1] = 1
+        end
     end
 
     function __load_graph(query_dict, all_items)
