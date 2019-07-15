@@ -192,7 +192,8 @@ module web
                     ]),
                 progress_array  = SharedArrays.SharedArray{Int64}( progress_array_shape ),
                 interruptor     = SharedArrays.SharedArray{Int64}( (1, ) ),
-                elapsed_hours = SharedArrays.SharedArray{Float64}( (1, ) )
+                elapsed_hours   = SharedArrays.SharedArray{Float64}( (1, ) ),
+                ready           = SharedArrays.SharedArray{Int64}( (1, ) )
             )
         end
 
@@ -207,8 +208,8 @@ module web
             timeout = get(query_dict, "timeout", -1)
             start = time()
             try
-                remotetask = Distributed.remotecall(fun, setup.pool, query_dict; pool = setup.pool, progress_array = setup.progress_array)
-                while !isready(remotetask) && sum(setup.interruptor) == 0 && (timeout <= 0 || timeout > sum(setup.elapsed_hours))
+                remotetask = Distributed.remotecall(fun, setup.pool, query_dict; pool = setup.pool, progress_array = setup.progress_array, ready = setup.ready)
+                while sum(setup.ready) == 0 && sum(setup.interruptor) == 0 && (timeout <= 0 || timeout > sum(setup.elapsed_hours))
                     sleep(1)
                     setup.elapsed_hours[1] = (time() - start) / 60 / 60
                 end
@@ -291,7 +292,7 @@ module web
     end
 
     __last_model = nothing
-    function __infer(query_dict; kwargs...)
+    function __infer(query_dict; ready, kwargs...)
         global __last_model
 
         key = JSON.json(query_dict)
@@ -315,6 +316,7 @@ module web
             plot = "data:image/svg+xml;base64," * Base64.base64encode(napire.plot_prediction(data, query_dict["query"], query_dict["evidence"], result, "svg"))
         end
 
+        ready[0] = 1
         return (data = result, plot = plot)
     end
 
@@ -342,11 +344,13 @@ module web
         return __run_task(:TASK_VALIDATION, pop!(query_dict, "workers", 4), __validate, (query_dict["iterations"], query_dict["subsample_size"]), query_dict)
     end
 
-    function __validate(query_dict; kwargs...)
+    function __validate(query_dict; ready, kwargs...)
         data = __load_graph(query_dict, "false")
 
-        return napire.validate(data, query_dict["iterations"], query_dict["subsample_size"], query_dict["inference_method"],
+        result = napire.validate(data, query_dict["iterations"], query_dict["subsample_size"], query_dict["inference_method"],
                                 query_dict["query"], query_dict["model"], query_dict["baseline_model"]; kwargs...)
+        ready[0] = 1
+        return result
     end
 
     function __load_graph(query_dict, all_items)
