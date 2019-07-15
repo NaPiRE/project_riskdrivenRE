@@ -130,7 +130,7 @@
   </mat-card-content>
 
   <div *ngFor="let metric of model_validation_keys">
-    <span *ngIf="visible_validations.indexOf(metric) >= 0">{{metric}}</span>
+    <plotly-plot *ngIf="visible_validations.indexOf(metric) >= 0" [data]="validationData(metric).data" [data]="validationData(metric).layout" [style]="{'width': '100%'}" [useResizeHandler]="true"></plotly-plot>
   </div>
 </mat-card>
 

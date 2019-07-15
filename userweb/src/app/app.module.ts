@@ -17,6 +17,11 @@ import {
 } from '@angular/material';
 import { FlexLayoutModule } from "@angular/flex-layout";
 
+import * as PlotlyJS from 'plotly.js/dist/plotly.js';
+import { PlotlyModule } from 'angular-plotly.js';
+
+PlotlyModule.plotlyjs = PlotlyJS;
+
 @NgModule({
   declarations: [
     AppComponent,
@@ -46,7 +51,9 @@ import { FlexLayoutModule } from "@angular/flex-layout";
     MatTableModule,
     MatTabsModule,
     MatToolbarModule,
-    MatTooltipModule
+    MatTooltipModule,
+
+    PlotlyModule
   ],
   providers: [],
   bootstrap: [AppComponent]

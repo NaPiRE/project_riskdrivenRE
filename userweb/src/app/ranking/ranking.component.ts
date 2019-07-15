@@ -43,7 +43,7 @@ export class RankingComponent {
           this.generic_categories = models[model_id]['generic_categories'];
           this.model_explanation = models[model_id]['explanation'];
           this.model_validation = models[model_id]['validation'];
-          this.model_validation_keys = Object.keys(this.model_validation).sort();
+          this.model_validation_keys = Object.keys(this.model_validation).filter(k => k != 'napire.Metrics.brier_score').sort();
 
           let obs = (model_id == this.model_id) ? of({ 'params': params, 'descriptions': this.descriptions, 'task_data': undefined, 'items': this.items }) : http.post("/descriptions", this.model).pipe(
             catchError(this.errorHandler),
@@ -215,6 +215,64 @@ export class RankingComponent {
 
       this.router.navigate([ ], { relativeTo: this.activatedRoute, queryParams: { 'id': taskId, 'model': this.model_id } });
     });
+  }
+
+  private metric_graphs = {};
+
+  validationData(metric) {
+    if(!this.metric_graphs[metric]) {
+      let trace_templates = {
+          'value': {
+              mode: 'lines+markers',
+              line: {
+                  color: '#1f77b4',
+                  dash: 'solid'
+              }
+          },
+          'value_average': {
+              mode: 'lines',
+              line: {
+                  color: '#7f7f7f',
+                  dash: 'longdash'
+              }
+          },
+          'baseline': {
+              mode: 'lines+markers',
+              line: {
+                  color: '#2cabff',
+                  dash: 'solid'
+              }
+          },
+          'baseline_average': {
+              mode: 'lines',
+              line: {
+                  color: '#cbcbcb',
+                  dash: 'longdash'
+              }
+          }
+      };
+
+      let meta = this.model_validation[metric];
+      let result = meta.data;
+
+      this.metric_graphs[metric] = {
+        "data": Object.keys(result[0])
+              .filter(dk => dk != "config")
+              .map(dk => Object.assign(trace_templates[dk] ? trace_templates[dk]: {}, {
+                "type": "scatter",
+                "name": dk,
+                "x": result.map( xy => xy["config"]),
+                "y": result.map( xy => xy[dk] )
+              })),
+        "layout": {
+              xaxis: { title: meta.data_xlabel },
+              yaxis: { range: meta.limits },
+              yaxis2: { overlaying: 'y', side: 'right', rangemode: 'tozero' }
+          }
+      };
+    }
+
+    return this.metric_graphs[metric];
   }
 
   showFullImage() {
