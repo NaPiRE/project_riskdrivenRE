@@ -1,5 +1,6 @@
 <div class="container" *ngIf="!loaded">
 <mat-progress-bar mode="indeterminate" style="margin-top: 200px; margin-left: 50px; margin-right: 50px; width: calc(100% - 100px)"></mat-progress-bar>
+<div class="loading-message">Loading NaPiRE data and Bayesian networks...</div>
 </div>
 
 <div class="container" fxLayout="row wrap" *ngIf="loaded">

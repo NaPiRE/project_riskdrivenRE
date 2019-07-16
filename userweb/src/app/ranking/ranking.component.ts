@@ -113,12 +113,14 @@ export class RankingComponent {
           this.task_result = null;
           this.task_shortresult = null;
           this.plot = null;
+          this.evidence = {};
           return;
         } else if(task_data.state == 'NOTASK') {
           this.router.navigate( [ ], { relativeTo: this.activatedRoute, queryParams: { 'id': null, 'model' : this.model_id } });
           this.task_result = null;
           this.task_shortresult = null;
           this.plot = null;
+          this.evidence = {};
           return;
         }
 

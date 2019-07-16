@@ -87,6 +87,11 @@ git-tree-sha1 = "ca971f03e146cf144a9e2f2ce59674f5bf0e8038"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 version = "0.15.0"
 
+[[DataValueInterfaces]]
+git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
+uuid = "e2d170a0-9d28-54be-80f0-106bbe20a464"
+version = "1.0.0"
+
 [[Dates]]
 deps = ["Printf"]
 uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
@@ -201,6 +206,12 @@ deps = ["JuliaInterpreter"]
 git-tree-sha1 = "c530b90b64249b525f1e40e71f64d5382c62f073"
 uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
 version = "0.3.4"
+
+[[LRUCache]]
+deps = ["Test"]
+git-tree-sha1 = "1561ad60e8407cd8ad852ab1633830ede7a85d7b"
+uuid = "8ac3fa9e-de4c-5943-b1dc-09c6b5f20637"
+version = "0.2.0"
 
 [[MacroTools]]
 deps = ["CSTParser", "Compat", "DataStructures", "Test"]

@@ -21,6 +21,7 @@ module web
     import Distributed
     import HTTP
     import JSON
+    import LRUCache
     import Serialization
     import SharedArrays
     import Sockets
@@ -299,23 +300,23 @@ module web
         return __run_task(:TASK_INFERENCE, 1, __infer, (1, ), query_dict)
     end
 
-    __last_model = nothing
+    function __infer_load(query_dict)
+        println("Loading graph")
+        data = __load_graph(query_dict, "false")
+
+        println("Training model")
+        md = napire.train(data, Val(query_dict["model"]))
+
+        return (data, md)
+    end
+
+    __inference_cache = LRUCache.LRU{String, Tuple}(10)
     function __infer(query_dict; ready, kwargs...)
         global __last_model
 
         try
             key = JSON.json( (query_dict["connect"], query_dict["dataset"], query_dict["nodes"]) )
-            if __last_model == nothing || __last_model[1] != key
-                println("Loading graph")
-                data = __load_graph(query_dict, "false")
-
-                println("Training model")
-                md = napire.train(data, Val(query_dict["model"]))
-
-                __last_model = (key, data, md)
-            end
-
-            key, data, md = __last_model
+            data, md = LRUCache.@get! __inference_cache key __infer_load(query_dict)
 
             println("Running inference")
             result = napire.predict(md, query_dict["inference_method"], query_dict["query"], query_dict["evidence"])
