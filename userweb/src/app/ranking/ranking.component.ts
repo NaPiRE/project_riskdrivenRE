@@ -25,7 +25,7 @@ export class RankingComponent {
   private errorHandler = err => {
     let p = new URL(err.url).pathname
     if(fallback_data[p]) {
-      return timer(1000).pipe(map(t => fallback_data[p]));
+      return timer(0).pipe(map(t => fallback_data[p]));
     } else {
       alert("Request to " + p + " failed: " + err.statusText + " (" + err.status + ")");
       return throwError(err);
@@ -227,47 +227,54 @@ export class RankingComponent {
               line: {
                   color: '#1f77b4',
                   dash: 'solid'
-              }
+              },
+              "name": "causal structure"
           },
           'value_average': {
               mode: 'lines',
               line: {
                   color: '#7f7f7f',
                   dash: 'longdash'
-              }
+              },
+              "name": "causal structure (avg)"
           },
           'baseline': {
               mode: 'lines+markers',
               line: {
                   color: '#2cabff',
                   dash: 'solid'
-              }
+              },
+              "name": "w/o causal structure"
           },
           'baseline_average': {
               mode: 'lines',
               line: {
                   color: '#cbcbcb',
                   dash: 'longdash'
-              }
+              },
+              "name": "w/o causal structure (avg)"
           }
       };
 
       let meta = this.model_validation[metric];
       let result = meta.data;
+      let display_name = metric.replace('napire.Metrics.', '').replace('_', ' ');
+      display_name = display_name.charAt(0).toUpperCase() + display_name.slice(1)
 
       this.metric_graphs[metric] = {
         "data": Object.keys(result[0])
               .filter(dk => dk != "config")
               .map(dk => Object.assign(trace_templates[dk] ? trace_templates[dk]: {}, {
                 "type": "scatter",
-                "name": dk,
                 "x": result.map( xy => xy["config"]),
                 "y": result.map( xy => xy[dk] )
               })),
         "layout": {
-              xaxis: { title: meta.data_xlabel },
-              yaxis: { range: meta.limits },
-              yaxis2: { overlaying: 'y', side: 'right', rangemode: 'tozero' }
+              "xaxis": { "title": { "text": meta.data_xlabel }, zeroline: false },
+              "yaxis": { "range": meta.limits, "title": display_name, zeroline: false },
+              "margin": { "l": 50, "r": 30, "b": 30, "t": 30 },
+              "showlegend": true,
+              legend: {"orientation": "h", "x": 0, "y": -.2 },
           }
       };
     }

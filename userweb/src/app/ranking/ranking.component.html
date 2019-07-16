@@ -3,7 +3,7 @@
 </div>
 
 <div class="container" fxLayout="row wrap" *ngIf="loaded">
-<div class="input-form" fxFlex="1 1 60%" fxFlex.lt-lg="1 1 100%">
+<div class="input-form" fxFlex="1 1 60%" fxFlex.lt-lg="1 1 100%" style="margin-top: 20px">
 
 <div class="table">
   <div>
@@ -59,80 +59,83 @@
   </ng-template>
 </mat-tab-group>
 
+<button *ngIf="!running" mat-raised-button style="display: block; width: 250px; margin-top: 40px; margin-left: auto; margin-right: auto" color="primary" (click)="run()">Run your personal analysis</button>
+
 </div>
 
-<div class="ranking" fxFlex="1 1 40%" fxFlex.lt-lg="1 1 100%" style="margin-top: 50px; padding-left: 50px; padding-right: 50px;">
-<button *ngIf="!running" mat-raised-button style="display: block; width: 250px; margin-left: auto; margin-right: auto" color="primary" (click)="run()">Run your personal analysis</button>
+<div class="ranking" fxFlex="1 1 40%" fxFlex.lt-lg="1 1 100%" style="margin-top: 20px; padding-left: 50px; padding-right: 50px;">
 <mat-progress-bar *ngIf="running" mode="indeterminate" style="margin-top: 200px; margin-left: 50px; margin-right: 50px; width: calc(100% - 100px)"></mat-progress-bar>
-<div *ngIf="running" style="margin-top: 50px; margin-left: auto; margin-right: auto; width: calc(100% - 100px); display: block; text-align: center">Please lean back and relax. The analysis will take a minute or two.</div>
+<div *ngIf="running" class="loading-message">Please lean back and relax. The analysis will take a minute or two.</div>
 
 
-<div *ngIf="!running && task_result != null" style="margin-top: 50px">
+<div *ngIf="!running && task_result != null">
 
-<mat-card>
-  <mat-card-header>
-    <mat-card-title>Analysis results</mat-card-title>
-    <mat-card-subtitle>{{ model_explanation }}</mat-card-subtitle>
-  </mat-card-header>
-  <mat-card-content>
-    <table mat-table [dataSource]="showall ? task_result : task_shortresult" style="width: 100%">
+<mat-accordion displayMode="flat">
+<mat-expansion-panel [expanded]="true">
+  <mat-expansion-panel-header>
+    <mat-panel-title>Analysis results</mat-panel-title>
+  </mat-expansion-panel-header>
 
-      <!--- Note that these columns can be defined in any order.
-            The actual rendered columns are set as a property on the row definition" -->
+  <div class="explanation">{{ model_explanation }}</div>
 
-      <ng-container matColumnDef="position">
-        <th mat-header-cell *matHeaderCellDef> No. </th>
-        <td mat-cell *matCellDef="let element" style="width: 75px"> {{ element[0] }} </td>
-      </ng-container>
+  <table mat-table [dataSource]="showall ? task_result : task_shortresult" style="width: 100%">
 
-      <ng-container matColumnDef="description">
-        <th mat-header-cell *matHeaderCellDef> Description </th>
-        <td mat-cell *matCellDef="let element"> {{ element[1] }} </td>
-      </ng-container>
+    <!--- Note that these columns can be defined in any order.
+          The actual rendered columns are set as a property on the row definition" -->
 
-      <ng-container matColumnDef="percentage">
-        <th mat-header-cell *matHeaderCellDef style="text-align: right;"> Probability </th>
-        <td mat-cell *matCellDef="let element" style="width: 100px; text-align: right"> {{ element[2] }}% </td>
-      </ng-container>
+    <ng-container matColumnDef="position">
+      <th mat-header-cell *matHeaderCellDef> No. </th>
+      <td mat-cell *matCellDef="let element" style="width: 75px"> {{ element[0] }} </td>
+    </ng-container>
 
+    <ng-container matColumnDef="description">
+      <th mat-header-cell *matHeaderCellDef> Description </th>
+      <td mat-cell *matCellDef="let element"> {{ element[1] }} </td>
+    </ng-container>
 
-      <tr mat-header-row *matHeaderRowDef="['position', 'description', 'percentage']"></tr>
-      <tr mat-row *matRowDef="let row; columns: ['position', 'description', 'percentage'];"></tr>
-    </table>
-
-    <div style="margin-top: 15px; width: 100%; text-align: center">
-      <button mat-button *ngIf="!showall" (click)="showall = true">Show more</button>
-      <button mat-button *ngIf="showall" (click)="showall = false">Show less</button>
-    </div>
-  </mat-card-content>
-</mat-card>
-
-<mat-card>
-  <mat-card-header>
-    <mat-card-title>Causal structure </mat-card-title>
-    <mat-card-subtitle>The following causal structure has been used to infer the above results. Click to zoom.</mat-card-subtitle>
-  </mat-card-header>
-  <mat-card-content style="text-align: center">
-    <a (click)="showFullImage()" style="cursor: pointer; display: block; width: 100%;"><img style="max-width: 100%; max-height: 150px" [src]="plot"/></a>
-  </mat-card-content>
-</mat-card>
+    <ng-container matColumnDef="percentage">
+      <th mat-header-cell *matHeaderCellDef style="text-align: right;"> Probability </th>
+      <td mat-cell *matCellDef="let element" style="width: 100px; text-align: right"> {{ element[2] }}% </td>
+    </ng-container>
 
 
-<mat-card *ngIf="model_validation">
-  <mat-card-header>
-    <mat-card-title>Model accuracy</mat-card-title>
-    <mat-card-subtitle>To analyse the pre-computed performance characteristics of your analysis type, please choose at least one indicator</mat-card-subtitle>
-  </mat-card-header>
-  <mat-card-content style="text-align: center">
+    <tr mat-header-row *matHeaderRowDef="['position', 'description', 'percentage']"></tr>
+    <tr mat-row *matRowDef="let row; columns: ['position', 'description', 'percentage'];"></tr>
+  </table>
+
+  <div style="margin-top: 15px; width: 100%; text-align: center">
+    <button mat-button *ngIf="!showall" (click)="showall = true">Show more</button>
+    <button mat-button *ngIf="showall" (click)="showall = false">Show less</button>
+  </div>
+</mat-expansion-panel>
+
+<mat-expansion-panel>
+  <mat-expansion-panel-header>
+    <mat-panel-title>Causal structure </mat-panel-title>
+  </mat-expansion-panel-header>
+
+  <div class="explanation">The following causal structure has been used to infer the above results. Click to zoom.</div>
+  <div style="text-align: center"><a (click)="showFullImage()" style="cursor: pointer; display: block; width: 100%;"><img style="max-width: 100%; max-height: 250px" [src]="plot"/></a></div>
+</mat-expansion-panel>
+
+<mat-expansion-panel *ngIf="model_validation">
+  <mat-expansion-panel-header>
+    <mat-panel-title>Model accuracy</mat-panel-title>
+  </mat-expansion-panel-header>
+
+  <div class="explanation">To analyse the pre-computed performance characteristics of your analysis type, please choose at least one indicator.</div>
+
+  <div style="text-align: center">
     <mat-button-toggle-group multiple (change)="visible_validations = $event.value">
       <mat-button-toggle *ngFor="let metric of model_validation_keys" [value]="metric">{{metric.replace('napire.Metrics.', '').replace('_', ' ')}}</mat-button-toggle>
     </mat-button-toggle-group>
-  </mat-card-content>
+  </div>
 
   <div *ngFor="let metric of model_validation_keys">
-    <plotly-plot *ngIf="visible_validations.indexOf(metric) >= 0" [data]="validationData(metric).data" [data]="validationData(metric).layout" [style]="{'width': '100%'}" [useResizeHandler]="true"></plotly-plot>
+    <plotly-plot *ngIf="visible_validations.indexOf(metric) >= 0" [data]="validationData(metric).data" [layout]="validationData(metric).layout" [style]="{'width': '100%'}" [useResizeHandler]="true" [config]="{ scrollZoom: false, displayModeBar: false }"></plotly-plot>
   </div>
-</mat-card>
+</mat-expansion-panel>
+</mat-accordion>
 
 </div>
 

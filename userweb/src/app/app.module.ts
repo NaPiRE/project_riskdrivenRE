@@ -9,7 +9,7 @@ import { ImageComponent } from './image/image.component';
 import { RankingComponent } from './ranking/ranking.component';
 
 import {
-  MatButtonModule, MatButtonToggleModule, MatCardModule,
+  MatButtonModule, MatButtonToggleModule, MatExpansionModule,
   MatCheckboxModule, MatDialogModule, MatProgressBarModule,
   MatSelectModule, MatSliderModule, MatSlideToggleModule,
   MatTableModule, MatTabsModule, MatToolbarModule,
@@ -41,9 +41,9 @@ PlotlyModule.plotlyjs = PlotlyJS;
 
     MatButtonModule,
     MatButtonToggleModule,
-    MatCardModule,
     MatCheckboxModule,
     MatDialogModule,
+    MatExpansionModule,
     MatProgressBarModule,
     MatSelectModule,
     MatSliderModule,

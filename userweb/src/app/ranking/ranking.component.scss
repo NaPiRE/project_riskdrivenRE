@@ -54,3 +54,20 @@ mat-tab-group {
   line-height: 36px;
 }
 
+.explanation {
+  color: rgba(0, 0, 0, 0.54);
+
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.loading-message {
+  color: rgba(0, 0, 0, 0.54);
+
+  display: block;
+  margin-top: 50px;
+  margin-left: auto;
+  margin-right: auto;
+  width: calc(100% - 100px);
+  text-align: center
+}
