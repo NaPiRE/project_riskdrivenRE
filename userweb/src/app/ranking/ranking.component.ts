@@ -161,7 +161,7 @@ export class RankingComponent {
   plot:any = null;
   plot_svg:boolean = false;
 
-  visible_validations = [];
+  visible_validations = [ "napire.Metrics.ranking"];
 
   evidence = {};
 
@@ -258,8 +258,7 @@ export class RankingComponent {
 
       let meta = this.model_validation[metric];
       let result = meta.data;
-      let display_name = metric.replace('napire.Metrics.', '').replace('_', ' ');
-      display_name = display_name.charAt(0).toUpperCase() + display_name.slice(1)
+      let display_name = this.metric_name(metric);
 
       this.metric_graphs[metric] = {
         "data": Object.keys(result[0])
@@ -280,6 +279,11 @@ export class RankingComponent {
     }
 
     return this.metric_graphs[metric];
+  }
+
+  metric_name(metric) {
+    metric = metric.replace('napire.Metrics.', '').replace('_', ' ');
+    return metric.charAt(0).toUpperCase() + metric.slice(1);
   }
 
   showFullImage() {

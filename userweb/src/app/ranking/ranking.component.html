@@ -120,14 +120,14 @@
 
 <mat-expansion-panel *ngIf="model_validation">
   <mat-expansion-panel-header>
-    <mat-panel-title>Model accuracy</mat-panel-title>
+    <mat-panel-title>Performance metrics</mat-panel-title>
   </mat-expansion-panel-header>
 
   <div class="explanation">To analyse the pre-computed performance characteristics of your analysis type, please choose at least one indicator.</div>
 
   <div style="text-align: center">
-    <mat-button-toggle-group multiple (change)="visible_validations = $event.value">
-      <mat-button-toggle *ngFor="let metric of model_validation_keys" [value]="metric">{{metric.replace('napire.Metrics.', '').replace('_', ' ')}}</mat-button-toggle>
+    <mat-button-toggle-group multiple [(value)]="visible_validations">
+      <mat-button-toggle *ngFor="let metric of model_validation_keys" [value]="metric">{{metric_name(metric)}}</mat-button-toggle>
     </mat-button-toggle-group>
   </div>
 
