@@ -107,9 +107,7 @@ trap "{ rm -f '$tmp'; }" EXIT
 if [ $shell = "n" ]; then
     if [ $nodep = "n" ]; then
         deps="import Pkg; Pkg.instantiate();"
-	if [ ! -e "$DIR/userweb/build-prod" ]; then
-		( cd "$DIR/userweb" && npm run build-prod )
-	fi
+        ( cd "$DIR/userweb" && npm run build-prod )
     fi
     echo "$deps $loadcode; import napire; napire.web.start(Dict(\"/web/\" => \"$DIR/web\", \"/userweb/\" => \"$DIR/userweb/build-prod\"), joinpath(\"$DIR\", \"results\"); maximum_tasks = $procs);" > "$tmp"
 

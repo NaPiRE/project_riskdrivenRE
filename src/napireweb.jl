@@ -304,7 +304,7 @@ module web
         global __last_model
 
         try
-            key = JSON.json(query_dict)
+            key = JSON.json( (query_dict["connect"], query_dict["dataset"], query_dict["nodes"]) )
             if __last_model == nothing || __last_model[1] != key
                 println("Loading graph")
                 data = __load_graph(query_dict, "false")

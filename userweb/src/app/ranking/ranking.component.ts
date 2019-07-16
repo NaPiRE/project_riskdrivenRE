@@ -201,6 +201,7 @@ export class RankingComponent {
   run() {
     let query_dict = Object.assign({}, this.model);
     query_dict['inference_method'] = 'BayesNets.GibbsSamplingFull';
+    query_dict["evidence"] = this.evidence;
     query_dict['plot'] = true;
     query_dict['timeout'] = 0.1;
     this.running = true;
