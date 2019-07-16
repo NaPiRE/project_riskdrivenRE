@@ -14,7 +14,7 @@ export class AppComponent {
 
   constructor(private activatedRoute: ActivatedRoute, private titleService: Title) {
     this.activatedRoute.queryParams.subscribe(params => {
-      this.caption = 'NaPiRE ' + params['model'];
+      this.caption = 'NaPiRE ' + params['model'] ? params['model'] : '';
       this.titleService.setTitle(this.caption);
     });
   }
