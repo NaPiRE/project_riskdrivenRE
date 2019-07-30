@@ -153,6 +153,26 @@ module napire
     end
     export predict
 
+    function plot_architecture(dataset, node_types::Array{Pair{Symbol, Symbol}}, output_type = graphviz.default_output_type; shorten = true, shape = shape(n) = "ellipse", ranksep = 1, rankdir = "LR", kwargs...)
+        data = load(dataset, Array{Tuple{Symbol,Bool,UInt64,Bool}, 1}(undef, 0), [ (nt.first, nt.second, false, convert(UInt64, 0)) for nt in node_types ])
+        graph = graphviz.Dot([], node_types)
+
+        for node in graph.nodes
+            println(split(string(node), "_"))
+            label = shorten ? join([ sn[1] for sn in split(string(node), "_") if sn != "CODE" ]) : string(node)
+
+            graphviz.set(graph, node, graphviz.NodeProps.label, label)
+            graphviz.set(graph, node, graphviz.NodeProps.margin, 0)
+            graphviz.set(graph, node, graphviz.NodeProps.fillcolor, "white")
+            graphviz.set(graph, node, graphviz.NodeProps.style, "filled")
+            graphviz.set(graph, node, graphviz.NodeProps.shape, shape(node))
+        end
+        graphviz.set(graph, graphviz.GraphProps.ranksep, ranksep)
+        graphviz.set(graph, graphviz.GraphProps.rankdir, rankdir)
+
+        graphviz.plot(graph, output_type)
+    end
+
     function plot_prediction(data, query, evidence, results, output_type = graphviz.default_output_type; half_cell_width = 40, shorten = true, kwargs...)
         function label(node)
             plot_label(n) = shorten ? join([ sn[1] for sn in split(string(n), "_")[1:end-1] if sn != "CODE" ]) * string(n)[end - 2:end] : n

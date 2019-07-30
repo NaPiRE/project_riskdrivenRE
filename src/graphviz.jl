@@ -21,6 +21,7 @@ module graphviz
     module GraphProps
         @enum EnumDef begin
             label
+            rankdir
             ranksep
         end
     end
