@@ -132,7 +132,7 @@ module graphviz
     end
 
     function plot(graph::Dot, output_type::Val{OutputType.xdg_open})
-        pngdata = plot(graph, "png")
+        pngdata = plot(graph, "svg")
 
         pngfile = tempname()
         write(pngfile, pngdata)

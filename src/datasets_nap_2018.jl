@@ -74,29 +74,30 @@ end
 function __nap_2018_contextdata(filename)
     contextdata = CSV.read(filename; datarow = 2, delim = ';', quotechar = '"')
     contextdata_columns = [
-        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_00, "1-5", x -> !ismissing(x) && x > 0 && x <= 5),
-        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_01, "6-14", x -> !ismissing(x) && x >= 6 && x <= 14),
-        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_02, "15-30", x -> !ismissing(x) && x >= 15 && x <= 30),
-        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_03, "31-70", x -> !ismissing(x) && x >= 31 && x <= 70),
-        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_04, "71-140", x -> !ismissing(x) && x >= 71 && x <= 140),
-        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_05, "141-", x -> !ismissing(x) && x >= 141),
-        (:v_4,   :CONTEXT_SYSTEM, :CONTEXT_SYSTEM_00, "Software-intensive embedded systems", x -> x == "Software-intensive embedded systems"),
-        (:v_4,   :CONTEXT_SYSTEM, :CONTEXT_SYSTEM_01, "Business information systems", x -> x == "Business information systems"),
-        (:v_4,   :CONTEXT_SYSTEM, :CONTEXT_SYSTEM_02, "Hybrid of both software-intensive embedded systems and business information systems", x -> x == "Hybrid of both software-intensive embedded systems and business information systems"),
+        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_00, "1-4", x -> !ismissing(x) && x > 0 && x <= 4),
+        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_01, "5-6", x -> !ismissing(x) && x >= 5 && x <= 6),
+        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_02, "7-9", x -> !ismissing(x) && x >= 7 && x <= 9),
+        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_03, "10-19", x -> !ismissing(x) && x >= 10 && x <= 19),
+        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_04, "20-39", x -> !ismissing(x) && x >= 20 && x <= 39),
+        (:v_3,   :CONTEXT_SIZE,   :CONTEXT_SIZE_05, "40-", x -> !ismissing(x) && x >= 40),
+
+        (:v_4,   :CONTEXT_TYPE, :CONTEXT_TYPE_00, "Software-intensive embedded systems", x -> x == "Software-intensive embedded systems"),
+        (:v_4,   :CONTEXT_TYPE, :CONTEXT_TYPE_01, "Business information systems", x -> x == "Business information systems"),
+        (:v_4,   :CONTEXT_TYPE, :CONTEXT_TYPE_02, "Hybrid of both software-intensive embedded systems and business information systems", x -> x == "Hybrid of both software-intensive embedded systems and business information systems"),
 
         (:v_16,  :CONTEXT_DISTRIBUTED, :CONTEXT_DISTRIBUTED_00, "Distributed project", x -> x == "Yes"),
 
-        (:v_24, :CONTEXT_DEV, :CONTEXT_DEV_CODE_00, "Agile", x -> x == "Agile"),
-        (:v_24, :CONTEXT_DEV, :CONTEXT_DEV_CODE_01, "Rather agile", x -> x == "Rather agile"),
-        (:v_24, :CONTEXT_DEV, :CONTEXT_DEV_CODE_02, "Hybrid", x -> x == "Hybrid"),
-        (:v_24, :CONTEXT_DEV, :CONTEXT_DEV_CODE_03, "Rather plan-driven", x -> x == "Rather plan-driven"),
-        (:v_24, :CONTEXT_DEV, :CONTEXT_DEV_CODE_04, "Plan-driven", x -> x == "Plan-driven"),
+        (:v_24, :CONTEXT_DEV_METHOD, :CONTEXT_DEV_METHOD_CODE_00, "Agile", x -> x == "Agile"),
+        (:v_24, :CONTEXT_DEV_METHOD, :CONTEXT_DEV_METHOD_CODE_01, "Rather agile", x -> x == "Rather agile"),
+        (:v_24, :CONTEXT_DEV_METHOD, :CONTEXT_DEV_METHOD_CODE_02, "Hybrid", x -> x == "Hybrid"),
+        (:v_24, :CONTEXT_DEV_METHOD, :CONTEXT_DEV_METHOD_CODE_03, "Rather plan-driven", x -> x == "Rather plan-driven"),
+        (:v_24, :CONTEXT_DEV_METHOD, :CONTEXT_DEV_METHOD_CODE_04, "Plan-driven", x -> x == "Plan-driven"),
 
-        (:v_25, :RELATIONSHIP, :RELATIONSHIP_CODE_00, "Very good", x -> x == "Very good"),
-        (:v_25, :RELATIONSHIP, :RELATIONSHIP_CODE_01, "Good", x -> x == "Good"),
-        (:v_25, :RELATIONSHIP, :RELATIONSHIP_CODE_02, "neutral", x -> x == "neutral"),
-        (:v_25, :RELATIONSHIP, :RELATIONSHIP_CODE_03, "Bad", x -> x == "Bad"),
-        (:v_25, :RELATIONSHIP, :RELATIONSHIP_CODE_04, "Very bad", x -> x == "Very bad") ]
+        (:v_25, :CONTEXT_RELATIONSHIP, :CONTEXT_RELATIONSHIP_CODE_00, "Very good", x -> x == "Very good"),
+        (:v_25, :CONTEXT_RELATIONSHIP, :CONTEXT_RELATIONSHIP_CODE_01, "Good", x -> x == "Good"),
+        (:v_25, :CONTEXT_RELATIONSHIP, :CONTEXT_RELATIONSHIP_CODE_02, "neutral", x -> x == "neutral"),
+        (:v_25, :CONTEXT_RELATIONSHIP, :CONTEXT_RELATIONSHIP_CODE_03, "Bad", x -> x == "Bad"),
+        (:v_25, :CONTEXT_RELATIONSHIP, :CONTEXT_RELATIONSHIP_CODE_04, "Very bad", x -> x == "Very bad") ]
     rename!(contextdata, Dict(:lfdn => :ID))
 
     return contextdata, contextdata_columns

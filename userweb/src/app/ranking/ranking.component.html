@@ -25,23 +25,34 @@
     <div><mat-label>Project team size</mat-label></div>
     <div><mat-slider *ngIf="descriptions != null" min="-1" max="5" step="1" value="-1" thumbLabel tickInterval="1" [displayWith]="sliderDisplayWith()" (change)="setSliderEvidence($event.value)"></mat-slider></div>
   </div>
-  <div *ngIf="items.items['CONTEXT_DEV'].length > 0">
+  <div *ngIf="items.items['CONTEXT_DEV_METHOD'].length > 0">
     <div><mat-label>Development paradigm</mat-label></div>
     <div>
-      <mat-select (selectionChange)="setExclusiveEvidence('CONTEXT_DEV', $event.value, undefined)" value="">
+      <mat-select (selectionChange)="setExclusiveEvidence('CONTEXT_DEV_METHOD', $event.value, undefined)" value="">
         <mat-option value="">Unknown</mat-option>
-        <mat-option *ngFor="let it of items.items['CONTEXT_DEV']" [value]="it">
+        <mat-option *ngFor="let it of items.items['CONTEXT_DEV_METHOD']" [value]="it">
           {{ descriptions[it] }}
         </mat-option>
       </mat-select>
     </div>
   </div>
-  <div *ngIf="items.items['CONTEXT_SYSTEM'].length > 0">
+  <div *ngIf="items.items['CONTEXT_TYPE'].length > 0">
     <div><mat-label>System type</mat-label></div>
     <div>
-      <mat-select (selectionChange)="setExclusiveEvidence('CONTEXT_SYSTEM', $event.value, undefined)" value="">
+      <mat-select (selectionChange)="setExclusiveEvidence('CONTEXT_TYPE', $event.value, undefined)" value="">
         <mat-option value="">Unknown</mat-option>
-        <mat-option *ngFor="let it of items.items['CONTEXT_SYSTEM']" [value]="it">
+        <mat-option *ngFor="let it of items.items['CONTEXT_TYPE']" [value]="it">
+          {{ descriptions[it] }}
+        </mat-option>
+      </mat-select>
+    </div>
+  </div>
+  <div *ngIf="items.items['CONTEXT_RELATIONSHIP'].length > 0">
+    <div><mat-label>Customer relationship</mat-label></div>
+    <div>
+      <mat-select (selectionChange)="setExclusiveEvidence('CONTEXT_RELATIONSHIP', $event.value, undefined)" value="">
+        <mat-option value="">Unknown</mat-option>
+        <mat-option *ngFor="let it of items.items['CONTEXT_RELATIONSHIP']" [value]="it">
           {{ descriptions[it] }}
         </mat-option>
       </mat-select>

@@ -15,7 +15,7 @@ export const models = {
           "absent_is_unknown": false
         },
         {
-          "node_type": "CONTEXT_DEV",
+          "node_type": "CONTEXT_DEV_METHOD",
           "filter": 5,
           "weighted_filter": true,
           "absent_is_unknown": false
@@ -33,7 +33,7 @@ export const models = {
           "absent_is_unknown": false
         },
         {
-          "node_type": "CONTEXT_SYSTEM",
+          "node_type": "CONTEXT_TYPE",
           "filter": 5,
           "weighted_filter": true,
           "absent_is_unknown": false
@@ -51,7 +51,7 @@ export const models = {
           "absent_is_unknown": false
         },
         {
-          "node_type": "RELATIONSHIP",
+          "node_type": "CONTEXT_RELATIONSHIP",
           "filter": 5,
           "weighted_filter": true,
           "absent_is_unknown": false
@@ -59,7 +59,7 @@ export const models = {
       ],
       "connect": [
         {
-          "from": "RELATIONSHIP",
+          "from": "CONTEXT_RELATIONSHIP",
           "to": "PROBLEMS_CODE",
           "filter": 10,
           "weighted_filter": true
@@ -77,7 +77,7 @@ export const models = {
           "weighted_filter": true
         },
         {
-          "from": "CONTEXT_DEV",
+          "from": "CONTEXT_DEV_METHOD",
           "to": "PROBLEMS_CODE",
           "filter": 10,
           "weighted_filter": true
@@ -137,7 +137,7 @@ export const models = {
           "absent_is_unknown": false
         },
         {
-          "node_type": "CONTEXT_DEV",
+          "node_type": "CONTEXT_DEV_METHOD",
           "filter": 5,
           "weighted_filter": true,
           "absent_is_unknown": false
@@ -155,7 +155,7 @@ export const models = {
           "absent_is_unknown": false
         },
         {
-          "node_type": "CONTEXT_SYSTEM",
+          "node_type": "CONTEXT_TYPE",
           "filter": 5,
           "weighted_filter": true,
           "absent_is_unknown": false
@@ -173,7 +173,7 @@ export const models = {
           "absent_is_unknown": false
         },
         {
-          "node_type": "RELATIONSHIP",
+          "node_type": "CONTEXT_RELATIONSHIP",
           "filter": 5,
           "weighted_filter": true,
           "absent_is_unknown": false
@@ -193,7 +193,7 @@ export const models = {
           "weighted_filter": true
         },
         {
-          "from": "CONTEXT_DEV",
+          "from": "CONTEXT_DEV_METHOD",
           "to": "CAUSES_CODE",
           "filter": 10,
           "weighted_filter": true
