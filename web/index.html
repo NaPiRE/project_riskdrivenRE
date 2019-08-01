@@ -438,7 +438,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
                             task_description += "<a href=\"javascript:$.ajax('/tasks?id=" + task.id + "', { 'method': 'POST' }); update_tasks(); void(0)\">cancel</a>";
                         } else {
                             task_description += "<a href=\"javascript:$.ajax('/tasks?id=" + task.id + "', { 'method': 'DELETE' }); update_tasks(); void(0)\">delete</a> ";
-                            task_description += "<a href=\"javascript:run_type('" + task.type + "', " + JSON.stringify(task.query).replace(/\\n/g, '').replace(/"/g, "'") + "); void(0)\">re-run</a>";
+                            task_description += "<a href=\"javascript:run_type('" + task.type + "', " + JSON.stringify(task.query).replace(/\\n/g, '').replace(/"/g, "'") + ", true); void(0)\">re-run</a> ";
+                            task_description += "<a href=\"javascript:run_type('" + task.type + "', " + JSON.stringify(task.query).replace(/\\n/g, '').replace(/"/g, "'") + "); void(0)\">re-run (update inference params)</a>";
                         }
 
                         $("#output_tasks").append("<li value=\"" + task.id + "\">" + task_description + "</li>");
@@ -447,26 +448,27 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             });
     }
 
-    function run_type(type, query) {
+    function run_type(type, query, keep_inference_params) {
         if(type == "TASK_VALIDATION") {
-            run_validation(query);
+            run_validation(query, keep_inference_params);
         } else if(type == "TASK_INFERENCE") {
-            run_inference(query);
+            run_inference(query, keep_inference_params);
         } else {
             throw "Unknown task type";
         }
     }
 
-    function run_inference(query) {
+    function run_inference(query, keep_inference_params) {
         let overwrites;
         if(!query) {
-            overwrites = {
-                "inference_method": $("#inference_method").val(),
-                "model": $("#model").val(),
-                "timeout": parseFloat($("#timeout").val()),
-            };
+            overwrites = { "model": $("#model").val() };
         } else {
             overwrites = query;
+        }
+
+        if(!keep_inference_params) {
+            query["inference_method"] = $("#inference_method").val();
+            query["timeout"] = parseFloat($("#timeout").val());
         }
         overwrites["plot"] = true;
 
@@ -483,19 +485,20 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         });
     }
 
-    function run_validation(query) {
+    function run_validation(query, keep_inference_params) {
         let overwrites;
         if(!query) {
-            overwrites = {
-                "inference_method": $("#inference_method").val(),
-                "subsample_size": parseInt($("#validation_subsample_size").val()),
-                "iterations": parseInt($("#validation_iterations").val()),
-                "timeout": parseFloat($("#timeout").val()),
-                "workers": parseInt($("#validation_workers").val()),
-                "model": $("#model").val()
-            };
+            overwrites = { "model": $("#model").val() };
         } else {
             overwrites = query;
+        }
+
+        if(!keep_inference_params) {
+            query["inference_method"] = $("#inference_method").val();
+            query["subsample_size"] = parseInt($("#validation_subsample_size").val());
+            query["iterations"] = parseInt($("#validation_iterations").val());
+            query["timeout"] = parseFloat($("#timeout").val());
+            query["workers"] = parseInt($("#validation_workers").val());
         }
 
         $("#run_validation").prop("disabled", true);
