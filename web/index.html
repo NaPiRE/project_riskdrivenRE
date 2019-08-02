@@ -467,8 +467,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         }
 
         if(!keep_inference_params) {
-            query["inference_method"] = $("#inference_method").val();
-            query["timeout"] = parseFloat($("#timeout").val());
+            overwrites["inference_method"] = $("#inference_method").val();
+            overwrites["timeout"] = parseFloat($("#timeout").val());
         }
         overwrites["plot"] = true;
 
@@ -494,11 +494,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         }
 
         if(!keep_inference_params) {
-            query["inference_method"] = $("#inference_method").val();
-            query["subsample_size"] = parseInt($("#validation_subsample_size").val());
-            query["iterations"] = parseInt($("#validation_iterations").val());
-            query["timeout"] = parseFloat($("#timeout").val());
-            query["workers"] = parseInt($("#validation_workers").val());
+            overwrites["inference_method"] = $("#inference_method").val();
+            overwrites["subsample_size"] = parseInt($("#validation_subsample_size").val());
+            overwrites["iterations"] = parseInt($("#validation_iterations").val());
+            overwrites["timeout"] = parseFloat($("#timeout").val());
+            overwrites["workers"] = parseInt($("#validation_workers").val());
         }
 
         $("#run_validation").prop("disabled", true);
