@@ -439,8 +439,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
                             task_description += "<a href=\"javascript:$.ajax('/tasks?id=" + task.id + "', { 'method': 'POST' }); update_tasks(); void(0)\">cancel</a>";
                         } else {
                             task_description += "<a href=\"javascript:$.ajax('/tasks?id=" + task.id + "', { 'method': 'DELETE' }); update_tasks(); void(0)\">delete</a> ";
-                            task_description += "<a href=\"javascript:run_type('" + task.type + "', " + JSON.stringify(task.query).replace(/\\n/g, '').replace(/"/g, "'") + ", true); void(0)\">re-run</a> ";
-                            task_description += "<a href=\"javascript:run_type('" + task.type + "', " + JSON.stringify(task.query).replace(/\\n/g, '').replace(/"/g, "'") + "); void(0)\">re-run (update inference params)</a>";
+                            task_description += "<a href=\"javascript:run_type('" + task.type + "', " + JSON.stringify(task.query).replace(/\\n/g, '').replace(/"/g, "'") + ", true); void(0)\">re-run as is</a> ";
+                            task_description += "<a href=\"javascript:run_type('TASK_INFERENCE', " + JSON.stringify(task.query).replace(/\\n/g, '').replace(/"/g, "'") + "); void(0)\">re-run (new inference)</a> ";
+                            task_description += "<a href=\"javascript:run_type('TASK_VALIDATION', " + JSON.stringify(task.query).replace(/\\n/g, '').replace(/"/g, "'") + "); void(0)\">re-run (new validation)</a>";
                         }
 
                         $("#output_tasks").append("<li value=\"" + task.id + "\">" + task_description + "</li>");

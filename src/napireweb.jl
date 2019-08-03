@@ -193,15 +193,18 @@ module web
             println("Creating " * string(new_workers) * " new workers")
             println("Re-using " * string(existing_workers) * " old workers")
 
-            data = (
-                pool = Distributed.WorkerPool( [
+            pool = Distributed.WorkerPool( [
                     reused_workers...,
                     Distributed.addprocs(new_workers, exename = joinpath(dirname(@__DIR__), "run_worker.sh"))...
-                    ]),
-                progress_array  = SharedArrays.SharedArray{Int64}( progress_array_shape ),
-                interruptor     = SharedArrays.SharedArray{Int64}( (1, ) ),
-                elapsed_hours   = SharedArrays.SharedArray{Float64}( (1, ) ),
-                ready           = SharedArrays.SharedArray{Int64}( (1, ) )
+                    ])
+
+            println("Pool created")
+            data = (
+                pool = pool,
+                progress_array  = SharedArrays.SharedArray{Int64}( progress_array_shape; pids = collect(pool.workers) ),
+                interruptor     = SharedArrays.SharedArray{Int64}( (1, ), pids = collect(pool.workers) ),
+                elapsed_hours   = SharedArrays.SharedArray{Float64}( (1, ), pids = collect(pool.workers) ),
+                ready           = SharedArrays.SharedArray{Int64}( (1, ), pids = collect(pool.workers) )
             )
 
             println("Process creation done")
