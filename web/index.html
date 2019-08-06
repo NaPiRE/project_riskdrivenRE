@@ -553,9 +553,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         }),
 
         $.ajax("/inference").then(function(response) {
+            response.sort();
             for(let method of response) {
                 $("#inference_method").append("<option value=\"" + method + "\">" + method + "</option>");
             }
+            $("#inference_method").val(response[1]);
         }),
 
 
@@ -670,7 +672,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </div>
 
 <div class="settings_cell">
-<input id="validation_subsample_size" name="validation_subsample_size" type="number" min="1" value="1"/>
+<input id="validation_subsample_size" name="validation_subsample_size" type="number" min="1" value="30"/>
 </div>
 </div>
 
@@ -680,7 +682,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </div>
 
 <div class="settings_cell">
-<input id="validation_iterations" name="validation_iterations" type="number" min="1" value="1"/>
+<input id="validation_iterations" name="validation_iterations" type="number" min="1" value="10"/>
 </div>
 </div>
 
@@ -690,7 +692,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </div>
 
 <div class="settings_cell">
-<input id="validation_workers" name="validation_workers" type="number" min="1" value="4"/>
+<input id="validation_workers" name="validation_workers" type="number" min="1" value="12"/>
 </div>
 </div>
 
@@ -700,7 +702,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </div>
 
 <div class="settings_cell">
-<input id="timeout" name="timeout" type="number" min="0" value="1" step="0.001"/>
+<input id="timeout" name="timeout" type="number" min="0" value="24" step="0.001"/>
 </div>
 </div>
 
