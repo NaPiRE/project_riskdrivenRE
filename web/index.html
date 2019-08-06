@@ -40,49 +40,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     };
     params = Object.assign({}, initial_params);
 
-    old_params = null;
     items = {};
     edges = {};
     loading = 0;
-
-    function query_changed() {
-        if(old_params === null) {
-            return 1;
-        }
-
-        function obj_equals(a, b, eq_fun = (a, b) => a === b) {
-            let prs = Object.getOwnPropertyNames(a).concat(Object.getOwnPropertyNames(b));
-            for (let i = 0; i < prs.length; i++) {
-                let pr = prs[i];
-                if(!a.hasOwnProperty(pr) || !b.hasOwnProperty(pr)) {
-                    return false;
-                }
-
-                if (!eq_fun(a[pr], b[pr])) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        if(!obj_equals(old_params.nodes, params.nodes, obj_equals)) {
-            return 2;
-        }
-
-        if(!obj_equals(old_params.connect, params.connect, obj_equals)) {
-            return 2;
-        }
-
-        if(!obj_equals(old_params.query, params.query)) {
-            return 1;
-        }
-
-        if(!obj_equals(old_params.evidence, params.evidence)) {
-            return 1;
-        }
-
-        return false;
-    }
 
     function post(url, overwrites, noload_params) {
         if(!overwrites) overwrites = {};
@@ -101,15 +61,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         });
     }
 
-    function update_loading(inc) {
-        loading = loading + inc;
-        if(loading < 0) loading = 0;
-
-        if(loading == 0) $("#loading_indicator").hide();
-        else $("#loading_indicator").show();
-    }
-
-    function update_architecture_params(init) {
+    function load_architecture_params(init) {
         let connectivity = Object.getOwnPropertyNames(items);
         connectivity.sort();
 
@@ -247,7 +199,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         }
     }
 
-    function update_evidence_params(category_drag) {
+    function load_evidence_params(category_drag) {
         let data = {};
 
         function update(list, value) {
@@ -285,7 +237,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         $("#run_validation").prop("disabled", params["query"].length <= 0);
     }
 
-    function update_evidence_view() {
+    function adjust_evidence_view() {
         let evidence = [];
         for(let type in items) {
             if(items[type].length > 0) {
@@ -312,7 +264,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
                 }
             }
 
-            return contained
+            return contained;
         }
 
         let contained = update("#evidence_false");
@@ -332,13 +284,56 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             $("#evidence_unknown").append("<li>" + e + "</li>");
         }
 
-        update_evidence_params();
+        load_evidence_params();
     }
 
-    function update_descriptions() {
-        post("/descriptions?all_items=true").then(function(descriptions) {
-            let types = Object.getOwnPropertyNames(items);
+    function adjust_loading_indicator(inc) {
+        loading = loading + inc;
+        if(loading < 0) loading = 0;
 
+        if(loading == 0) {
+            $("#update_graph").prop("disabled", false);
+            $("#loading_indicator").hide();
+        } else {
+            $("#update_graph").prop("disabled", true);
+            $("#loading_indicator").show();
+        }
+    }
+
+    function update_graph(init) {
+        if(init) {
+            $("#connectivity_to").append("<li>PROBLEMS_CODE</li>");
+            $("#connectivity_to").append("<li>EFFECTS_CODE</li>");
+
+            $("#connectivity_from").append("<li>CAUSES_CODE</li>");
+            $("#connectivity_from").append("<li>PROBLEMS_CODE</li>");
+        }
+        load_architecture_params(); // load params from the just-changed ui
+
+        adjust_loading_indicator(+1);
+        post("/items").then(function(response) {
+            adjust_loading_indicator(-1);
+
+            items = response.items;
+            edges = response.edges;
+
+            load_architecture_params(); // insert stuff from the newly loaded items to the UI
+            adjust_evidence_view();
+
+            if(init) {
+                setTimeout(update_graph);
+                setTimeout(update_tasks);
+                setInterval(update_tasks, 10000);
+            }
+        }).fail( function(response) {
+            adjust_loading_indicator(-1);
+        });
+
+        adjust_loading_indicator(+1);
+        post("/descriptions?all_items=true").then(function(descriptions) {
+            adjust_loading_indicator(-1);
+
+            let types = Object.getOwnPropertyNames(items);
             types.sort();
             $("#codes").empty();
 
@@ -358,63 +353,25 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
                 $("#codes").append("<h2>" + type + "</h2><table><thead><th>Code</th><th>Description</th></thead><tbody>" + tcells + "</tbody></table>");
             }
+        }).fail( function(response) {
+            adjust_loading_indicator(-1);
         });
-    }
 
-    function update_items(init) {
-        if(init) {
-            $("#connectivity_to").append("<li>PROBLEMS_CODE</li>");
-            $("#connectivity_to").append("<li>EFFECTS_CODE</li>");
+        adjust_loading_indicator(+1);
+        post("/plot")
+            .then( function(response) {
+                adjust_loading_indicator(-1);
 
-            $("#connectivity_from").append("<li>CAUSES_CODE</li>");
-            $("#connectivity_from").append("<li>PROBLEMS_CODE</li>");
-        }
+                let img = new Image();
+                img.src = response;
+                $("#output_graph").html(img);
+            }).fail( function(response) {
+                adjust_loading_indicator(-1);
 
-        update_architecture_params(); // load params from the just-changed ui
-
-        post("/items").then(function(response) {
-            items = response.items;
-            edges = response.edges;
-
-            update_architecture_params(); // insert stuff from the newly loaded items to the UI
-            update_evidence_view();
-            update_descriptions();
-
-            if(init) {
-                setTimeout(update_graph);
-                setTimeout(update_tasks);
-                setInterval(update_graph, 5000);
-                setInterval(update_tasks, 10000);
-            }
-        });
-    }
-
-    function update_graph() {
-        qc = query_changed();
-
-        if(qc >= 0) {
-            old_params = $.extend(true, {}, params);
-        }
-
-        if(qc >= 1) {
-            post("/plot")
-                .then( function(response) {
-                    update_loading(-1);
-                    let img = new Image();
-                    img.src = response;
-                    $("#output_graph").html(img);
-                }).fail( function(response) {
-                    update_loading(-1);
-                    $("#output_graph").html(
-                        "<p>" + response.statusText + " (" +  response.status + ")<br/>"
-                        + response.responseText + "<p>");
-                });
-            update_loading(+1);
-        }
-
-        if(qc >= 2) {
-            update_items();
-        }
+                $("#output_graph").html(
+                    "<p>" + response.statusText + " (" +  response.status + ")<br/>"
+                    + response.responseText + "<p>");
+            });
     }
 
     function update_tasks() {
@@ -519,7 +476,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     for(let i of [ "#connectivity_from", "#connectivity_to", "#connectivity_available" ]) {
         $(i).sortable({
             connectWith: "ul.connectivity_drop",
-            stop: function(event, ui) { update_architecture_params(); update_items(); },
+            stop: function(event, ui) { load_architecture_params(); },
             revert: 200
         });
     }
@@ -527,7 +484,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     for(let i of [ "#evidence_unknown", "#evidence_true", "#evidence_false", "#evidence_output" ]) {
         $(i).sortable({
             connectWith: "ul.evidence_drop",
-            stop: function(event, ui) { update_evidence_params(); },
+            stop: function(event, ui) { load_evidence_params(); },
             revert: 200
         });
     }
@@ -544,7 +501,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
                 params["dataset"] = $("#dataset").val();
                 items = {};
                 edges = {};
-                update_items();
+                update_graph();
             });
         }),
 
@@ -559,7 +516,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             for(let model of response) {
                 $("#model").append("<option value=\"" + model + "\">" + model + "</option>");
             }
-        }) ]).then(function() { update_items(true) });
+        }) ]).then(function() { update_graph(true) });
 
     });
   </script>
@@ -627,6 +584,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </tr>
 </tbody>
 </table>
+
+<div class="button_container">
+<button id="update_graph"  type="button" onclick="update_graph()">Update graph</button>
+</div>
 
 <h1>Inference</h1>
 
