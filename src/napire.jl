@@ -89,7 +89,9 @@ module napire
             graphviz.set(graph, node, graphviz.NodeProps.fillcolor, "white")
             graphviz.set(graph, node, graphviz.NodeProps.style, "filled")
             graphviz.set(graph, node, graphviz.NodeProps.shape, shape(node))
-            graphviz.set(graph, node, graphviz.NodeProps.tooltip, data.descriptions[node])
+            if haskey(data.descriptions, node)
+                graphviz.set(graph, node, graphviz.NodeProps.tooltip, data.descriptions[node])
+            end
         end
 
         graphviz.set(graph, graphviz.GraphProps.ranksep, ranksep)
@@ -212,9 +214,12 @@ module napire
     export plot_prediction
 
     function plot_legend(output_type = graphviz.default_output_type, kwargs...)
-        plot_prediction( ( nodes = [ :unknown, :output, :absent, :present, :result ], edges = Dict{Pair{Symbol, Symbol}, Int}()),
-                        Set{Symbol}([:output]), Dict{Symbol, Bool}(:present => true, :absent => false),
-                        Dict{Symbol, Float64}( :result => 0.3 ), output_type; shorten = false)
+        plot_prediction( (
+                    nodes = [ :unknown, :output, :absent, :present, :result ],
+                    edges = Dict{Pair{Symbol, Symbol}, Int}(),
+                    descriptions = Dict{Symbol, String}()),
+                Set{Symbol}([:output]), Dict{Symbol, Bool}(:present => true, :absent => false),
+                Dict{Symbol, Float64}( :result => 0.3 ), output_type; shorten = false)
     end
     export plot_legend
 
