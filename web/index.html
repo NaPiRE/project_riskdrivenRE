@@ -92,25 +92,46 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         num_nodesweight = removeSuperfluousChildren("#connectivity_nodesweightedfilter", connectivity.length);
         num_nodesweight = removeSuperfluousChildren("#connectivity_nodesunknown", connectivity.length);
 
+        let initialFilters;
+        try {
+            initialFilters = window.localStorage.getItem("filters") ? JSON.parse(window.localStorage.getItem("filters")) : {};
+        } catch(e) {
+            initialFilters = {};
+        }
+
         for(; num_nodesweight < connectivity.length; num_nodesweight++) {
             let mw_id = "nodes_min_weight_" + connectivity[num_nodesweight];
+            !(mw_id in initialFilters) && (initialFilters[mw_id] = 5);
             $("#connectivity_nodesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
-                " type=\"number\" min=\"0\" value=\"5\" name=\"" + mw_id + "\"/>");
+                " type=\"number\" min=\"0\" value=\"" + initialFilters[mw_id] + "\" name=\"" + mw_id + "\"/>");
             $("#" + mw_id).change( (function(type, mw) { return function(event) {
-                params["nodes"][type]["filter"] = parseInt($("#" + mw).val());
+                let val = parseInt($("#" + mw).val());
+                params["nodes"][type]["filter"] = val;
+                initialFilters[mw] = val;
+                window.localStorage.setItem("filters", JSON.stringify(initialFilters));
             }}) (num_nodesweight, mw_id));
 
             mw_id = "nodes_min_weight_weighted_" + connectivity[num_nodesweight];
+            !(mw_id in initialFilters) && (initialFilters[mw_id] = false);
             $("#connectivity_nodesweightedfilter").append("<input id=\""+ mw_id + "\" type=\"checkbox\" class=\"min_weight\"/>");
             $("#" + mw_id).change( (function(type, mw) { return function(event) {
+                let val = $("#" + mw)[0].checked;
                 params["nodes"][type]["weighted_filter"] = $("#" + mw)[0].checked;
+                initialFilters[mw] = val;
+                window.localStorage.setItem("filters", JSON.stringify(initialFilters));
             }})(num_nodesweight, mw_id));
+            $("#" + mw_id)[0].checked = initialFilters[mw_id];
 
             mw_id = "nodes_unknown_" + connectivity[num_nodesweight];
+            !(mw_id in initialFilters) && (initialFilters[mw_id] = false);
             $("#connectivity_nodesunknown").append("<input id=\""+ mw_id + "\" type=\"checkbox\" class=\"min_weight\"/>");
             $("#" + mw_id).change( (function(type, mw) { return function(event) {
+                let val = $("#" + mw)[0].checked;
                 params["nodes"][type]["absent_is_unknown"] = $("#" + mw)[0].checked;
+                initialFilters[mw] = val;
+                window.localStorage.setItem("filters", JSON.stringify(initialFilters));
             }})(num_nodesweight, mw_id));
+            $("#" + mw_id)[0].checked = initialFilters[mw_id];
         }
 
         $("#connectivity_nodesnumber").empty();
@@ -161,6 +182,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             });
         }
         params["connect"] = connect;
+        window.localStorage.setItem("connectivity", JSON.stringify(connect));
 
         let num_edgesweight = Math.min(from_keys.length, to_keys.length);
         let num_edgesweight_found = 0;
@@ -169,18 +191,27 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
         for(; num_edgesweight_found < num_edgesweight; num_edgesweight_found++) {
             let mw_id = "edges_min_weight_" + num_edgesweight_found;
+            !(mw_id in initialFilters) && (initialFilters[mw_id] = 15);
             $("#connectivity_edgesweight").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
-                " type=\"number\" min=\"0\" value=\"15\" name=\"" + mw_id + "\"/>");
+                " type=\"number\" min=\"0\" value=\"" + initialFilters[mw_id] + "\" name=\"" + mw_id + "\"/>");
             $("#" + mw_id).change( (function(type, mw) { return function(event) {
-                params["connect"][type]["filter"] = parseInt($("#" + mw).val());
+                let val = parseInt($("#" + mw).val());
+                params["connect"][type]["filter"] = val;
+                initialFilters[mw] = val;
+                window.localStorage.setItem("filters", JSON.stringify(initialFilters));
             }})(num_edgesweight_found, mw_id));
 
             mw_id = "edges_min_weight_weighted_" + num_edgesweight_found;
+            !(mw_id in initialFilters) && (initialFilters[mw_id] = false);
             $("#connectivity_edgesweight_weighted").append("<input id=\"" + mw_id + "\" class=\"min_weight\"" +
                 " type=\"checkbox\" name=\"" + mw_id + "\"/>");
             $("#" + mw_id).change( (function(type, mw) { return function(event) {
-                params["connect"][type]["weighted_filter"] = $("#" + mw)[0].checked;
+                let val = $("#" + mw)[0].checked;
+                params["connect"][type]["weighted_filter"] = val;
+                initialFilters[mw] = val;
+                window.localStorage.setItem("filters", JSON.stringify(initialFilters));
             }})(num_edgesweight_found, mw_id));
+            $("#" + mw_id)[0].checked = initialFilters[mw_id];
         }
 
         $("#connectivity_edgesnumber").empty();
@@ -302,11 +333,24 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
     function update_graph(init) {
         if(init) {
-            $("#connectivity_to").append("<li>PROBLEMS_CODE</li>");
-            $("#connectivity_to").append("<li>EFFECTS_CODE</li>");
+            let initialConnectivity = window.localStorage.getItem("connectivity");
+            try {
+                initialConnectivity = initialConnectivity ? JSON.parse(initialConnectivity) : null;
+            } catch(e) {
+                initialConnectivity = null;
+            }
+            if(!initialConnectivity) {
+                initialConnectivity = [{
+                    from: "PROBLEMS_CODE", to: "EFFECTS_CODE"
+                }, {
+                    from: "CAUSES_CODE", to: "PROBLEMS_CODE"
+                }];
+            }
 
-            $("#connectivity_from").append("<li>CAUSES_CODE</li>");
-            $("#connectivity_from").append("<li>PROBLEMS_CODE</li>");
+            for(let edge of initialConnectivity) {
+                $("#connectivity_from").append("<li>" + edge.from + "</li>");
+                $("#connectivity_to").append("<li>" + edge.to + "</li>");
+            }
         }
         load_architecture_params(); // load params from the just-changed ui
 
@@ -497,8 +541,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             }
             $("#dataset").val(dataset ? dataset : response[0]);
             params["dataset"] = $("#dataset").val();
-            console.log($("#dataset").val());
-
 
             $("#dataset").change(function() {
                 params = Object.assign({}, initial_params);
@@ -592,6 +634,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 <div class="button_container">
 <button id="update_graph"  type="button" onclick="update_graph()">Update graph</button>
+<button id="update_graph"  type="button" onclick="window.localStorage.clear()">Reset storage</button>
 </div>
 
 <h1>Inference</h1>
