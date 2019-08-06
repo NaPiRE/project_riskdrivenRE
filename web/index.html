@@ -491,14 +491,19 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
     Promise.all([
         $.ajax("/datasets").then(function(response) {
+            var dataset = window.localStorage.getItem("dataset");
             for(let ds of response) {
                 $("#dataset").append("<option value=\"" + ds + "\">" + ds + "</option>");
             }
-            params["dataset"] = response[0];
+            $("#dataset").val(dataset ? dataset : response[0]);
+            params["dataset"] = $("#dataset").val();
+            console.log($("#dataset").val());
+
 
             $("#dataset").change(function() {
                 params = Object.assign({}, initial_params);
                 params["dataset"] = $("#dataset").val();
+                window.localStorage.setItem("dataset", params["dataset"]);
                 items = {};
                 edges = {};
                 update_graph();
