@@ -87,6 +87,11 @@ div.min_weight {
     margin-bottom: 2px;
     margin-top: 2px;
     background-color: lightgrey;
+
+    text-overflow: ellipsis;
+    overflow: hidden;
+    direction: rtl;
+    text-align: left;
 }
 
 .evidence_drop, .connectivity_drop {
