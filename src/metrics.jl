@@ -73,6 +73,19 @@ module Metrics
         return (limits = [ 0, 1 ], data_xlabel = "Considered elements at the top of the list", data = data)
     end
 
+    function ranking_precision(data, config = [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ])
+        data = __foreach(data, config,
+            function(expected, predicted, c)
+                if c > length(predicted); return missing; end
+
+                predicted_highest = sort(collect(predicted), by = ex -> -ex[2])
+                return sum(expected[k] for (k, _) in predicted_highest[1:c])
+            end,
+            (expected, p, t) -> t)
+
+        return (limits = [ 0, 1 ], data_xlabel = "Ranking length", data = data)
+    end
+
     function binary_accuracy(data, config = [ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ])
         data = __foreach(data, config, (e, p, t) -> length([ s for s in keys(e) if e[s] == (p[s] > t) ]) )
         return (limits = [ 0, 1 ], data_xlabel = "Node-present threshold", data = data)
