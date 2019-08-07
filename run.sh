@@ -26,8 +26,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
     exit 1
 fi
 
-OPTIONS=hsnp:
-LONGOPTS=help,shell,nodep,procs:
+OPTIONS=hsnrp:
+LONGOPTS=help,shell,nodep,norevise,procs:
 
 # -use ! and PIPESTATUS to get exit code with errexit set
 # -temporarily store output to be able to check for errors
@@ -42,7 +42,7 @@ fi
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-shell=n nodep=n
+shell=n nodep=n norevise=n
 procs=$(grep -c \^processor /proc/cpuinfo)
 
 # now enjoy the options in order and nicely split until we see --
@@ -54,6 +54,10 @@ while true; do
             ;;
         -n|--nodep)
             nodep=y
+            shift
+            ;;
+        -r|--norevise)
+            norevise=y
             shift
             ;;
         -p|--procs)
@@ -85,7 +89,8 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export JULIA_PROJECT="$DIR"
 export JULIA_REVISE_INCLUDE="1"
 
-loadcode="
+if [ $norevise == "n" ]; then
+    loadcode="
 using Revise
 
 files = [];
@@ -98,6 +103,9 @@ end
 @async Revise.entr(files, [ ]) do
     println(\"-- reload --\")
 end
+"
+fi
+loadcode="$loadcode
 import napire
 "
 
