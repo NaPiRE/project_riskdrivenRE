@@ -193,18 +193,16 @@ module web
             println("Creating " * string(new_workers) * " new workers")
             println("Re-using " * string(existing_workers) * " old workers")
 
-            pool = Distributed.WorkerPool( [
-                    reused_workers...,
-                    Distributed.addprocs(new_workers, exename = joinpath(dirname(@__DIR__), "run_worker.sh"))...
-                    ])
-
-            println("Pool created")
+            workers = collect([
+                reused_workers...,
+                Distributed.addprocs(new_workers, exename = joinpath(dirname(@__DIR__), "run_worker.sh"))...
+            ])
             data = (
-                pool = pool,
-                progress_array  = SharedArrays.SharedArray{Int64}( progress_array_shape; pids = collect(pool.workers) ),
-                interruptor     = SharedArrays.SharedArray{Int64}( (1, ), pids = collect(pool.workers) ),
-                elapsed_hours   = SharedArrays.SharedArray{Float64}( (1, ), pids = collect(pool.workers) ),
-                ready           = SharedArrays.SharedArray{Int64}( (1, ), pids = collect(pool.workers) )
+                workers = workers,
+                progress_array  = SharedArrays.SharedArray{Int64}( progress_array_shape; pids = workers),
+                interruptor     = SharedArrays.SharedArray{Int64}( (1, ), pids = workers),
+                elapsed_hours   = SharedArrays.SharedArray{Float64}( (1, ), pids = workers),
+                ready           = SharedArrays.SharedArray{Int64}( (1, ), pids = workers)
             )
 
             println("Process creation done")
@@ -223,7 +221,8 @@ module web
             timeout = get(query_dict, "timeout", -1)
             start = time()
             try
-                remotetask = Distributed.remotecall(fun, setup.pool, query_dict; pool = setup.pool, progress_array = setup.progress_array, ready = setup.ready)
+                remotetask = Distributed.remotecall(fun, setup.workers[1], query_dict;
+                    pool = Distributed.WorkerPool(setup.workers[2:end]), progress_array = setup.progress_array, ready = setup.ready)
                 while sum(setup.ready) == 0 && sum(setup.interruptor) == 0 && (timeout <= 0 || timeout > sum(setup.elapsed_hours))
                     sleep(1)
                     setup.elapsed_hours[1] = (time() - start) / 60 / 60
@@ -239,7 +238,7 @@ module web
 
                 return fetch(remotetask)
             catch e
-                kills = [ worker.config.process  for worker in Distributed.PGRP.workers if in(worker.id, setup.pool.workers) ]
+                kills = [ worker.config.process for worker in Distributed.PGRP.workers if in(worker.id, setup.workers) ]
                 for process in kills;
                     println("Killing " * string(getpid(process)))
                     kill(process)
@@ -255,12 +254,12 @@ module web
 
         @async begin
             result = task_fetch(task, true)
-            pool, progress_array, interruptor, elapsed_hours = fetch(setup_task)
+            workers, progress_array, interruptor, elapsed_hours, _ = fetch(setup_task)
 
             if task_state(task) == :DONE
-                append!(__available_workers, collect(pool.workers))
+                append!(__available_workers, workers)
             else
-                __uncreated_workers += length(pool.workers)
+                __uncreated_workers += length(workers)
             end
 
             interruptor = SerTask(:DONE, collect(interruptor))
