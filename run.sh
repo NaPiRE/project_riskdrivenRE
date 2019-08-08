@@ -27,7 +27,7 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
 fi
 
 OPTIONS=hsnrp:
-LONGOPTS=help,shell,nodep,norevise,procs:
+LONGOPTS=help,shell,nodep,revise,procs:
 
 # -use ! and PIPESTATUS to get exit code with errexit set
 # -temporarily store output to be able to check for errors
@@ -42,7 +42,7 @@ fi
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-shell=n nodep=n norevise=n
+shell=n nodep=n revise=n
 procs=$(grep -c \^processor /proc/cpuinfo)
 
 # now enjoy the options in order and nicely split until we see --
@@ -56,8 +56,8 @@ while true; do
             nodep=y
             shift
             ;;
-        -r|--norevise)
-            norevise=y
+        -r|--revise)
+            revise=y
             shift
             ;;
         -p|--procs)
@@ -65,7 +65,7 @@ while true; do
             shift 2
             ;;
         -h|--help)
-            echo "Usage: $0 [--shell|--nodep|--help]"
+            echo "Usage: $0 [--shell|--nodep|--revise|--help]"
             exit 0
             ;;
         --)
@@ -89,7 +89,8 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export JULIA_PROJECT="$DIR"
 export JULIA_REVISE_INCLUDE="1"
 
-if [ $norevise == "n" ]; then
+if [ $revise == "y" ]; then
+    echo "Enabling revise"
     loadcode="
 using Revise
 
