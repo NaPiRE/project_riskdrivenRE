@@ -24,6 +24,7 @@ module napire
     import BayesNets
     import Distributed
     import Random
+    import SharedArrays
 
     include("graphviz.jl")
     export graphviz
@@ -250,6 +251,7 @@ module napire
         evidence_variables = setdiff(Set{Symbol}(names(data.data)), query)
         model_tasks = []
 
+        ready = SharedArrays.SharedArray{Int64}( (iterations, ), pids = (pool == nothing ? Int[] : collect(pool.workers) ))
         for iteration in 1:iterations
             samples = Random.randperm(size(data.data, 1))
 
@@ -265,19 +267,21 @@ module napire
             @assert max(validation_samples...) <= nrow(data.data)
             @assert max(training_samples...)   <= nrow(data.data)
 
-            push!(model_tasks, (
-                __remotecall(train, data, Val(model), training_samples),
-                __remotecall(train, data, Val(baseline_model), training_samples),
-                validation_samples))
+
+            println("Enqueue training " * string(iteration))
+            push!(model_tasks, (__remotecall(__validation_train, data, model, baseline_model, training_samples, iteration, ready), validation_samples, ready))
         end
+
+
         println("Started " * string(iterations) * " model trainings")
 
         tasks = Dict()
         # only ever run the inference task when the model has been trained. Otherwise some workers will starve
         while length(tasks) < length(model_tasks)
-            for (iteration, (mod, blmod, validation_samples)) in enumerate(model_tasks)
-                if isready(mod) && isready(blmod) && !haskey(tasks, iteration)
+            for (iteration, (training_result, validation_samples, ready)) in enumerate(model_tasks)
+                if ready[iteration] > 0 && !haskey(tasks, iteration)
                     tasks[iteration] = []
+                    mod, blmod = fetch(training_result)
 
                     for (sample_number, sample_index) in enumerate(validation_samples)
                         st = __remotecall(__validate_model, fetch(mod), fetch(blmod), iteration, sample_number, sample_index,
@@ -287,12 +291,21 @@ module napire
                     println("Started " * string(length(tasks) * subsample_size) * " predictions")
                 end
             end
-            sleep(0.1)
+            sleep(1)
         end
 
         # make sure we return data in the right order
         iteration_tasks = [ tasks[i] for i in 1:iterations ]
         return [ fetch(t) for t in vcat(iteration_tasks...)  ]
+    end
+
+    function __validation_train(data, model, baseline_model, subsample, iteration, ready)
+        println("Started training " * string(iteration))
+        mod = train(data, Val(model), subsample)
+        blmod = train(data, Val(baseline_model), subsample)
+        ready[iteration] = 1
+        println("Finished training " * string(iteration))
+        return (mod, blmod)
     end
 
     function __validate_model(mod, blmod, iteration, sample_number, sample_index, data, absent_is_unknown, query, evidence_variables, inference_method, progress_array)
