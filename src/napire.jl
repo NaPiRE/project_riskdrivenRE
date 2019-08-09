@@ -278,17 +278,22 @@ module napire
         tasks = Dict()
         # only ever run the inference task when the model has been trained. Otherwise some workers will starve
         while length(tasks) < length(model_tasks)
+            println("Checking tasks")
             for (iteration, (training_result, validation_samples, ready)) in enumerate(model_tasks)
                 if ready[iteration] > 0 && !haskey(tasks, iteration)
+                    println("Received training " * string(iteration))
                     tasks[iteration] = []
                     mod, blmod = fetch(training_result)
 
                     for (sample_number, sample_index) in enumerate(validation_samples)
+                        println("Enqueued sample " * string(iteration) * "." * string(sample_number))
                         st = __remotecall(__validate_model, fetch(mod), fetch(blmod), iteration, sample_number, sample_index,
                             data.data, data.absent_is_unknown, query, evidence_variables, inference_method,  progress_array)
                         push!(tasks[iteration], st)
                     end
                     println("Started " * string(length(tasks) * subsample_size) * " predictions")
+                else
+                    println("Training " * string(iteration) * " not yet done")
                 end
             end
             sleep(1)
@@ -309,7 +314,7 @@ module napire
     end
 
     function __validate_model(mod, blmod, iteration, sample_number, sample_index, data, absent_is_unknown, query, evidence_variables, inference_method, progress_array)
-        println("Subsample " * string(iteration) * "." * string(sample_number))
+        println("Sample " * string(iteration) * "." * string(sample_number))
 
         evidence = Dict{Symbol, Bool}()
         for ev in evidence_variables
