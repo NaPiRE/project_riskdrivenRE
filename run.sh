@@ -116,7 +116,7 @@ trap "{ rm -f '$tmp'; }" EXIT
 if [ $shell = "n" ]; then
     if [ $nodep = "n" ]; then
         deps="import Pkg; Pkg.instantiate();"
-        ( cd "$DIR/userweb" && npm run build-prod || echo "Failed compiling angular app" )
+        ( cd "$DIR/userweb" && npm install && npm run build-prod || echo "Failed compiling angular app" )
     fi
     echo "$deps $loadcode; import napire; napire.web.start(Dict(\"/web/\" => \"$DIR/web\", \"/userweb/\" => \"$DIR/userweb/build-prod\"), joinpath(\"$DIR\", \"results\"); maximum_tasks = $procs);" > "$tmp"
 
