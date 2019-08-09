@@ -45,8 +45,8 @@ module Metrics
 
             value_total    += !ismissing(value) && isfinite(value)    ? value : 0
             baseline_total += !ismissing(value) && isfinite(baseline) ? baseline : 0
-            value_config_counter    += !ismissing(value) && isfinite(value)    ? 1 : 0
-            baseline_config_counter += !ismissing(value) && isfinite(baseline) ? 1 : 0
+            value_config_counter    += 1
+            baseline_config_counter += 1
         end
 
         return [(   config = config, value = value, baseline = baseline,
