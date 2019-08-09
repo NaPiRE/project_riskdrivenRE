@@ -70,7 +70,7 @@ module Metrics
             end,
             (expected, p, t) -> sum(ex[2] for ex in expected))
 
-        return (limits = [ 0, 1 ], data_xlabel = "Considered elements at the top of the list", data = data)
+        return (limits = [ 0, 1 ], data_xlabel = "Ranking length", data = data)
     end
 
     function ranking_precision(data, config = [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ])
@@ -88,21 +88,21 @@ module Metrics
 
     function binary_accuracy(data, config = [ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ])
         data = __foreach(data, config, (e, p, t) -> length([ s for s in keys(e) if e[s] == (p[s] > t) ]) )
-        return (limits = [ 0, 1 ], data_xlabel = "Node-present threshold", data = data)
+        return (limits = [ 0, 1 ], data_xlabel = "Probability threshold", data = data)
     end
 
     function recall(data, config = [ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ])
         data = __foreach(data, config,
                 (e, p, t) -> sum([ p[s] > t ? 1 : 0 for s in keys(e) if e[s] ]),
                 (e, p, t) -> sum([ convert(Int, v) for v in values(e) ]))
-        return (limits = [ 0, 1 ], data_xlabel = "Node-present threshold", data = data)
+        return (limits = [ 0, 1 ], data_xlabel = "Probability threshold", data = data)
     end
 
     function precision(data, config = [ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ])
         data = __foreach(data, config,
                 (e, p, t) -> sum( [ convert(Int, e[s]) for s in keys(p) if p[s] > t ] ),
                 (e, p, t) -> sum([ 1 for s in keys(p) if p[s] > t ]))
-        return (limits = [ 0, 1 ], data_xlabel = "Node-present threshold",
+        return (limits = [ 0, 1 ], data_xlabel = "Probability threshold",
                     data = data)
     end
 end
