@@ -35,6 +35,7 @@ module web
     __started_tasks = nothing
     RESULT_DIRECTORY = nothing
     MAXIMUM_TASKS = nothing
+    revise_enabled = false
 
     function query_legend()
         return napire.plot_legend("svg")
@@ -195,7 +196,7 @@ module web
 
             workers = collect([
                 reused_workers...,
-                Distributed.addprocs(new_workers, exename = joinpath(dirname(@__DIR__), "run_worker.sh"))...
+                Distributed.addprocs(new_workers, exename = joinpath(dirname(@__DIR__), revise_enabled ? "run_worker_revise.sh" : "run_worker.sh"))...
             ])
             data = (
                 workers = workers,
@@ -521,10 +522,11 @@ module web
         end
     end
 
-    function start(webdir::Dict{String, String}, resultdir::String; host::Union{Sockets.IPv4, Sockets.IPv6} = Sockets.localhost, port::Int = 8888, maximum_tasks::Int = length(Sys.cpu_info()))
-        global RESULT_DIRECTORY, MAXIMUM_TASKS, __started_tasks, __uncreated_workers
+    function start(webdir::Dict{String, String}, resultdir::String; host::Union{Sockets.IPv4, Sockets.IPv6} = Sockets.localhost, port::Int = 8888, maximum_tasks::Int = length(Sys.cpu_info()), revise = false)
+        global RESULT_DIRECTORY, MAXIMUM_TASKS, __started_tasks, __uncreated_workers, revise_enabled
         RESULT_DIRECTORY = resultdir
         MAXIMUM_TASKS = maximum_tasks
+        revise_enabled = revise
 
         mkpath(RESULT_DIRECTORY)
         files = [ f for f in readdir(RESULT_DIRECTORY) if occursin(r"^[0-9]+\.ser$", f) ]

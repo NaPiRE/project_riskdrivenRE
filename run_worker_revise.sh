@@ -34,6 +34,18 @@ function exit {
 trap exit EXIT
 
 echo "
+using Revise
+
+files = [];
+for (root, _, dirfiles) in walkdir(\"$DIR/src\")
+    for file in dirfiles
+        push!(files, joinpath(root, file));
+    end
+end
+
+@async Revise.entr(files, [ ]) do
+    println(\"-- reload --\")
+end
 using napire
 import napire
 
