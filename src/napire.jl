@@ -232,50 +232,48 @@ module napire
     function validate(data, iterations::Int64, subsample_size::Int64, inference_method::Type,
                 query::Set{Symbol}, model::Symbol , baseline_model::Symbol;
                 pool = nothing, progress_array = nothing)
-
-        if progress_array != nothing
-            progress_array_shape = size(progress_array)
-            @assert progress_array_shape == (iterations, subsample_size)
-        else
-            progress_array = Array{Int64, 2}(undef, iterations, subsample_size)
-        end
-
-        function __remotecall(fun, args...)
-            if pool != nothing
-                Distributed.remotecall(fun, pool, args...)
-            else
-                return @async fun(args...)
-            end
-        end
-
-        evidence_variables = setdiff(Set{Symbol}(names(data.data)), query)
-        model_tasks = []
-
-        ready = SharedArrays.SharedArray{Int64}( (iterations, ), pids = (pool == nothing ? Int[] : collect(pool.workers) ))
-        for iteration in 1:iterations
-            samples = Random.randperm(size(data.data, 1))
-
-            validation_samples = samples[1:subsample_size]
-            training_samples   = samples[subsample_size + 1:end]
-
-            @assert length(validation_samples) == subsample_size
-            @assert length(validation_samples) + length(training_samples) == nrow(data.data)
-            @assert length(intersect(validation_samples, training_samples)) == 0
-
-            @assert min(validation_samples...) > 0
-            @assert min(training_samples...)   > 0
-            @assert max(validation_samples...) <= nrow(data.data)
-            @assert max(training_samples...)   <= nrow(data.data)
-
-
-            println("Enqueue training " * string(iteration))
-            push!(model_tasks, (__remotecall(__validation_train, data, model, baseline_model, training_samples, iteration, ready), validation_samples, ready))
-        end
-
-
-        println("Started " * string(iterations) * " model trainings")
-
         try
+            if progress_array != nothing
+                progress_array_shape = size(progress_array)
+                @assert progress_array_shape == (iterations, subsample_size)
+            else
+                progress_array = Array{Int64, 2}(undef, iterations, subsample_size)
+            end
+
+            function __remotecall(fun, args...)
+                if pool != nothing
+                    Distributed.remotecall(fun, pool, args...)
+                else
+                    return @async fun(args...)
+                end
+            end
+
+            evidence_variables = setdiff(Set{Symbol}(names(data.data)), query)
+            model_tasks = []
+
+            ready = SharedArrays.SharedArray{Int64}( (iterations, ), pids = (pool == nothing ? Int[] : collect(pool.workers) ))
+            for iteration in 1:iterations
+                samples = Random.randperm(size(data.data, 1))
+
+                validation_samples = samples[1:subsample_size]
+                training_samples   = samples[subsample_size + 1:end]
+
+                @assert length(validation_samples) == subsample_size
+                @assert length(validation_samples) + length(training_samples) == nrow(data.data)
+                @assert length(intersect(validation_samples, training_samples)) == 0
+
+                @assert min(validation_samples...) > 0
+                @assert min(training_samples...)   > 0
+                @assert max(validation_samples...) <= nrow(data.data)
+                @assert max(training_samples...)   <= nrow(data.data)
+
+
+                println("Enqueue training " * string(iteration))
+                push!(model_tasks, (__remotecall(__validation_train, data, model, baseline_model, training_samples, iteration, ready), validation_samples, ready))
+            end
+
+
+            println("Started " * string(iterations) * " model trainings")
             tasks = Dict()
             # only ever run the inference task when the model has been trained. Otherwise some workers will starve
             while length(tasks) < length(model_tasks)
@@ -293,8 +291,6 @@ module napire
                             push!(tasks[iteration], st)
                         end
                         println("Started " * string(length(tasks) * subsample_size) * " predictions")
-                    else
-                        println("Training " * string(iteration) * " not yet done")
                     end
                 end
                 sleep(1)
@@ -304,18 +300,29 @@ module napire
             iteration_tasks = [ tasks[i] for i in 1:iterations ]
             return [ fetch(t) for t in vcat(iteration_tasks...)  ]
         catch e
-            println(e)
+            for (exc, bt) in Base.catch_stack()
+                   showerror(stdout, exc, bt)
+                   println()
+            end
             rethrow(e)
         end
     end
 
     function __validation_train(data, model, baseline_model, subsample, iteration, ready)
-        println("Started training " * string(iteration))
-        mod = train(data, Val(model), subsample)
-        blmod = train(data, Val(baseline_model), subsample)
-        ready[iteration] = 1
-        println("Finished training " * string(iteration))
-        return (mod, blmod)
+        try
+            println("Started training " * string(iteration))
+            mod = train(data, Val(model), subsample)
+            blmod = train(data, Val(baseline_model), subsample)
+            ready[iteration] = 1
+            println("Finished training " * string(iteration))
+            return (mod, blmod)
+        catch e
+            for (exc, bt) in Base.catch_stack()
+                   showerror(stdout, exc, bt)
+                   println()
+            end
+            rethrow(e)
+        end
     end
 
     function __validate_model(mod, blmod, iteration, sample_number, sample_index, data, absent_is_unknown, query, evidence_variables, inference_method, progress_array)
@@ -340,7 +347,10 @@ module napire
             progress_array[iteration, sample_number] += 1
             return [ (expected, prediction, baseline_prediction) ]
         catch e
-            println(e)
+            for (exc, bt) in Base.catch_stack()
+                   showerror(stdout, exc, bt)
+                   println()
+            end
             rethrow(e)
         end
     end
