@@ -240,9 +240,27 @@ module napire
                 progress_array = Array{Int64, 2}(undef, iterations, subsample_size)
             end
 
-            function __remotecall(fun, args...)
+            function __remotecall(name, fun, args...)
                 if pool != nothing
-                    Distributed.remotecall(fun, pool, args...)
+                    submission_attempts = 3
+                    while true
+                        try
+                            task = Distributed.remotecall(fun, pool, args...)
+                            println("Task submitted: " * name)
+                            return task
+                        catch(e)
+                            submission_attempts -= 1
+                            if submission_attempts > 0
+                                println("Task submission failed, retrying: " * name)
+                                println(e)
+                                continue
+                            else
+                                println("Task submission failed, aborting after three attempts: " * name)
+                                println(e)
+                                break
+                            end
+                        end
+                    end
                 else
                     return @async fun(args...)
                 end
@@ -267,9 +285,9 @@ module napire
                 @assert max(validation_samples...) <= nrow(data.data)
                 @assert max(training_samples...)   <= nrow(data.data)
 
-
-                println("Enqueue training " * string(iteration))
-                push!(model_tasks, (__remotecall(__validation_train, data, model, baseline_model, training_samples, iteration, ready), validation_samples, ready))
+                push!(model_tasks, (__remotecall(
+                    "Training " * string(iteration), __validation_train, data,
+                    model, baseline_model, training_samples, iteration, ready), validation_samples, ready))
             end
 
 
@@ -277,7 +295,6 @@ module napire
             tasks = Dict()
             # only ever run the inference task when the model has been trained. Otherwise some workers will starve
             while length(tasks) < length(model_tasks)
-                println("Checking tasks")
                 for (iteration, (training_result, validation_samples, ready)) in enumerate(model_tasks)
                     if ready[iteration] > 0 && !haskey(tasks, iteration)
                         println("Received training " * string(iteration))
@@ -285,8 +302,9 @@ module napire
                         mod, blmod = fetch(training_result)
 
                         for (sample_number, sample_index) in enumerate(validation_samples)
-                            println("Enqueued sample " * string(iteration) * "." * string(sample_number))
-                            st = __remotecall(__validate_model, fetch(mod), fetch(blmod), iteration, sample_number, sample_index,
+                            st = __remotecall(
+                                "Sample " * string(iteration) * "." * string(sample_number),
+                                __validate_model, fetch(mod), fetch(blmod), iteration, sample_number, sample_index,
                                 data.data, data.absent_is_unknown, query, evidence_variables, inference_method,  progress_array)
                             push!(tasks[iteration], st)
                         end
