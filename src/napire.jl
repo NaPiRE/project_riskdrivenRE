@@ -257,7 +257,7 @@ module napire
                             else
                                 println("Task submission failed, aborting after three attempts: " * name)
                                 println(e)
-                                break
+                                rethrow(e)
                             end
                         end
                     end
