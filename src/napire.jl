@@ -275,33 +275,38 @@ module napire
 
         println("Started " * string(iterations) * " model trainings")
 
-        tasks = Dict()
-        # only ever run the inference task when the model has been trained. Otherwise some workers will starve
-        while length(tasks) < length(model_tasks)
-            println("Checking tasks")
-            for (iteration, (training_result, validation_samples, ready)) in enumerate(model_tasks)
-                if ready[iteration] > 0 && !haskey(tasks, iteration)
-                    println("Received training " * string(iteration))
-                    tasks[iteration] = []
-                    mod, blmod = fetch(training_result)
+        try
+            tasks = Dict()
+            # only ever run the inference task when the model has been trained. Otherwise some workers will starve
+            while length(tasks) < length(model_tasks)
+                println("Checking tasks")
+                for (iteration, (training_result, validation_samples, ready)) in enumerate(model_tasks)
+                    if ready[iteration] > 0 && !haskey(tasks, iteration)
+                        println("Received training " * string(iteration))
+                        tasks[iteration] = []
+                        mod, blmod = fetch(training_result)
 
-                    for (sample_number, sample_index) in enumerate(validation_samples)
-                        println("Enqueued sample " * string(iteration) * "." * string(sample_number))
-                        st = __remotecall(__validate_model, fetch(mod), fetch(blmod), iteration, sample_number, sample_index,
-                            data.data, data.absent_is_unknown, query, evidence_variables, inference_method,  progress_array)
-                        push!(tasks[iteration], st)
+                        for (sample_number, sample_index) in enumerate(validation_samples)
+                            println("Enqueued sample " * string(iteration) * "." * string(sample_number))
+                            st = __remotecall(__validate_model, fetch(mod), fetch(blmod), iteration, sample_number, sample_index,
+                                data.data, data.absent_is_unknown, query, evidence_variables, inference_method,  progress_array)
+                            push!(tasks[iteration], st)
+                        end
+                        println("Started " * string(length(tasks) * subsample_size) * " predictions")
+                    else
+                        println("Training " * string(iteration) * " not yet done")
                     end
-                    println("Started " * string(length(tasks) * subsample_size) * " predictions")
-                else
-                    println("Training " * string(iteration) * " not yet done")
                 end
+                sleep(1)
             end
-            sleep(1)
-        end
 
-        # make sure we return data in the right order
-        iteration_tasks = [ tasks[i] for i in 1:iterations ]
-        return [ fetch(t) for t in vcat(iteration_tasks...)  ]
+            # make sure we return data in the right order
+            iteration_tasks = [ tasks[i] for i in 1:iterations ]
+            return [ fetch(t) for t in vcat(iteration_tasks...)  ]
+        catch e
+            println(e)
+            rethrow(e)
+        end
     end
 
     function __validation_train(data, model, baseline_model, subsample, iteration, ready)
@@ -314,25 +319,30 @@ module napire
     end
 
     function __validate_model(mod, blmod, iteration, sample_number, sample_index, data, absent_is_unknown, query, evidence_variables, inference_method, progress_array)
-        println("Sample " * string(iteration) * "." * string(sample_number))
+        try
+            println("Sample " * string(iteration) * "." * string(sample_number))
 
-        evidence = Dict{Symbol, Bool}()
-        for ev in evidence_variables
-            if !(ev in absent_is_unknown) || data[sample_index, ev] > 0
-                evidence[ev] = data[sample_index, ev]
+            evidence = Dict{Symbol, Bool}()
+            for ev in evidence_variables
+                if !(ev in absent_is_unknown) || data[sample_index, ev] > 0
+                    evidence[ev] = data[sample_index, ev]
+                end
             end
+
+            expected = Dict{Symbol, Bool}()
+            for qv in query
+                expected[qv] = data[sample_index, qv]
+            end
+
+            prediction = predict(mod, inference_method, query, evidence)
+            baseline_prediction = predict(blmod, inference_method, query, evidence)
+
+            progress_array[iteration, sample_number] += 1
+            return [ (expected, prediction, baseline_prediction) ]
+        catch e
+            println(e)
+            rethrow(e)
         end
-
-        expected = Dict{Symbol, Bool}()
-        for qv in query
-            expected[qv] = data[sample_index, qv]
-        end
-
-        prediction = predict(mod, inference_method, query, evidence)
-        baseline_prediction = predict(blmod, inference_method, query, evidence)
-
-        progress_array[iteration, sample_number] += 1
-        return [ (expected, prediction, baseline_prediction) ]
     end
 
     function calc_metrics(data = nothing)
