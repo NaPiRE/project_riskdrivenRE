@@ -203,7 +203,9 @@ module web
                 progress_array  = SharedArrays.SharedArray{Int64}( progress_array_shape; pids = workers),
                 interruptor     = SharedArrays.SharedArray{Int64}( (1, ), pids = workers),
                 elapsed_hours   = SharedArrays.SharedArray{Float64}( (1, ), pids = workers),
-                ready           = SharedArrays.SharedArray{Int64}( (1, ), pids = workers)
+                ready           = SharedArrays.SharedArray{Int64}( (1, ), pids = workers),
+                pool            = Distributed.WorkerPool(workers[2:end]) # first worker will be used for mgmt process
+
             )
 
             println("Process creation done")
@@ -222,9 +224,9 @@ module web
             timeout = get(query_dict, "timeout", -1)
             start = time()
             try
-                pool = Distributed.WorkerPool(setup.workers[2:end])
+
                 remotetask = Distributed.remotecall(fun, setup.workers[1], query_dict;
-                    pool = pool, progress_array = setup.progress_array, ready = setup.ready)
+                    pool = setup.pool, progress_array = setup.progress_array, ready = setup.ready)
                 while sum(setup.ready) == 0 && sum(setup.interruptor) == 0 && (timeout <= 0 || timeout > sum(setup.elapsed_hours))
                     sleep(1)
                     setup.elapsed_hours[1] = (time() - start) / 60 / 60
