@@ -21,6 +21,7 @@
 set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+DIR="`dirname $DIR`" # remove src
 export JULIA_PROJECT="$DIR"
 export JULIA_REVISE_INCLUDE="1"
 

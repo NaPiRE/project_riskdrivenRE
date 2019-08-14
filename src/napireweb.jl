@@ -196,7 +196,7 @@ module web
 
             workers = collect([
                 reused_workers...,
-                Distributed.addprocs(new_workers, exename = joinpath(dirname(@__DIR__), revise_enabled ? "run_worker_revise.sh" : "run_worker.sh"))...
+                Distributed.addprocs(new_workers, exename = joinpath(dirname(@__DIR__), "src", revise_enabled ? "run_worker_revise.sh" : "run_worker.sh"))...
             ])
             data = (
                 workers = workers,
