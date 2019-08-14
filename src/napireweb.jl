@@ -387,22 +387,6 @@ module web
         return napire.load(dataset, nodes, connect, parse(Bool, all_items), max_parents)
     end
 
-    const APISPEC = Dict{NamedTuple, NamedTuple}(
-        (path = "/", method = "GET") => (fn = (; ) -> HTTP.Response(301, [ ("Location", "/web") ]), content = nothing),
-        (path = "/inference", method = "GET") => (fn = options(napire.inference_methods, napire.default_inference_method), content = "application/json"),
-        (path = "/datasets", method = "GET") => (fn = options(napire.datasets, napire.default_dataset), content = "application/json"),
-        (path = "/models", method = "GET")  => (fn = options(napire.models, napire.default_model), content = "application/json"),
-        (path = "/descriptions", method = "POST") => (fn = descriptions, content = "application/json"),
-        (path = "/items", method = "POST")  => (fn = items, content = "application/json"),
-        (path = "/plot", method = "POST") => (fn = plot, content = "text/plain"),
-        (path = "/infer", method = "POST") => (fn = infer, content = "application/json"),
-        (path = "/query_legend", method = "GET") => (fn = query_legend, content = "image/svg+xml"),
-        (path = "/validate", method = "POST")  => (fn = validate, content = "application/json"),
-        (path = "/tasks", method = "GET")  => (fn = tasks, content = "application/json"),
-        (path = "/tasks", method = "POST")  => (fn = tasks_cancel, content = "application/json"),
-        (path = "/tasks", method = "DELETE")  => (fn = tasks_delete, content = "application/json")
-    )
-
     const BODYMETHODS = Set([ "POST", "PUT" ])
 
     const REQUEST_CONVERSION = Dict(
@@ -431,24 +415,24 @@ module web
         return WebApplicationException(code, "")
     end
 
-    function dispatch(request::HTTP.Message)
+    function dispatch(apispec, request::HTTP.Message)
         uri = parse(HTTP.URI, request.target)
         key = (path = uri.path, method = request.method)
 
         checked_key = key
-        while checked_key.path != "" && !haskey(APISPEC, checked_key)
+        while checked_key.path != "" && !haskey(apispec, checked_key)
             split = rsplit(checked_key.path, "/"; limit = 2)
 
             checked_key = (path = split[1], method = request.method)
         end
 
-        if key != checked_key && haskey(APISPEC, checked_key)
+        if key != checked_key && haskey(apispec, checked_key)
             # return HTTP.Response(301, [ ("Location", checked_key.path) ])
             key = checked_key
-        elseif !haskey(APISPEC, key)
+        elseif !haskey(apispec, key)
             throw(WebApplicationException(404))
         end
-        endpoint = APISPEC[key]
+        endpoint = apispec[key]
 
         params = Dict(Symbol(k) => v for (k, v) in HTTP.queryparams(uri))
 
@@ -488,9 +472,9 @@ module web
         return HTTP.Response(response == nothing ? 204 : 200, [ ("Content-Type", endpoint.content) ]; body = response, request = request)
     end
 
-    function respond(request::HTTP.Message)
+    function respond(apispec, request::HTTP.Message)
         try
-            return dispatch(request)
+            return dispatch(apispec, request)
         catch e
             if isa(e, WebApplicationException)
                 return HTTP.Response(e.code, [ ("Content-Type", "text/plain") ]; body = e.msg, request = request)
@@ -504,7 +488,7 @@ module web
         end
     end
 
-    function serve_file(path, file)
+    function serve_file(apispec, path, file)
         if path[1] != '/'
             path = "/" * path
         end
@@ -517,12 +501,12 @@ module web
         end
 
         ep = (fn = (; kwargs...) -> read(file), content = final_mime)
-        APISPEC[(path = path, method = "GET")] = ep
+        apispec[(path = path, method = "GET")] = ep
 
         newpath = replace(path, r"/index.html$" => "/")
         if newpath != path
-            APISPEC[(path = newpath, method = "GET")] = ep # with /
-            APISPEC[(path = newpath[1:end-1], method = "GET")] = ep # without /
+            apispec[(path = newpath, method = "GET")] = ep # with /
+            apispec[(path = newpath[1:end-1], method = "GET")] = ep # without /
         end
     end
 
@@ -539,17 +523,59 @@ module web
         __started_tasks = Dict{Int64, Any}(f[1] => f[2] for f in files)
         __uncreated_workers = MAXIMUM_TASKS
 
+        apispec = Dict{NamedTuple, NamedTuple}(
+            (path = "/", method = "GET") => (fn = (; ) -> HTTP.Response(301, [ ("Location", "/web") ]), content = nothing),
+            (path = "/inference", method = "GET") => (fn = options(napire.inference_methods, napire.default_inference_method), content = "application/json"),
+            (path = "/datasets", method = "GET") => (fn = options(napire.datasets, napire.default_dataset), content = "application/json"),
+            (path = "/models", method = "GET")  => (fn = options(napire.models, napire.default_model), content = "application/json"),
+            (path = "/descriptions", method = "POST") => (fn = descriptions, content = "application/json"),
+            (path = "/items", method = "POST")  => (fn = items, content = "application/json"),
+            (path = "/plot", method = "POST") => (fn = plot, content = "text/plain"),
+            (path = "/infer", method = "POST") => (fn = infer, content = "application/json"),
+            (path = "/query_legend", method = "GET") => (fn = query_legend, content = "image/svg+xml"),
+            (path = "/validate", method = "POST")  => (fn = validate, content = "application/json"),
+            (path = "/tasks", method = "GET")  => (fn = tasks, content = "application/json"),
+            (path = "/tasks", method = "POST")  => (fn = tasks_cancel, content = "application/json"),
+            (path = "/tasks", method = "DELETE")  => (fn = tasks_delete, content = "application/json")
+        )
+
         for (path, wd) in webdir
             for (rootpath, dirs, files) in walkdir(wd; follow_symlinks = false)
                 for file in files
                     fullpath = joinpath(rootpath, file)
-                    serve_file(path * relpath(fullpath, wd), fullpath)
+                    serve_file(apispec, path * relpath(fullpath, wd), fullpath)
                 end
             end
         end
 
         println("Starting napire analysis REST service on http://" * string(host) * ":" * string(port))
-        HTTP.serve(respond, host, port)
+        HTTP.serve(r -> respond(apispec, r), host, port)
     end
     export start
+
+    function start_show(webdir::String, resultfile::String; host::Union{Sockets.IPv4, Sockets.IPv6} = Sockets.localhost, port::Int = 8888)
+        global __started_tasks
+        __started_tasks = Dict{Int64, Any}(1 => Serialization.deserialize(resultfile))
+
+        apispec = Dict{NamedTuple, NamedTuple}(
+            (path = "/", method = "GET") => (fn = (; ) -> HTTP.Response(301, [ ("Location", "/graph.html") ]), content = nothing),
+            (path = "/index.html", method = "GET") => (fn = (; ) -> HTTP.Response(301, [ ("Location", "/graph.html") ]), content = nothing),
+            (path = "/tasks", method = "GET")  => (fn = (; kwargs...) -> task_serialize(1), content = "application/json"),
+            (path = "/plot", method = "POST") => (fn = plot, content = "text/plain")
+        )
+
+        for (rootpath, dirs, files) in walkdir(webdir; follow_symlinks = false)
+            for file in files
+                fullpath = joinpath(rootpath, file)
+                println(file)
+                if file != "index.html"
+                    serve_file(apispec, "/web/" * relpath(fullpath, webdir), fullpath)
+                end
+            end
+        end
+
+        println("Starting napire result inspection service on http://" * string(host) * ":" * string(port))
+        HTTP.serve(r -> respond(apispec, r), host, port)
+    end
+    export start_show
 end
