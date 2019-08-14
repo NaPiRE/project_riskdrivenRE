@@ -75,7 +75,6 @@ module DataSets
                 node_incoming_edges = [ e for e in all_edges if e.first.second == node ]
                 sort!(node_incoming_edges, by = e -> e.second, rev = true)
 
-                parents = length(node_incoming_edges)
                 for (edge, _) in node_incoming_edges[(max_parents + 1):end]
                     delete!(all_edges, edge)
                 end
