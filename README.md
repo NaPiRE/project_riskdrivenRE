@@ -14,6 +14,7 @@ Compiling and Running
 * If you want to work with the web interface used for the case study, you need to install a recent-ish version of npm to compile the Angular app.
 `sudo apt-get install npm`
 * Clone this repository, inspect the code and run `./run.sh`. By default, the web service will be available at `http://127.0.0.1:8888`, serving the evaluation interface at `/web` and the case study UI at `/userweb`.
+* If you are only interested in looking at pre-computed results, run `./show.sh path/to/resultsfile.ser`.
 
 It is most probably possible to run this on an average Windows as well, but will require some additional work. Please refer to `run.sh` for ideas on how to make this work.
 

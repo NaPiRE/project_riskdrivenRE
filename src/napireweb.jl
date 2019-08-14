@@ -524,7 +524,7 @@ module web
         __uncreated_workers = MAXIMUM_TASKS
 
         apispec = Dict{NamedTuple, NamedTuple}(
-            (path = "/", method = "GET") => (fn = (; ) -> HTTP.Response(301, [ ("Location", "/web") ]), content = nothing),
+            (path = "/", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web") ]), content = nothing),
             (path = "/inference", method = "GET") => (fn = options(napire.inference_methods, napire.default_inference_method), content = "application/json"),
             (path = "/datasets", method = "GET") => (fn = options(napire.datasets, napire.default_dataset), content = "application/json"),
             (path = "/models", method = "GET")  => (fn = options(napire.models, napire.default_model), content = "application/json"),
@@ -558,8 +558,10 @@ module web
         __started_tasks = Dict{Int64, Any}(1 => Serialization.deserialize(resultfile))
 
         apispec = Dict{NamedTuple, NamedTuple}(
-            (path = "/", method = "GET") => (fn = (; ) -> HTTP.Response(301, [ ("Location", "/graph.html") ]), content = nothing),
-            (path = "/index.html", method = "GET") => (fn = (; ) -> HTTP.Response(301, [ ("Location", "/graph.html") ]), content = nothing),
+            (path = "/", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web/graph.html") ]), content = nothing),
+            (path = "/web", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web/graph.html") ]), content = nothing),
+            (path = "/web/index.html", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web/graph.html") ]), content = nothing),
+            (path = "/index.html", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web/graph.html") ]), content = nothing),
             (path = "/tasks", method = "GET")  => (fn = (; kwargs...) -> task_serialize(1), content = "application/json"),
             (path = "/plot", method = "POST") => (fn = plot, content = "text/plain")
         )
@@ -567,7 +569,6 @@ module web
         for (rootpath, dirs, files) in walkdir(webdir; follow_symlinks = false)
             for file in files
                 fullpath = joinpath(rootpath, file)
-                println(file)
                 if file != "index.html"
                     serve_file(apispec, "/web/" * relpath(fullpath, webdir), fullpath)
                 end
