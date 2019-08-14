@@ -64,7 +64,7 @@ module napire
     include("napireweb.jl")
     export napireweb
 
-    function load(dataset, args...; summary = true)
+    function load(dataset, args...; summary = false)
         data = datasets[string(dataset)](args...)
 
         #
