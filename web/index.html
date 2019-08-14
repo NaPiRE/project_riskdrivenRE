@@ -37,6 +37,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         "query": [],
         "evidence": {},
         "inference_method": "",
+        "max_parents": 0
     };
     params = Object.assign({}, initial_params);
 
@@ -154,6 +155,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         //
         // update edges form
         //
+        params["max_parents"] = parseInt($("#max_parents").val());
 
         // load data from form
         let from_keys = [];
@@ -608,6 +610,20 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </tbody>
 </thead>
 
+<div class="settings_container">
+
+<div class="settings_row">
+<div class="settings_cell">
+<label for="model">Maximum parents per node</label>
+</div>
+
+<div class="settings_cell">
+<input id="max_parents" type="number" min="0"></input>
+</div>
+</div>
+
+</div>
+
 <table>
 <thead>
     <th>From</th><th>To</th><th>W</th><th>Filter</th><th>#</th>
@@ -643,7 +659,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 <div class="settings_container">
 
-<!-- we dont need this one right now since there's only one model and one baseline model -->
 <div class="settings_row">
 <div class="settings_cell">
 <label for="model">Model type</label>

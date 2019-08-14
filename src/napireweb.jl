@@ -383,7 +383,8 @@ module web
         connect_raw = get(query_dict, "connect", [])
         connect::Array{Tuple{Symbol,Symbol,Bool,UInt64}} = [ ( Symbol(c["from"]),  Symbol(c["to"]), convert(Bool, c["weighted_filter"]), convert(UInt, c["filter"]) ) for c in connect_raw ]
 
-        return napire.load(dataset, nodes, connect, parse(Bool, all_items))
+        max_parents = get(query_dict, "max_parents", 0)
+        return napire.load(dataset, nodes, connect, parse(Bool, all_items), max_parents)
     end
 
     const APISPEC = Dict{NamedTuple, NamedTuple}(

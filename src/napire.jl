@@ -64,7 +64,7 @@ module napire
     include("napireweb.jl")
     export napireweb
 
-    function load(dataset, args...; summary = false)
+    function load(dataset, args...; summary = true)
         data = datasets[string(dataset)](args...)
 
         #
@@ -75,6 +75,13 @@ module napire
             println("Descriptions: ", length(data.descriptions))
             println("Edges: ", length(data.edges))
             println("Samples: ", size(data.data)[1])
+
+            for node in data.nodes
+                parents = length([ g for g in keys(data.edges) if g.second == node])
+                if parents > 0
+                    println(string(node) * " parents: " * lpad(string(parents), 2, ' '), " configurations: " * string(2^parents))
+                end
+            end
         end
 
         return data

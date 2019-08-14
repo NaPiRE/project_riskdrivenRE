@@ -29,7 +29,7 @@ module DataSets
 
             nodes::Array{Tuple{Symbol, Bool, UInt, Bool}, 1} = Array{Tuple{Symbol, Bool, UInt, Bool}, 1}(),
             connect::Array{Tuple{Symbol, Symbol, Bool, UInt}, 1} = Array{Tuple{Symbol, Symbol, Bool, UInt}, 1}(),
-            all_items = false)
+            all_items = false, max_parents = Inf)
 
         #
         # Make sure the data is properly sorted so
@@ -64,6 +64,22 @@ module DataSets
             nodes, edges = __create_edges(data, items, connect_pair[1], connect_pair[2], connect_pair[3], connect_pair[4])
             all_nodes = union(all_nodes, nodes)
             all_edges = merge(all_edges, edges)
+        end
+
+        #
+        # max parents filtering: sort edges by weight and remove the ones with the lowest weight
+        #
+
+        if isfinite(max_parents) && max_parents > 0
+            for node in all_nodes
+                node_incoming_edges = [ e for e in all_edges if e.first.second == node ]
+                sort!(node_incoming_edges, by = e -> e.second, rev = true)
+
+                parents = length(node_incoming_edges)
+                for (edge, _) in node_incoming_edges[(max_parents + 1):end]
+                    delete!(all_edges, edge)
+                end
+            end
         end
 
         # remove now unused data from previously created structures
