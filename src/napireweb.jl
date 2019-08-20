@@ -124,7 +124,7 @@ module web
             if isa(e, KeyError)
                 throw(WebApplicationException(404, "No such task"))
             end
-            reraise
+            rethrow(e)
         end
     end
 
@@ -384,7 +384,7 @@ module web
         connect::Array{Tuple{Symbol,Symbol,Bool,UInt64}} = [ ( Symbol(c["from"]),  Symbol(c["to"]), convert(Bool, c["weighted_filter"]), convert(UInt, c["filter"]) ) for c in connect_raw ]
 
         max_parents = get(query_dict, "max_parents", 0)
-        return napire.load(dataset, nodes, connect, parse(Bool, all_items), max_parents)
+        return napire.load(dataset, nodes, connect, parse(Bool, all_items), max_parents == nothing ? Inf : max_parents)
     end
 
     const BODYMETHODS = Set([ "POST", "PUT" ])
