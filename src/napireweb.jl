@@ -540,6 +540,11 @@ module web
         )
 
         for (path, wd) in webdir
+            if !isdir(wd)
+                println("WARNING: web directory " * wd * " not found")
+                continue
+            end
+
             for (rootpath, dirs, files) in walkdir(wd; follow_symlinks = false)
                 for file in files
                     fullpath = joinpath(rootpath, file)
@@ -565,12 +570,15 @@ module web
             (path = "/tasks", method = "GET")  => (fn = (; kwargs...) -> task_serialize(1), content = "application/json"),
             (path = "/plot", method = "POST") => (fn = plot, content = "text/plain")
         )
-
-        for (rootpath, dirs, files) in walkdir(webdir; follow_symlinks = false)
-            for file in files
-                fullpath = joinpath(rootpath, file)
-                if file != "index.html"
-                    serve_file(apispec, "/web/" * relpath(fullpath, webdir), fullpath)
+        if !isdir(wd)
+            println("WARNING: web directory " * wd * " not found")
+        else
+            for (rootpath, dirs, files) in walkdir(webdir; follow_symlinks = false)
+                for file in files
+                    fullpath = joinpath(rootpath, file)
+                    if file != "index.html"
+                        serve_file(apispec, "/web/" * relpath(fullpath, webdir), fullpath)
+                    end
                 end
             end
         end
