@@ -16,7 +16,11 @@ Based on data from the 2014 and 2018 runs of the NaPiRE survey (http://www.napir
 
 It is most probably possible to run this on an average Windows as well, but will require some additional work. Please refer to `run.sh` for ideas on how to make this work.
 
-# Contributing
+# Contributing and extending
+
+## Licencing
+
+This work is licensed under the GNU General Public License, version 3. Parts of it may be subject to other license (the data, e.g., is under CC-BY 4.0). Please refer to the respective directories for more details.
 
 ## On GitLab
 
