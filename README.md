@@ -1,7 +1,7 @@
 NaPiRE trouble predictor:  Overview
 ------------------------------------
 
-Based on data from the latest 2018 run of the NaPiRE survey (http://www.napire.org), this machine-learning-based tool implements a RESTful service predicting problems, causes, and their effects as potentially occuring in software development projects. To this end, we use Bayesian networks which are easily configurable from a web interface and can reach reasonable prediction recall and precision.
+Based on data from the 2014 and 2018 runs of the NaPiRE survey (http://www.napire.org), this machine-learning-based tool implements a RESTful service predicting problems, causes, and their effects as potentially occuring in software development projects. To this end, we use Bayesian networks which are easily configurable from a web interface and can reach reasonable prediction recall and precision.
 
 Compiling and Running
 ----------------------
