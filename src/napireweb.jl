@@ -570,8 +570,8 @@ module web
             (path = "/tasks", method = "GET")  => (fn = (; kwargs...) -> task_serialize(1), content = "application/json"),
             (path = "/plot", method = "POST") => (fn = plot, content = "text/plain")
         )
-        if !isdir(wd)
-            println("WARNING: web directory " * wd * " not found")
+        if !isdir(webdir)
+            println("WARNING: web directory " * webdir * " not found")
         else
             for (rootpath, dirs, files) in walkdir(webdir; follow_symlinks = false)
                 for file in files
