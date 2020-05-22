@@ -34,7 +34,11 @@ Please fork and create a pull request. Evidently, your contribution will be revi
 
 ## NaPiRE trouble predictor
 
-ToDo
+The approach has been published and presented at the 28th IEEE International Requirements Engineering Conference (RE'20) (www.re20.org). 
+
+When citing the approach, please use:
+
+Florian Wiesweg, Andreas Vogelsang, Daniel Mendez: "Data-driven Risk Management for Requirements Engineering: An Automated Approach based on Bayesian Networks". 28th IEEE International Requirements Engineering Conference (RE'20). 2020
 
 ## NaPiRE data set
 
@@ -42,7 +46,7 @@ The NaPiRE initiative (Naming the Pain in Requirements Engineering) is a communi
 
 When citing the NaPiRE initiative, please therefore use:
 
-D. Mendez, S. Wagner, M. Kalinowski, M. Felderer et al.. NaPiRE: Naming the Pain in Requirements Engineering, http://napire.org.
+D. Mendez, S. Wagner, M. Kalinowski, M. Felderer et al. NaPiRE: Naming the Pain in Requirements Engineering, http://napire.org.
 
 Specific data sets can be cited by adding the dates from the respective NaPiRE runs to the citation (e.g. 2018 for the one primarily used in context of this repository).
 
