@@ -1,4 +1,4 @@
-We are applying for the followoing badges:
+We are applying for the following badges:
 
 # Reusable:
 The repository contains the code of our implementation as well as the underlying dataset. 
