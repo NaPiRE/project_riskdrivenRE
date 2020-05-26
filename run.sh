@@ -23,7 +23,7 @@ set -e
 OPTIONS=snrp:
 
 shell=n nodep=n revise=n
-procs=$(grep -c \^processor /proc/cpuinfo)
+procs=$(sysctl -n hw.ncpu)
 
 while getopts $OPTIONS varname; do
     case "$varname" in
