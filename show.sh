@@ -20,60 +20,35 @@
 
 set -e
 
-! getopt --test > /dev/null
-if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
-    echo 'I’m sorry, `getopt --test` failed in this environment.'
-    exit 1
-fi
-
-OPTIONS=hn
-LONGOPTS=help,nodep:
-
-# -use ! and PIPESTATUS to get exit code with errexit set
-# -temporarily store output to be able to check for errors
-# -activate quoting/enhanced mode (e.g. by writing out “--options”)
-# -pass arguments only via   -- "$@"   to separate them correctly
-! PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
-if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-    # e.g. return value is 1
-    #  then getopt has complained about wrong arguments to stdout
-    exit 2
-fi
-# read getopt’s output this way to handle the quoting right:
-eval set -- "$PARSED"
+OPTIONS=nf:
 
 nodep=n
 procs=$(grep -c \^processor /proc/cpuinfo)
 
-# now enjoy the options in order and nicely split until we see --
-while true; do
-    case "$1" in
-        -n|--nodep)
+while getopts $OPTIONS varname; do
+    case "$varname" in
+        n)
             nodep=y
-            shift
             ;;
-        -h|--help)
-            echo "Usage: $0 [--nodep] RESULTFILE"
-            exit 0
-            ;;
-        --)
-            shift
-            break
+        f)
+            RESULTFILE="$OPTARG"
             ;;
         *)
-            echo "Programming error"
-            exit 3
+            echo "Usage: $0 [-n] -f FILE"
+            echo ""
+            echo "Flags:"
+            echo "  -n  Skip checking, downloading and building the dependencies to save some time."
+            echo "  -f  Result file to read."
+            exit 1
             ;;
     esac
 done
 
-# handle non-option arguments
-if [[ $# -ne 1 ]]; then
-    echo "$0: You must pass exactly one result file as positional argument. Try --help"
-    exit 4
-fi
+if [ -z "$RESULTFILE" ]; then echo "You must provide the -f flag."; exit 1; fi
 
-RESULTFILE=${@:$OPTIND:1}
+nodep=n
+procs=$(grep -c \^processor /proc/cpuinfo)
+
 RESULTFILE="`realpath $RESULTFILE`"
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"

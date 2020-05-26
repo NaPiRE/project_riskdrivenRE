@@ -20,70 +20,37 @@
 
 set -e
 
-! getopt --test > /dev/null
-if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
-    echo 'I’m sorry, `getopt --test` failed in this environment.'
-    exit 1
-fi
-
-OPTIONS=hsnrp:
-LONGOPTS=help,shell,nodep,revise,procs:
-
-# -use ! and PIPESTATUS to get exit code with errexit set
-# -temporarily store output to be able to check for errors
-# -activate quoting/enhanced mode (e.g. by writing out “--options”)
-# -pass arguments only via   -- "$@"   to separate them correctly
-! PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
-if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-    # e.g. return value is 1
-    #  then getopt has complained about wrong arguments to stdout
-    exit 2
-fi
-# read getopt’s output this way to handle the quoting right:
-eval set -- "$PARSED"
+OPTIONS=snrp:
 
 shell=n nodep=n revise=n
 procs=$(grep -c \^processor /proc/cpuinfo)
 
-# now enjoy the options in order and nicely split until we see --
-while true; do
-    case "$1" in
-        -s|--shell)
+while getopts $OPTIONS varname; do
+    case "$varname" in
+        s)
             shell=y
-            shift
             ;;
-        -n|--nodep)
+        n)
             nodep=y
-            shift
             ;;
-        -r|--revise)
+        r)
             revise=y
-            shift
             ;;
-        -p|--procs)
-            procs="$2"
-            shift 2
-            ;;
-        -h|--help)
-            echo "Usage: $0 [--shell|--nodep|--revise|--help]"
-            exit 0
-            ;;
-        --)
-            shift
-            break
+        p)
+            procs="$OPTARG"
             ;;
         *)
-            echo "Programming error"
-            exit 3
+            echo "Usage: $0 [-s|-n|-r|-p]"
+            echo ""
+            echo "Flags:"
+            echo "  -s      Start a Julia REPL with an initialised environment."
+            echo "  -n      Skip checking, downloading and building the dependencies to save some time."
+            echo "  -r      Load Julia's Revise module to simplify debugging."
+            echo "  -p N    Override the number of parallel processes forked to speed up calculations (defaults to $procs for your CPU)"
+            exit 1
             ;;
     esac
 done
-
-# handle non-option arguments
-if [[ $# -ne 0 ]]; then
-    echo "$0: No positional arguments are supported. Try --help."
-    exit 4
-fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export JULIA_PROJECT="$DIR"
