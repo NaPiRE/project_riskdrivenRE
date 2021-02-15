@@ -130,7 +130,7 @@ module napire
         end
 
         # add one, BayesNets expects state labelling to be 1-based
-        graph_data = DataFrame(colwise(x -> convert(Array{Int64}, x) .+ 1, data.data), names(data.data))
+        graph_data = DataFrame(colwise(x -> convert(Array{Int64}, x) .+ 1, graph_data), names(graph_data))
 
         return BayesNets.fit(BayesNets.DiscreteBayesNet, graph_data, graph_layout)
     end
