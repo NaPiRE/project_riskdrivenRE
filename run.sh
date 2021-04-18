@@ -20,9 +20,9 @@
 
 set -e
 
-OPTIONS=sjvnrp:
+OPTIONS=svdnjrp:
 
-shell=n rerun=n nodep=n revise=n userweb=n
+shell=n rerun=n download=n nodep=n userweb=n revise=n
 
 if [ -e /proc/cpuinfo ]; then
     procs=$(grep -c \^processor /proc/cpuinfo)
@@ -37,6 +37,9 @@ while getopts $OPTIONS varname; do
             ;;
         v)
             rerun=y
+            ;;
+        d)
+            download=y
             ;;
         n)
             nodep=y
@@ -59,7 +62,8 @@ while getopts $OPTIONS varname; do
             echo "  -v          Re-run all tasks found in the results directory"
             echo ""
             echo "Additional flags: "
-            echo "  -n      Skip checking, downloading and building the dependencies to save some time."
+            echo "  -d      Do not use system julia, but download and extract it if necessary"
+            echo "  -n      Skip checking the julia dependencies to save some time"
             echo "  -j      Compile userweb angular application"
             echo "  -r      Load Julia's Revise module to simplify debugging."
             echo "  -p N    Override the number of parallel processes forked to speed up calculations (defaults to $procs for your CPU)"
@@ -102,6 +106,47 @@ import napire
 
 tmp=$(mktemp)
 trap "{ rm -f '$tmp'; }" EXIT
+
+if [ $download = "y" ]; then
+    outfile="julia.tar.gz"
+    url="https://julialang-s3.julialang.org/bin/linux/x64/1.1/julia-1.1.1-linux-x86_64.tar.gz"
+    sha="a64d6ddb6d9cb1954b28272f2ac1ce93ce666722 $outfile"
+    outfile="$DIR/$outfile"
+    inner_path="julia-1.1.1/bin"
+
+    juliadir="$DIR/__julia__"
+
+    if [ ! -d "$juliadir" ]; then
+        if [ -e "$outfile" ]; then
+            # ah test parentheses arent my thing
+            if [ ! -e "$outfile.sha1" ]; then
+                # remove partial download
+                rm "$outfile"
+            fi
+        fi
+
+        if [ ! -e "$outfile" ]; then
+            echo "Downloading julia"
+            wget "$url" -O "$outfile" --show-progress
+        else
+            echo "File  already downloaded: $outfile"
+        fi
+
+        echo "$sha" > "$outfile.sha1"
+        sha1sum -c "$outfile.sha1"
+        if [ $? -ne 0 ]; then
+            echo "Checksum verification failed: $outfile"
+        fi
+
+        mkdir "$juliadir"
+        (set -e && cd "$juliadir" && tar -xf "$outfile")
+        if [ $? -ne 0 ]; then
+            echo "File extraction failed: $outfile"
+        fi
+    fi
+
+    export PATH="$juliadir/$inner_path:$PATH"
+fi
 
 if [ $nodep = "n" ]; then
     deps="import Pkg; Pkg.instantiate();"

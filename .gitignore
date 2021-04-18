@@ -2,3 +2,5 @@
 /results
 /results.bak
 /userweb/build-*
+julia*.tar.*
+__julia__
