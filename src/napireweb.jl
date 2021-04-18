@@ -159,10 +159,16 @@ module web
         return task_serialize(id, parse(Bool, printresult), delete)
     end
 
-    function __run_task(task_type, task_workers, fun,  progress_array_shape, query_dict)
+    function __run_task(task_type, task_workers, fun,  progress_array_shape, query_dict; task_prefix = "MODEL_")
         global __available_workers, __uncreated_workers
 
-        task_id = string(isempty(__started_tasks) ? 1 : maximum(keys(__started_tasks)) + 1)
+        task_id = nothing
+        task_counter = 1
+        while task_counter != nothing
+            task_id = task_prefix * string(task_counter)
+            task_counter = haskey(__started_tasks, task_id) ? task_counter + 1 : nothing
+        end
+
         steps_total = prod(progress_array_shape)
 
         setup_task = @async begin
@@ -511,7 +517,7 @@ module web
         end
     end
 
-    function start(webdir::Dict{String, String}, resultdir::String; host::Union{Sockets.IPv4, Sockets.IPv6} = Sockets.localhost, port::Int = 8888, maximum_tasks::Int = length(Sys.cpu_info()), revise = false)
+    function __initialize(resultdir::String, maximum_tasks::Int, revise::Bool)
         global RESULT_DIRECTORY, MAXIMUM_TASKS, __started_tasks, __uncreated_workers, revise_enabled
         RESULT_DIRECTORY = resultdir
         MAXIMUM_TASKS = maximum_tasks
@@ -522,6 +528,11 @@ module web
         result_files = [ (f[1:end-4], Serialization.deserialize(joinpath(RESULT_DIRECTORY, f))) for f in result_files ]
         __started_tasks = Dict{String, Any}(f[1] => f[2] for f in result_files)
         __uncreated_workers = MAXIMUM_TASKS
+    end
+
+    function start(resultdir::String, maximum_tasks::Int, revise::Bool, webdir::Dict{String, String};
+                   host::Union{Sockets.IPv4, Sockets.IPv6} = Sockets.localhost, port::Int = 8888)
+        __initialize(resultdir, maximum_tasks, revise)
 
         apispec = Dict{NamedTuple, NamedTuple}(
             (path = "/", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web") ]), content = nothing),
@@ -558,33 +569,29 @@ module web
     end
     export start
 
-    function start_show(webdir::String, resultfile::String; host::Union{Sockets.IPv4, Sockets.IPv6} = Sockets.localhost, port::Int = 8888)
-        global __started_tasks
-        __started_tasks = Dict{String, Any}("1" => Serialization.deserialize(resultfile))
+    function start_rerun(resultdir::String, maximum_tasks::Int, revise::Bool)
+        __initialize(resultdir, maximum_tasks, revise)
 
-        apispec = Dict{NamedTuple, NamedTuple}(
-            (path = "/", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web/graph.html") ]), content = nothing),
-            (path = "/web", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web/graph.html") ]), content = nothing),
-            (path = "/web/index.html", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web/graph.html") ]), content = nothing),
-            (path = "/index.html", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web/graph.html") ]), content = nothing),
-            (path = "/tasks", method = "GET")  => (fn = (; kwargs...) -> task_serialize("1"), content = "application/json"),
-            (path = "/plot", method = "POST") => (fn = plot, content = "text/plain")
-        )
-        if !isdir(webdir)
-            println("WARNING: web directory " * webdir * " not found")
-        else
-            for (rootpath, dirs, files) in walkdir(webdir; follow_symlinks = false)
-                for file in files
-                    fullpath = joinpath(rootpath, file)
-                    if file != "index.html"
-                        serve_file(apispec, "/web/" * relpath(fullpath, webdir), fullpath)
-                    end
-                end
+        for (old_tid, task) in __started_tasks
+            if occursin(r"_RERUN_[0-9]+$", old_tid)
+                println("Skipping rerun " * old_tid)
+                continue
+            end
+
+            query_dict = task.query
+            new_tid = __run_task(:TASK_VALIDATION, maximum_tasks, __validate,
+                (query_dict["iterations"], query_dict["subsample_size"]), query_dict; task_prefix = old_tid * "_RERUN_")
+            println("Re-running " * old_tid * " as " * new_tid)
+
+            task_data = task_serialize(new_tid)
+            while task_data[:state] == :RUNNING
+                progress = round(task_data[:steps_done] / task_data[:steps_total] * 100)
+                println(new_tid * ": " * string(task_data[:state]) * " (" * string(progress) * "%)")
+                sleep(1)
+
+                task_data = task_serialize(new_tid)
             end
         end
-
-        println("Starting napire result inspection service on http://" * string(host) * ":" * string(port))
-        HTTP.serve(r -> respond(apispec, r), host, port)
     end
-    export start_show
+    export start_rerun
 end

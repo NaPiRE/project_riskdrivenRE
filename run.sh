@@ -20,9 +20,9 @@
 
 set -e
 
-OPTIONS=snrp:
+OPTIONS=svnrp:
 
-shell=n nodep=n revise=n
+shell=n rerun=n nodep=n revise=n
 
 if [ -e /proc/cpuinfo ]; then
     procs=$(grep -c \^processor /proc/cpuinfo)
@@ -35,6 +35,9 @@ while getopts $OPTIONS varname; do
         s)
             shell=y
             ;;
+        v)
+            rerun=y
+            ;;
         n)
             nodep=y
             ;;
@@ -45,10 +48,14 @@ while getopts $OPTIONS varname; do
             procs="$OPTARG"
             ;;
         *)
-            echo "Usage: $0 [-s|-n|-r|-p]"
+            echo "Usage: $0 [-s|-v] [-n|-r|-p]"
             echo ""
-            echo "Flags:"
-            echo "  -s      Start a Julia REPL with an initialised environment."
+            echo "Modes (exclusive):"
+            echo "  (default)   Start web ui to manage tasks"
+            echo "  -s          Start a Julia REPL with an initialised environment."
+            echo "  -v          Re-run all tasks found in the results directory"
+            echo ""
+            echo "Additional flags: "
             echo "  -n      Skip checking, downloading and building the dependencies to save some time."
             echo "  -r      Load Julia's Revise module to simplify debugging."
             echo "  -p N    Override the number of parallel processes forked to speed up calculations (defaults to $procs for your CPU)"
@@ -56,6 +63,11 @@ while getopts $OPTIONS varname; do
             ;;
     esac
 done
+
+if [ "$shell" = "y" -a "$rerun" = "y" ]; then
+    echo "Choose between default, shell and rerun mode."
+    exit 2
+fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export JULIA_PROJECT="$DIR"
@@ -87,15 +99,12 @@ import napire
 tmp=$(mktemp)
 trap "{ rm -f '$tmp'; }" EXIT
 
-if [ $shell = "n" ]; then
-    if [ $nodep = "n" ]; then
-        deps="import Pkg; Pkg.instantiate();"
-        ( cd "$DIR/userweb" && npm install && npm run build-prod || echo "Failed compiling angular app" )
-    fi
-    echo "$deps $loadcode; import napire; napire.web.start(Dict(\"/web/\" => \"$DIR/web\", \"/userweb/\" => \"$DIR/userweb/build-prod\"), joinpath(\"$DIR\", \"results\"); maximum_tasks = $procs, revise = revise_enabled);" > "$tmp"
+if [ $nodep = "n" ]; then
+    deps="import Pkg; Pkg.instantiate();"
+fi
 
-    julia "$tmp"
-else
+if [ $shell = "y"  ]; then
+    echo "Starting shell..."
     echo "atreplinit() do repl
     @eval begin
         $loadcode
@@ -103,4 +112,20 @@ else
 end"> "$tmp"
 
     julia -L "$tmp"
+elif [ $rerun = "y" ]; then
+    echo "Starting rerun..."
+
+    echo "$deps $loadcode; import napire; napire.web.start_rerun(joinpath(\"$DIR\", \"results\"), $procs, revise_enabled);" > "$tmp"
+
+    julia "$tmp"
+else
+    echo "Starting web ui..."
+
+    if [ $nodep = "n" ]; then
+        ( cd "$DIR/userweb" && npm install && npm run build-prod || echo "Failed compiling angular app" )
+    fi
+
+    echo "$deps $loadcode; import napire; napire.web.start(joinpath(\"$DIR\", \"results\"), $procs, revise_enabled, Dict(\"/web/\" => \"$DIR/web\", \"/userweb/\" => \"$DIR/userweb/build-prod\"));" > "$tmp"
+
+    julia "$tmp"
 fi
