@@ -20,9 +20,9 @@
 
 set -e
 
-OPTIONS=svnrp:
+OPTIONS=sjvnrp:
 
-shell=n rerun=n nodep=n revise=n
+shell=n rerun=n nodep=n revise=n userweb=n
 
 if [ -e /proc/cpuinfo ]; then
     procs=$(grep -c \^processor /proc/cpuinfo)
@@ -41,6 +41,9 @@ while getopts $OPTIONS varname; do
         n)
             nodep=y
             ;;
+        j)
+            userweb=y
+            ;;
         r)
             revise=y
             ;;
@@ -57,6 +60,7 @@ while getopts $OPTIONS varname; do
             echo ""
             echo "Additional flags: "
             echo "  -n      Skip checking, downloading and building the dependencies to save some time."
+            echo "  -j      Compile userweb angular application"
             echo "  -r      Load Julia's Revise module to simplify debugging."
             echo "  -p N    Override the number of parallel processes forked to speed up calculations (defaults to $procs for your CPU)"
             exit 1
@@ -121,7 +125,7 @@ elif [ $rerun = "y" ]; then
 else
     echo "Starting web ui..."
 
-    if [ $nodep = "n" ]; then
+    if [ $userweb = "y" ]; then
         ( cd "$DIR/userweb" && npm install && npm run build-prod || echo "Failed compiling angular app" )
     fi
 
