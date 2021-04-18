@@ -429,7 +429,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
                 } else {
                     $("#no_tasks_indicator").html("");
                     for(let task of response) {
-                        let task_description = "<a href=\"javascript:graph_window = window.open('graph.html?id=" + task.id +"', '_blank', 'width=700,height=850'); void(0)\">" + task.type + "</a>" + ": ";
+                        let task_description = "<a href=\"javascript:graph_window = window.open('graph.html?id=" + task.id +"', '_blank', 'width=700,height=850'); void(0)\""
+                            + " style=\"font-family: monospace;\">" + task.id + "</a>" + ": ";
+
+                        task_description += task.type.substring(5) + ", ";
 
                         if(task.type == "TASK_VALIDATION") {
                             task_description += task.query.subsample_size + " subjects per subsample, " + task.query.iterations + " iterations, "

@@ -85,7 +85,7 @@ module web
         return t.result
     end
 
-    function task_serialize(t::NamedTuple, printresult = true, action = (t) -> nothing)
+    function __task_serialize(tid, t::NamedTuple, printresult = true, action = (t) -> nothing)
 
         state = task_state(t.task)
         result = printresult ? task_fetch(t.task) : nothing
@@ -100,6 +100,7 @@ module web
         action(t)
 
         task_data = Dict( k => v for (k, v) in zip(keys(t), t) if k != :task)
+        task_data[:id] = tid
         task_data[:steps_done]  = task_state(t.steps_done) == :DONE  ? sum(task_fetch(t.steps_done)) : 0
         task_data[:interruptor] = task_state(t.interruptor) == :DONE ? sum(task_fetch(t.interruptor)) : 0
         task_data[:elapsed_hours] = task_state(t.elapsed_hours) == :DONE ? sum(task_fetch(t.elapsed_hours)) : 0
@@ -109,17 +110,17 @@ module web
         return task_data
     end
 
-    function task_serialize(tid::Union{Nothing, Int64}, args...)
+    function task_serialize(tid, args...)
         if tid == nothing
-            return [ task_serialize(__started_tasks[tid], args...) for tid in sort(collect(keys(__started_tasks))) ]
+            return [ __task_serialize(tid, __started_tasks[tid], args...) for tid in sort(collect(keys(__started_tasks))) ]
         else
-            return task_serialize(__started_tasks[tid], args...)
+            return __task_serialize(tid, __started_tasks[tid], args...)
         end
     end
 
     function tasks(; id = nothing, printresult = "false")
         try
-            return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult))
+            return task_serialize(id, parse(Bool, printresult))
         catch e
             if isa(e, KeyError)
                 throw(WebApplicationException(404, "No such task"))
@@ -141,7 +142,7 @@ module web
             t = merge(t, ( :task => SerTask(:FAILED, "Interrupted"), ))
         end
 
-        return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult), cancel)
+        return task_serialize(id, parse(Bool, printresult), cancel)
     end
 
     function tasks_delete(; id = nothing, printresult = "false")
@@ -150,18 +151,18 @@ module web
                 return
             end
 
-            delete!(__started_tasks, t.id)
-            storage_file = joinpath(RESULT_DIRECTORY,  string(t.id) * ".ser")
+            delete!(__started_tasks, id)
+            storage_file = joinpath(RESULT_DIRECTORY,  id * ".ser")
             rm(storage_file)
         end
 
-        return task_serialize(id == nothing ? id : parse(Int64, id), parse(Bool, printresult), delete)
+        return task_serialize(id, parse(Bool, printresult), delete)
     end
 
     function __run_task(task_type, task_workers, fun,  progress_array_shape, query_dict)
         global __available_workers, __uncreated_workers
 
-        task_id = isempty(__started_tasks) ? 1 : maximum(keys(__started_tasks)) + 1
+        task_id = string(isempty(__started_tasks) ? 1 : maximum(keys(__started_tasks)) + 1)
         steps_total = prod(progress_array_shape)
 
         setup_task = @async begin
@@ -174,7 +175,7 @@ module web
                 println("Available workers: " * string(length(__available_workers)))
                 println("Uncreated: " * string(__uncreated_workers))
                 println("Required: " * string(task_workers))
-                println("Task " * string(task_id) * " waits for more free workers")
+                println("Task " * task_id * " waits for more free workers")
                 sleep(5)
             end
 
@@ -217,9 +218,9 @@ module web
         elapsed_hours_task = @async fetch(setup_task).elapsed_hours
 
         task = @async begin
-            println("Preparing task " * string(task_id))
+            println("Preparing task " * task_id)
             setup = fetch(setup_task)
-            println("Preparation finished for task " * string(task_id))
+            println("Preparation finished for task " * task_id)
 
             timeout = get(query_dict, "timeout", -1)
             start = time()
@@ -277,7 +278,7 @@ module web
 
             __started_tasks[task_id] = task_data
 
-            storage_file = joinpath(RESULT_DIRECTORY,  string(task_id) * ".ser")
+            storage_file = joinpath(RESULT_DIRECTORY,  task_id * ".ser")
             Serialization.serialize(storage_file, task_data)
         end
 
@@ -517,10 +518,9 @@ module web
         revise_enabled = revise
 
         mkpath(RESULT_DIRECTORY)
-        files = [ f for f in readdir(RESULT_DIRECTORY) if occursin(r"^[0-9]+\.ser$", f) ]
-        files = [ (parse(Int, f[1:end-4]), f) for f in files ]
-        files = [ (f[1], Serialization.deserialize(joinpath(RESULT_DIRECTORY, f[2]))) for f in files ]
-        __started_tasks = Dict{Int64, Any}(f[1] => f[2] for f in files)
+        result_files = [ f for f in readdir(RESULT_DIRECTORY) if occursin(r"^.+\.ser$", f) ]
+        result_files = [ (f[1:end-4], Serialization.deserialize(joinpath(RESULT_DIRECTORY, f))) for f in result_files ]
+        __started_tasks = Dict{String, Any}(f[1] => f[2] for f in result_files)
         __uncreated_workers = MAXIMUM_TASKS
 
         apispec = Dict{NamedTuple, NamedTuple}(
@@ -560,14 +560,14 @@ module web
 
     function start_show(webdir::String, resultfile::String; host::Union{Sockets.IPv4, Sockets.IPv6} = Sockets.localhost, port::Int = 8888)
         global __started_tasks
-        __started_tasks = Dict{Int64, Any}(1 => Serialization.deserialize(resultfile))
+        __started_tasks = Dict{String, Any}("1" => Serialization.deserialize(resultfile))
 
         apispec = Dict{NamedTuple, NamedTuple}(
             (path = "/", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web/graph.html") ]), content = nothing),
             (path = "/web", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web/graph.html") ]), content = nothing),
             (path = "/web/index.html", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web/graph.html") ]), content = nothing),
             (path = "/index.html", method = "GET") => (fn = (; ) -> HTTP.Response(302, [ ("Location", "/web/graph.html") ]), content = nothing),
-            (path = "/tasks", method = "GET")  => (fn = (; kwargs...) -> task_serialize(1), content = "application/json"),
+            (path = "/tasks", method = "GET")  => (fn = (; kwargs...) -> task_serialize("1"), content = "application/json"),
             (path = "/plot", method = "POST") => (fn = plot, content = "text/plain")
         )
         if !isdir(webdir)
